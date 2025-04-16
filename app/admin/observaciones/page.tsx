@@ -19,90 +19,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 
-// Datos de ejemplo para las observaciones
-const observationsData = [
-  {
-    id: 1,
-    facilityId: 1,
-    facilityName: "Cancha de Fútbol (Grass)",
-    facilityLocation: "Parque Juan Pablo II",
-    description: "Daños en la red de la portería norte",
-    status: "pendiente",
-    date: "05/04/2025",
-    createdAt: "05/04/2025",
-    photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "media",
-    coordinatorId: 1,
-    coordinatorName: "Carlos Rodríguez",
-  },
-  {
-    id: 2,
-    facilityId: 2,
-    facilityName: "Piscina Municipal",
-    facilityLocation: "Complejo Deportivo Municipal",
-    description: "Filtro de agua requiere mantenimiento",
-    status: "aprobada",
-    date: "02/04/2025",
-    createdAt: "02/04/2025",
-    photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "alta",
-    coordinatorId: 1,
-    coordinatorName: "Carlos Rodríguez",
-    approvedAt: "03/04/2025",
-    approvedBy: "Admin",
-  },
-  {
-    id: 3,
-    facilityId: 3,
-    facilityName: "Gimnasio Municipal",
-    facilityLocation: "Complejo Deportivo Municipal",
-    description: "Máquina de cardio #3 fuera de servicio",
-    status: "rechazada",
-    date: "01/04/2025",
-    createdAt: "01/04/2025",
-    photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "baja",
-    coordinatorId: 2,
-    coordinatorName: "María López",
-    feedback: "Ya se ha reportado anteriormente y está en proceso de reparación.",
-    rejectedAt: "02/04/2025",
-    rejectedBy: "Admin",
-  },
-  {
-    id: 4,
-    facilityId: 4,
-    facilityName: "Pista de Atletismo",
-    facilityLocation: "Complejo Deportivo Municipal",
-    description: "Marcas de carril borrosas en la curva sur",
-    status: "aprobada",
-    date: "30/03/2025",
-    createdAt: "30/03/2025",
-    photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "media",
-    coordinatorId: 2,
-    coordinatorName: "María López",
-    approvedAt: "31/03/2025",
-    approvedBy: "Admin",
-  },
-  {
-    id: 5,
-    facilityId: 2,
-    facilityName: "Piscina Municipal",
-    facilityLocation: "Complejo Deportivo Municipal",
-    description: "Azulejos rotos en el borde sur de la piscina",
-    status: "completada",
-    date: "20/03/2025",
-    createdAt: "20/03/2025",
-    completedAt: "25/03/2025",
-    photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "alta",
-    coordinatorId: 1,
-    coordinatorName: "Carlos Rodríguez",
-    approvedAt: "21/03/2025",
-    approvedBy: "Admin",
-  },
-]
-
 export default function ObservacionesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("todas")
@@ -112,6 +28,90 @@ export default function ObservacionesPage() {
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false)
   const [actionType, setActionType] = useState("")
   const [feedback, setFeedback] = useState("")
+  const [observationsData, setObservationsData] = useState([
+    {
+      id: 1,
+      facilityId: 1,
+      facilityName: "Cancha de Fútbol (Grass)",
+      facilityLocation: "Parque Juan Pablo II",
+      description: "Daños en la red de la portería norte",
+      status: "pendiente",
+      date: "05/04/2025",
+      createdAt: "05/04/2025",
+      photos: ["/placeholder.svg?height=100&width=100"],
+      priority: "media",
+      coordinatorId: 1,
+      coordinatorName: "Carlos Rodríguez",
+    },
+    {
+      id: 2,
+      facilityId: 2,
+      facilityName: "Piscina Municipal",
+      facilityLocation: "Complejo Deportivo Municipal",
+      description: "Filtro de agua requiere mantenimiento",
+      status: "aprobada",
+      date: "02/04/2025",
+      createdAt: "02/04/2025",
+      photos: ["/placeholder.svg?height=100&width=100"],
+      priority: "alta",
+      coordinatorId: 1,
+      coordinatorName: "Carlos Rodríguez",
+      approvedAt: "03/04/2025",
+      approvedBy: "Admin",
+    },
+    {
+      id: 3,
+      facilityId: 3,
+      facilityName: "Gimnasio Municipal",
+      facilityLocation: "Complejo Deportivo Municipal",
+      description: "Máquina de cardio #3 fuera de servicio",
+      status: "rechazada",
+      date: "01/04/2025",
+      createdAt: "01/04/2025",
+      photos: ["/placeholder.svg?height=100&width=100"],
+      priority: "baja",
+      coordinatorId: 2,
+      coordinatorName: "María López",
+      feedback: "Ya se ha reportado anteriormente y está en proceso de reparación.",
+      rejectedAt: "02/04/2025",
+      rejectedBy: "Admin",
+    },
+    {
+      id: 4,
+      facilityId: 4,
+      facilityName: "Pista de Atletismo",
+      facilityLocation: "Complejo Deportivo Municipal",
+      description: "Marcas de carril borrosas en la curva sur",
+      status: "aprobada",
+      date: "30/03/2025",
+      createdAt: "30/03/2025",
+      photos: ["/placeholder.svg?height=100&width=100"],
+      priority: "media",
+      coordinatorId: 2,
+      coordinatorName: "María López",
+      approvedAt: "31/03/2025",
+      approvedBy: "Admin",
+    },
+    {
+      id: 5,
+      facilityId: 2,
+      facilityName: "Piscina Municipal",
+      facilityLocation: "Complejo Deportivo Municipal",
+      description: "Azulejos rotos en el borde sur de la piscina",
+      status: "completada",
+      date: "20/03/2025",
+      createdAt: "20/03/2025",
+      completedAt: "25/03/2025",
+      photos: ["/placeholder.svg?height=100&width=100"],
+      priority: "alta",
+      coordinatorId: 1,
+      coordinatorName: "Carlos Rodríguez",
+      approvedAt: "21/03/2025",
+      approvedBy: "Admin",
+    },
+  ])
+
+
 
   const filteredObservations = observationsData.filter((observation) => {
     // Filtro de búsqueda
@@ -142,9 +142,45 @@ export default function ObservacionesPage() {
   }
 
   const handleActionConfirm = () => {
-    // Aquí iría la lógica para aprobar o rechazar la observación
-    console.log(`${actionType} observación:`, selectedObservation.id, feedback)
+    // Actualizar el estado de la observación y la instalación
+    const updatedObservations = observationsData.map(obs => {
+      if (obs.id === selectedObservation.id) {
+        const currentDate = new Date().toLocaleDateString()
+        if (actionType === 'aprobar') {
+          return {
+            ...obs,
+            status: 'aprobada',
+            approvedAt: currentDate,
+            approvedBy: 'Admin'
+          }
+        } else if (actionType === 'rechazar') {
+          return {
+            ...obs,
+            status: 'rechazada',
+            rejectedAt: currentDate,
+            rejectedBy: 'Admin',
+            feedback
+          }
+        }
+      }
+      return obs
+    })
+
+    // Actualizar el estado local
+    setObservationsData(updatedObservations)
+
+    // Aquí se haría la llamada a la API para actualizar la base de datos
+    console.log('Observación actualizada:', {
+      id: selectedObservation.id,
+      status: actionType === 'aprobar' ? 'aprobada' : 'rechazada',
+      date: new Date().toLocaleDateString(),
+      feedback: actionType === 'rechazar' ? feedback : null
+    })
+
+    // Cerrar el diálogo y limpiar el estado
     setIsActionDialogOpen(false)
+    setFeedback('')
+    setSelectedObservation(null)
   }
 
   const getStatusBadge = (status) => {

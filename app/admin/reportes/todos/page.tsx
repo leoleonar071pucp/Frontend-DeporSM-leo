@@ -22,6 +22,7 @@ const reportsData = [
     createdAt: "2025-04-30",
     createdBy: "Admin",
     size: "1.2 MB",
+    description: "Información detallada de reservas: usuarios, horarios, pagos"
   },
   {
     id: 2,
@@ -32,6 +33,7 @@ const reportsData = [
     createdAt: "2025-04-01",
     createdBy: "Admin",
     size: "850 KB",
+    description: "Resumen de ingresos por reservas y servicios"
   },
   {
     id: 3,
@@ -42,6 +44,7 @@ const reportsData = [
     createdAt: "2025-04-01",
     createdBy: "Admin",
     size: "1.5 MB",
+    description: "Métricas de utilización: frecuencia, horarios populares, capacidad"
   },
   {
     id: 4,
@@ -52,46 +55,40 @@ const reportsData = [
     createdAt: "2025-03-01",
     createdBy: "Admin",
     size: "950 KB",
+    description: "Registro de mantenimientos realizados y programados"
   },
   {
     id: 5,
-    name: "Reporte de Reservas por Instalación",
+    name: "Reporte de Reservas",
     type: "reservas",
     format: "excel",
     dateRange: "01/01/2025 - 31/03/2025",
     createdAt: "2025-04-02",
     createdBy: "Admin",
     size: "1.8 MB",
+    description: "Detalle de reservas segmentado por instalación"
   },
   {
     id: 6,
-    name: "Reporte de Ingresos Anual",
+    name: "Reporte de Ingresos",
     type: "ingresos",
     format: "pdf",
     dateRange: "01/01/2024 - 31/12/2024",
     createdAt: "2025-01-05",
     createdBy: "Admin",
     size: "2.1 MB",
-  },
-  {
-    id: 7,
-    name: "Reporte de Usuarios",
-    type: "usuarios",
-    format: "excel",
-    dateRange: "01/01/2025 - 31/03/2025",
-    createdAt: "2025-04-03",
-    createdBy: "Admin",
-    size: "1.3 MB",
+    description: "Resumen anual de ingresos y análisis financiero"
   },
   {
     id: 8,
-    name: "Reporte de Mantenimiento Anual",
+    name: "Reporte de Mantenimiento",
     type: "mantenimiento",
     format: "pdf",
     dateRange: "01/01/2024 - 31/12/2024",
     createdAt: "2025-01-10",
     createdBy: "Admin",
     size: "1.7 MB",
+    description: "Historial anual de mantenimientos y costos"
   },
 ]
 
@@ -136,8 +133,6 @@ export default function TodosLosReportes() {
       setReports(reportsData.filter((r) => r.type === "instalaciones"))
     } else if (value === "mantenimiento") {
       setReports(reportsData.filter((r) => r.type === "mantenimiento"))
-    } else if (value === "usuarios") {
-      setReports(reportsData.filter((r) => r.type === "usuarios"))
     }
   }
 
@@ -162,8 +157,6 @@ export default function TodosLosReportes() {
         return <Badge className="bg-purple-100 text-purple-800">Instalaciones</Badge>
       case "mantenimiento":
         return <Badge className="bg-yellow-100 text-yellow-800">Mantenimiento</Badge>
-      case "usuarios":
-        return <Badge className="bg-indigo-100 text-indigo-800">Usuarios</Badge>
       default:
         return null
     }
@@ -219,13 +212,12 @@ export default function TodosLosReportes() {
 
       {/* Pestañas */}
       <Tabs defaultValue="todos" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="todos">Todos</TabsTrigger>
           <TabsTrigger value="reservas">Reservas</TabsTrigger>
           <TabsTrigger value="ingresos">Ingresos</TabsTrigger>
           <TabsTrigger value="instalaciones">Instalaciones</TabsTrigger>
           <TabsTrigger value="mantenimiento">Mantenimiento</TabsTrigger>
-          <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">

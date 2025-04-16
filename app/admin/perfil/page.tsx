@@ -196,7 +196,7 @@ export default function PerfilAdmin() {
                           name="nombre"
                           value={profileData.nombre}
                           onChange={handleInputChange}
-                          disabled={!isEditing}
+                          disabled={true}
                           className={errors.nombre ? "border-red-500" : ""}
                         />
                         {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
@@ -211,7 +211,7 @@ export default function PerfilAdmin() {
                           name="apellidos"
                           value={profileData.apellidos}
                           onChange={handleInputChange}
-                          disabled={!isEditing}
+                          disabled={true}
                           className={errors.apellidos ? "border-red-500" : ""}
                         />
                         {errors.apellidos && <p className="text-red-500 text-sm">{errors.apellidos}</p>}
@@ -227,7 +227,7 @@ export default function PerfilAdmin() {
                           type="email"
                           value={profileData.email}
                           onChange={handleInputChange}
-                          disabled={!isEditing}
+                          disabled={true}
                           className={errors.email ? "border-red-500" : ""}
                         />
                         {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}

@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const pathname = usePathname()
   const { isAuthenticated, user, logout, isLoading } = useAuth() // Get auth state
   const { notifications, unreadCount: contextUnreadCount } = useNotification() // Get notification state
@@ -172,7 +173,7 @@ export function Navbar() {
                     <Loader2 className="h-5 w-5 animate-spin" />
                  </Button>
               ) : isAuthenticated && user ? (
-                <DropdownMenu>
+                <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative rounded-full ml-2 hover:bg-primary-light">
                       <Avatar>
@@ -189,17 +190,17 @@ export function Navbar() {
                     <DropdownMenuLabel>{user?.nombre || "Mi Cuenta"}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild className="cursor-pointer">
-                      <Link href="/perfil" className="w-full flex items-center">
+                      <Link href="/perfil" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
                         <User className="mr-2 h-4 w-4" /> Perfil
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer">
-                       <Link href="/notificaciones" className="w-full flex items-center">
+                       <Link href="/notificaciones" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
                          <Bell className="mr-2 h-4 w-4" /> Notificaciones
                        </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={logout} className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50 flex items-center">
+                    <DropdownMenuItem onSelect={() => { logout(); setIsProfileMenuOpen(false); }} className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50 flex items-center">
                        <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
                     </DropdownMenuItem>
                   </DropdownMenuContent>

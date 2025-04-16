@@ -69,6 +69,7 @@ export default function AdminLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const pathname = usePathname()
   const router = useRouter()
@@ -291,7 +292,7 @@ export default function AdminLayout({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <DropdownMenu>
+                <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative rounded-full">
                       <Avatar>
@@ -305,22 +306,19 @@ export default function AdminLayout({
                     {/* Usar datos del contexto */}
                     <DropdownMenuLabel>{user?.nombre || "Administrador"}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Link href="/admin/perfil" className="w-full">
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/admin/perfil" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
                         Perfil
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link href="/admin/configuracion" className="w-full">
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/admin/configuracion" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
                         Configuración
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      {/* Usar la función logout del contexto */}
-                      <button onClick={logout} className="w-full text-left px-2 py-1.5 text-sm outline-none relative flex cursor-default select-none items-center rounded-sm transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
-                        Cerrar Sesión
-                      </button>
+                    <DropdownMenuItem onSelect={() => { logout(); setIsProfileMenuOpen(false); }} className="cursor-pointer">
+                      Cerrar Sesión
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

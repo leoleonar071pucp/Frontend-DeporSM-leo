@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 
 // Datos de ejemplo para los coordinadores
 const coordinatorsData = [
@@ -48,9 +49,27 @@ const coordinatorsData = [
     name: "Juan Pérez",
     email: "juan.perez@example.com",
     phone: "987-654-323",
-    assignedFacilities: [{ id: 5, name: "Cancha de Tenis" }],
+    assignedFacilities: [],
     status: "inactivo",
     lastLogin: "01/04/2025, 10:45",
+  },
+  {
+    id: 4,
+    name: "Ana Martínez",
+    email: "ana.martinez@example.com",
+    phone: "987-654-324",
+    assignedFacilities: [],
+    status: "activo",
+    lastLogin: "06/04/2025, 11:30",
+  },
+  {
+    id: 5,
+    name: "Pedro Sánchez",
+    email: "pedro.sanchez@example.com",
+    phone: "987-654-325",
+    assignedFacilities: [],
+    status: "activo",
+    lastLogin: "06/04/2025, 12:45",
   },
 ]
 
@@ -58,21 +77,38 @@ export default function CoordinadoresPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedCoordinator, setSelectedCoordinator] = useState(null)
+  const [coordinators, setCoordinators] = useState(coordinatorsData)
+  const { toast } = useToast()
 
-  const filteredCoordinators = coordinatorsData.filter(
+  const filteredCoordinators = coordinators.filter(
     (coordinator) =>
       coordinator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       coordinator.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleDeleteClick = (coordinator) => {
+  const handleDeactivateClick = (coordinator) => {
     setSelectedCoordinator(coordinator)
     setIsDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = () => {
-    // Aquí iría la lógica para eliminar el coordinador
-    console.log("Eliminando coordinador:", selectedCoordinator.id)
+  const handleDeactivateConfirm = () => {
+    // Cambiar el estado del coordinador a inactivo
+    setCoordinators(prev => prev.map(c => {
+      if (c.id === selectedCoordinator.id) {
+        return {
+          ...c,
+          status: "inactivo",
+          assignedFacilities: [] // Eliminar las instalaciones asignadas
+        }
+      }
+      return c
+    }))
+    
+    toast({
+      title: "Coordinador desactivado",
+      description: `El coordinador ${selectedCoordinator.name} ha sido desactivado exitosamente.`,
+    })
+    
     setIsDeleteDialogOpen(false)
   }
 
@@ -83,7 +119,7 @@ export default function CoordinadoresPage() {
         <Button className="bg-primary hover:bg-primary-light" asChild>
           <Link href="/admin/coordinadores/nuevo">
             <Plus className="h-4 w-4 mr-2" />
-            Agregar Coordinador
+            Asignar Coordinador
           </Link>
         </Button>
       </div>
@@ -147,21 +183,27 @@ export default function CoordinadoresPage() {
                       <TableCell>{coordinator.lastLogin}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="icon" asChild>
-                            <Link href={`/admin/coordinadores/${coordinator.id}`}>
-                              <Edit className="h-4 w-4" />
-                              <span className="sr-only">Editar</span>
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-red-500"
-                            onClick={() => handleDeleteClick(coordinator)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar</span>
-                          </Button>
+                          {coordinator.status === "activo" && (
+                            <>
+                              {coordinator.assignedFacilities.length > 0 && (
+                                <Button variant="outline" size="icon" asChild>
+                                  <Link href={`/admin/coordinadores/${coordinator.id}`}>
+                                    <Edit className="h-4 w-4" />
+                                    <span className="sr-only">Editar</span>
+                                  </Link>
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="text-red-500"
+                                onClick={() => handleDeactivateClick(coordinator)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Desactivar</span>
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -182,18 +224,18 @@ export default function CoordinadoresPage() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogTitle>Confirmar desactivación</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas eliminar al coordinador{" "}
-              <span className="font-medium">{selectedCoordinator?.name}</span>? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas desactivar al coordinador{" "}
+              <span className="font-medium">{selectedCoordinator?.name}</span>? Al desactivarlo, se eliminarán todas sus instalaciones asignadas.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Eliminar
+            <Button variant="destructive" onClick={handleDeactivateConfirm}>
+              Desactivar
             </Button>
           </DialogFooter>
         </DialogContent>

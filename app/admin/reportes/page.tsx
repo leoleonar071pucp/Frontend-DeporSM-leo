@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { FileText, Download, FileSpreadsheet, FileIcon as FilePdf } from "lucide-react"
+import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
@@ -33,15 +34,20 @@ export default function ReportesAdmin() {
 
   // Datos de ejemplo para los reportes
   const reportTypes = [
-    { id: "reservas", name: "Reservas", description: "Reporte de todas las reservas realizadas" },
-    { id: "ingresos", name: "Ingresos", description: "Reporte de ingresos por reservas" },
-    { id: "instalaciones", name: "Uso de instalaciones", description: "Reporte de uso de instalaciones" },
-    { id: "mantenimiento", name: "Mantenimiento", description: "Reporte de mantenimientos realizados" },
+    { id: "reservas", name: "Reservas", description: "Información detallada de reservas: usuarios, horarios, estados de pago" },
+    { id: "ingresos", name: "Ingresos", description: "Resumen de ingresos por reservas y servicios" },
+    { id: "instalaciones", name: "Uso de instalaciones", description: "Métricas de utilización: frecuencia, horarios más solicitados, capacidad" },
+    { id: "mantenimiento", name: "Mantenimiento", description: "Registro de mantenimientos realizados y programados" },
   ]
 
   useEffect(() => {
     // Simulación de carga de datos
     const loadData = async () => {
+      const today = new Date()
+      let start = new Date(today)
+      start.setMonth(today.getMonth() - 1)
+      setStartDate(start)
+      setEndDate(today)
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setIsLoading(false)
     }
@@ -83,20 +89,44 @@ export default function ReportesAdmin() {
   const handleGenerateReport = () => {
     setIsGenerating(true)
 
-    // Simulación de generación de reporte
+    // Generar el nombre del archivo
+    const fileName = `reporte_${reportType}_${format(startDate, "yyyy-MM-dd")}_${format(endDate, "yyyy-MM-dd")}`
+    
+    // Crear contenido de ejemplo según el tipo de reporte
+    let content = ''
+    if (fileFormat === 'excel') {
+      // Contenido CSV para Excel
+      content = 'Fecha,Tipo,Instalación,Detalle\n'
+      content += `${format(new Date(), 'dd/MM/yyyy')},${reportType},${facility},Reporte generado\n`
+    } else {
+      // Contenido texto plano para PDF
+      content = `Reporte de ${reportType}\n`
+      content += `Fecha: ${format(new Date(), 'dd/MM/yyyy')}\n`
+      content += `Instalación: ${facility}\n`
+      content += `Período: ${format(startDate, 'dd/MM/yyyy')} - ${format(endDate, 'dd/MM/yyyy')}\n`
+    }
+
+    // Crear el blob según el formato
+    const blob = new Blob(
+      [content],
+      { type: fileFormat === 'excel' ? 'text/csv;charset=utf-8;' : 'application/pdf' }
+    )
+
+    // Crear URL del blob
+    const url = window.URL.createObjectURL(blob)
+
+    // Crear enlace de descarga
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `${fileName}.${fileFormat === 'excel' ? 'csv' : 'pdf'}`)
+    document.body.appendChild(link)
+
+    // Simular tiempo de generación
     setTimeout(() => {
       setIsGenerating(false)
-
-      // En un caso real, aquí se haría la llamada a la API para generar el reporte
-      // y se descargaría el archivo
-
-      // Simulación de descarga
-      const link = document.createElement("a")
-      link.href = "#"
-      link.download = `reporte_${reportType}_${format(startDate, "yyyy-MM-dd")}_${format(endDate, "yyyy-MM-dd")}.${fileFormat === "excel" ? "xlsx" : "pdf"}`
-      document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
     }, 2000)
   }
 
@@ -343,8 +373,10 @@ export default function ReportesAdmin() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" className="w-full">
-                Ver todos los reportes
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/admin/reportes/todos">
+                  Ver todos los reportes
+                </Link>
               </Button>
             </CardFooter>
           </Card>
