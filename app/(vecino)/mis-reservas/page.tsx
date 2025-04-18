@@ -154,7 +154,7 @@ export default function MisReservas() {
       addNotification({
           title: "Reserva Cancelada",
           message: `Tu reserva para ${reservationDetails.facilityName} (${reservationDetails.time} el ${reservationDetails.date}) ha sido cancelada.`,
-          type: "success", // O 'info' si se prefiere
+          type: "reserva",
       });
       // Aquí podrías mostrar un toast de éxito
 

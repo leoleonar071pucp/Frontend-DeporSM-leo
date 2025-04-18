@@ -279,7 +279,7 @@ export default function ConfirmarReserva() {
               addNotification({
                   title: status === 'success' ? "Reserva Confirmada" : "Reserva Pendiente",
                   message: `Tu reserva para ${facility.name} (${timeParam} el ${format(date, "d/MM/yy")}) está ${status === 'success' ? 'confirmada' : 'pendiente de pago'}.`,
-                  type: status === 'success' ? 'success' : 'info',
+                  type: "reserva",
               });
           }
           // Generar un número de reserva simulado

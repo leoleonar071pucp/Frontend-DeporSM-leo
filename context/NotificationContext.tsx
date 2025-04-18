@@ -10,7 +10,7 @@ interface Notification {
     message: string;
     date: string;
     read: boolean;
-    type: "success" | "info" | "warning" | "reserva" | "mantenimiento" | "pago" | "reporte";
+    type: "success" | "info" | "warning" | "reserva" | "mantenimiento" | "pago" | "reporte"; // Actualizar tipos
 }
 
 type NewNotificationData = Omit<Notification, 'id' | 'read' | 'date'>;
@@ -31,8 +31,8 @@ interface NotificationProviderProps {
 
 // Datos de ejemplo específicos para cada rol
 const vecinoNotifications: Notification[] = [
-  { id: 1, title: "Reserva confirmada", message: "Tu reserva para Cancha de Fútbol (Grass) ha sido confirmada.", date: "Hoy, 14:30", read: false, type: "success" },
-  { id: 2, title: "Recordatorio", message: "Tu reserva para Piscina Municipal es mañana a las 10:00.", date: "Hoy, 11:15", read: false, type: "info" },
+  { id: 1, title: "Reserva confirmada", message: "Tu reserva para Cancha de Fútbol (Grass) ha sido confirmada.", date: "Hoy, 14:30", read: false, type: "reserva" },
+  { id: 2, title: "Recordatorio", message: "Tu reserva para Piscina Municipal es mañana a las 10:00.", date: "Hoy, 11:15", read: false, type: "reserva" },
   { id: 3, title: "Mantenimiento programado", message: "El Gimnasio Municipal estará cerrado por mantenimiento el próximo lunes.", date: "Ayer, 16:45", read: true, type: "warning" },
   { id: 4, title: "Reserva cancelada", message: "Tu reserva para Pista de Atletismo ha sido cancelada exitosamente.", date: "12/04/2025", read: true, type: "success" },
 ];

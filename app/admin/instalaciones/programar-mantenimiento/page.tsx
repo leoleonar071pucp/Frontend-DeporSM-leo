@@ -9,6 +9,7 @@ import { ArrowLeft, Calendar, Save, Loader2, CheckCircle, AlertCircle } from "lu
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { useNotification } from "@/context/NotificationContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
@@ -19,8 +20,35 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+interface Facility {
+  id: number
+  name: string
+  type: string
+  location: string
+  status: string
+  maintenanceStatus: string
+  lastMaintenance: string
+  nextMaintenance: string | null
+}
+
+interface FormData {
+  facilityId: string
+  maintenanceType: string
+  description: string
+  startDate: Date | null
+  startTime: string
+  endDate: Date | null
+  endTime: string
+  affectsAvailability: boolean
+}
+
+// Convertir Date | null a Date | undefined para el Calendar component
+const dateToCalendarValue = (date: Date | null): Date | undefined => {
+  return date || undefined;
+}
+
 // Datos de ejemplo para las instalaciones
-const facilitiesDB = [
+const facilitiesDB: Facility[] = [
   {
     id: 1,
     name: "Piscina Municipal",
@@ -75,13 +103,14 @@ const facilitiesDB = [
 
 export default function ProgramarMantenimientoPage() {
   const { toast } = useToast()
+  const { addNotification } = useNotification()
   const router = useRouter()
 
   const [isLoading, setIsLoading] = useState(true)
-  const [availableFacilities, setAvailableFacilities] = useState([])
+  const [availableFacilities, setAvailableFacilities] = useState<Facility[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     facilityId: "",
     maintenanceType: "preventivo",
     description: "",
@@ -118,21 +147,26 @@ export default function ProgramarMantenimientoPage() {
     validateDates(formData, false)
   }, [formData.startDate, formData.startTime, formData.endDate, formData.endTime])
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSelectChange = (name, value) => {
+  const handleSelectChange = (name: keyof FormData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleDateChange = (name, value) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
+  // Modificar los handlers para manejar Date | undefined
+  const handleDateChange = (name: "startDate" | "endDate", value: Date | undefined) => {
+    setFormData((prev) => ({ ...prev, [name]: value || null }))
   }
 
   // Función para validar fechas y horas
-  const validateDates = (data, showToast = true) => {
+  const validateDates = (data: FormData, showToast = true) => {
+    if (!data.startDate || !data.endDate || !data.startTime || !data.endTime) {
+      return false
+    }
+
     const startDateTime = new Date(data.startDate)
     const [startHours, startMinutes] = data.startTime.split(":").map(Number)
     startDateTime.setHours(startHours)
@@ -164,7 +198,7 @@ export default function ProgramarMantenimientoPage() {
     return true
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     // Validación básica
@@ -195,19 +229,26 @@ export default function ProgramarMantenimientoPage() {
 
     // Simulación de guardado
     setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
+      // En un caso real, aquí se haría la llamada a la API
+      console.log("Guardando mantenimiento:", formData)
 
-      // Mostrar mensaje de éxito
+      const selectedFacility = availableFacilities.find(f => f.id.toString() === formData.facilityId)
+      if (!selectedFacility) return
+
       toast({
         title: "Mantenimiento programado",
-        description: "El mantenimiento ha sido programado correctamente.",
+        description: `Se ha programado el mantenimiento ${formData.maintenanceType} para ${selectedFacility.name} correctamente.`,
       })
 
-      // Redireccionar después de 2 segundos
-      setTimeout(() => {
-        router.push("/admin/instalaciones/mantenimiento")
-      }, 2000)
+      // Agregar notificación al contexto
+      addNotification({
+        title: "Mantenimiento programado",
+        message: `Se ha programado un mantenimiento ${formData.maintenanceType} para ${selectedFacility.name}.`,
+        type: "mantenimiento"
+      })
+
+      setIsSaving(false)
+      router.push("/admin/instalaciones/mantenimiento")
     }, 1500)
   }
 
@@ -353,7 +394,7 @@ export default function ProgramarMantenimientoPage() {
                     <PopoverContent className="w-auto p-0">
                       <CalendarComponent
                         mode="single"
-                        selected={formData.startDate}
+                        selected={dateToCalendarValue(formData.startDate)}
                         onSelect={(date) => handleDateChange("startDate", date)}
                         initialFocus
                       />
@@ -401,7 +442,7 @@ export default function ProgramarMantenimientoPage() {
                     <PopoverContent className="w-auto p-0">
                       <CalendarComponent
                         mode="single"
-                        selected={formData.endDate}
+                        selected={dateToCalendarValue(formData.endDate)}
                         onSelect={(date) => handleDateChange("endDate", date)}
                         initialFocus
                       />

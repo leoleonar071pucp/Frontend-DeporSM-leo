@@ -189,7 +189,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
       addNotification({
           title: "Reserva Cancelada",
           message: `Tu reserva para ${reservation.facilityName} (${reservation.time} el ${reservation.date}) ha sido cancelada.`,
-          type: "success", // O 'info' si se prefiere
+          type: "reserva",
       });
       // Aquí podrías mostrar un toast de éxito
     }, 1500);

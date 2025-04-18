@@ -18,17 +18,40 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
+import { useNotification } from "@/context/NotificationContext"
+
+interface Observation {
+  id: number
+  facilityId: number
+  facilityName: string
+  facilityLocation: string
+  description: string
+  status: 'pendiente' | 'aprobada' | 'rechazada' | 'completada'
+  date: string
+  createdAt: string
+  photos: string[]
+  priority: 'alta' | 'media' | 'baja'
+  coordinatorId: number
+  coordinatorName: string
+  approvedAt?: string
+  approvedBy?: string
+  rejectedAt?: string
+  rejectedBy?: string
+  feedback?: string
+  completedAt?: string
+}
 
 export default function ObservacionesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("todas")
   const [priorityFilter, setPriorityFilter] = useState("todas")
-  const [selectedObservation, setSelectedObservation] = useState(null)
+  const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false)
-  const [actionType, setActionType] = useState("")
+  const [actionType, setActionType] = useState<"aprobar" | "rechazar">()
   const [feedback, setFeedback] = useState("")
-  const [observationsData, setObservationsData] = useState([
+  const [observationsData, setObservationsData] = useState<Observation[]>([
     {
       id: 1,
       facilityId: 1,
@@ -111,7 +134,8 @@ export default function ObservacionesPage() {
     },
   ])
 
-
+  const { addNotification } = useNotification()
+  const { toast } = useToast()
 
   const filteredObservations = observationsData.filter((observation) => {
     // Filtro de búsqueda
@@ -129,12 +153,12 @@ export default function ObservacionesPage() {
     return searchMatch && statusMatch && priorityMatch
   })
 
-  const handleViewDetail = (observation) => {
+  const handleViewDetail = (observation: Observation) => {
     setSelectedObservation(observation)
     setIsDetailDialogOpen(true)
   }
 
-  const handleAction = (observation, action) => {
+  const handleAction = (observation: Observation, action: "aprobar" | "rechazar") => {
     setSelectedObservation(observation)
     setActionType(action)
     setFeedback("")
@@ -142,21 +166,22 @@ export default function ObservacionesPage() {
   }
 
   const handleActionConfirm = () => {
-    // Actualizar el estado de la observación y la instalación
+    if (!selectedObservation || !actionType) return;
+
     const updatedObservations = observationsData.map(obs => {
       if (obs.id === selectedObservation.id) {
         const currentDate = new Date().toLocaleDateString()
         if (actionType === 'aprobar') {
           return {
             ...obs,
-            status: 'aprobada',
+            status: 'aprobada' as const,
             approvedAt: currentDate,
             approvedBy: 'Admin'
           }
-        } else if (actionType === 'rechazar') {
+        } else {
           return {
             ...obs,
-            status: 'rechazada',
+            status: 'rechazada' as const,
             rejectedAt: currentDate,
             rejectedBy: 'Admin',
             feedback
@@ -166,24 +191,25 @@ export default function ObservacionesPage() {
       return obs
     })
 
-    // Actualizar el estado local
     setObservationsData(updatedObservations)
 
-    // Aquí se haría la llamada a la API para actualizar la base de datos
-    console.log('Observación actualizada:', {
-      id: selectedObservation.id,
-      status: actionType === 'aprobar' ? 'aprobada' : 'rechazada',
-      date: new Date().toLocaleDateString(),
-      feedback: actionType === 'rechazar' ? feedback : null
+    toast({
+      title: actionType === 'aprobar' ? "Observación aprobada" : "Observación rechazada",
+      description: `La observación sobre ${selectedObservation.facilityName} ha sido ${actionType === 'aprobar' ? 'aprobada' : 'rechazada'}.`,
     })
 
-    // Cerrar el diálogo y limpiar el estado
+    addNotification({
+      title: actionType === 'aprobar' ? "Observación aprobada" : "Observación rechazada",
+      message: `Se ha ${actionType === 'aprobar' ? 'aprobado' : 'rechazado'} la observación sobre ${selectedObservation.facilityName}.`,
+      type: "mantenimiento"
+    })
+
     setIsActionDialogOpen(false)
     setFeedback('')
     setSelectedObservation(null)
   }
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: Observation['status']) => {
     switch (status) {
       case "pendiente":
         return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
@@ -198,7 +224,7 @@ export default function ObservacionesPage() {
     }
   }
 
-  const getPriorityBadge = (priority) => {
+  const getPriorityBadge = (priority: Observation['priority']) => {
     switch (priority) {
       case "alta":
         return <Badge className="bg-red-100 text-red-800">Alta</Badge>

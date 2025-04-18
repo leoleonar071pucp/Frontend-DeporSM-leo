@@ -11,8 +11,10 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ReportesAdmin() {
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [reportType, setReportType] = useState("reservas")
   const [dateRange, setDateRange] = useState<"day" | "week" | "month" | "year" | "custom">("month")
@@ -127,6 +129,13 @@ export default function ReportesAdmin() {
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+      
+      // Mostrar notificación de éxito con más detalles
+      toast({
+        title: "Reporte generado exitosamente",
+        description: `El reporte "${fileName}.${fileFormat === 'excel' ? 'csv' : 'pdf'}" ha sido generado y descargado.`,
+        variant: "default",
+      })
     }, 2000)
   }
 
