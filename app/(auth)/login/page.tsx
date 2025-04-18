@@ -44,6 +44,19 @@ export default function Login() {
         };
         login(simulatedUser);
         router.push("/admin"); // Redirigir al dashboard de admin
+      } else if (email === "coordinador@example.com" && password === "password") {
+        console.log("Inicio de sesión simulado exitoso (COORDINADOR)")
+        const simulatedUser = {
+          id: "coord-001",
+          nombre: "Coordinador Principal",
+          email: email,
+          dni: "00000002",
+          telefono: "922333444",
+          direccion: "Oficina de Coordinación",
+          role: 'coordinador' as const
+        };
+        login(simulatedUser);
+        router.push("/coordinador");
       } else if (email === "test@example.com" && password === "password") { // Mantener usuario vecino de prueba
         console.log("Inicio de sesión simulado exitoso")
         // Crear datos de usuario simulados (añadir DNI y teléfono)

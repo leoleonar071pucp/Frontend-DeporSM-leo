@@ -16,6 +16,7 @@ import {
   Bell,
   ChevronDown,
   Calendar,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -30,6 +31,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeProvider } from "@/components/theme-provider"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
 
 // Datos de ejemplo para las notificaciones
 const notifications = [
@@ -61,21 +64,41 @@ export default function CoordinadorLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // 1. useState declarations
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
+
+  // 2. useContext hooks
   const pathname = usePathname()
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth()
+  const router = useRouter()
 
-  // Cerrar sidebar automáticamente en pantallas pequeñas
-  const toggleSidebar = () => {
-    // Solo permitir cerrar el sidebar en pantallas pequeñas
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(!isSidebarOpen)
+  // 3. useEffect hooks - All useEffect declarations together
+  useEffect(() => {
+    if (!isAuthLoading) {
+      if (!isAuthenticated) {
+        router.push('/login?redirect=/coordinador');
+      } else if (user?.role !== 'coordinador') {
+        console.warn("Acceso denegado: Usuario no es coordinador.");
+        switch (user?.role) {
+          case 'admin':
+            router.push('/admin');
+            break;
+          case 'vecino':
+            router.push('/');
+            break;
+          case 'superadmin':
+            router.push('/superadmin');
+            break;
+          default:
+            router.push('/');
+        }
+      }
     }
-  }
+  }, [isAuthenticated, isAuthLoading, user, router]);
 
-  // Modificar el useEffect para que el sidebar siempre esté visible en pantallas grandes
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1024) {
@@ -93,10 +116,16 @@ export default function CoordinadorLayout({
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [pathname])
+
+  // Helper functions
+  const toggleSidebar = () => {
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(!isSidebarOpen)
+    }
+  }
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
@@ -106,6 +135,15 @@ export default function CoordinadorLayout({
     setExpandedItems((prev) =>
       prev.includes(itemName) ? prev.filter((item) => item !== itemName) : [...prev, itemName],
     )
+  }
+
+  // Loading state
+  if (isAuthLoading || (isAuthenticated && user?.role && user.role !== 'coordinador')) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-100">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length
@@ -279,26 +317,28 @@ export default function CoordinadorLayout({
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative rounded-full">
                       <Avatar>
-                        <AvatarImage src="/placeholder.svg?height=32&width=32" alt="@coordinador" />
-                        <AvatarFallback className="bg-primary-light text-white">CO</AvatarFallback>
+                        <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || "Coordinador"} />
+                        <AvatarFallback className="bg-primary-light text-white">
+                          {user?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || "CO"}
+                        </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+                    <DropdownMenuLabel>{user?.nombre || "Coordinador"}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link href="/coordinador/perfil" className="w-full">
                         Perfil
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link href="/coordinador/configuracion" className="w-full">
                         Configuración
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link href="/logout" className="w-full">
                         Cerrar Sesión
                       </Link>
