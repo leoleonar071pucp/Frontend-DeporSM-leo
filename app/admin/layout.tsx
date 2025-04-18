@@ -4,8 +4,9 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation" // Importar useRouter
-import { useAuth } from "@/context/AuthContext" // Importar useAuth
+import { usePathname, useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
+import { useNotification } from "@/context/NotificationContext"
 import {
   LayoutDashboard,
   Calendar,
@@ -19,7 +20,7 @@ import {
   ChevronDown,
   PlusSquare,
   CheckSquare,
-  Loader2, // Añadir coma faltante
+  Loader2,
   ClipboardList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -34,32 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ThemeProvider } from "@/components/theme-provider" // Re-añadir importación
-
-// Datos de ejemplo para las notificaciones
-const notifications = [
-  {
-    id: 1,
-    title: "Nueva reserva",
-    message: "Se ha realizado una nueva reserva para Cancha de Fútbol (Grass)",
-    date: "Hace 10 minutos",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Mantenimiento programado",
-    message: "Recordatorio: Mantenimiento de Piscina Municipal mañana",
-    date: "Hace 2 horas",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Pago confirmado",
-    message: "Se ha confirmado el pago de la reserva #12345",
-    date: "Hace 5 horas",
-    read: true,
-  },
-]
+import { ThemeProvider } from "@/components/theme-provider"
 
 export default function AdminLayout({
   children,
@@ -73,19 +49,16 @@ export default function AdminLayout({
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const pathname = usePathname()
   const router = useRouter()
-  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth() // Obtener estado y logout de Auth
-
-  // useEffect de redimensionamiento eliminado para permitir ocultar sidebar en desktop
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
+  const { notifications, unreadCount, markAsRead } = useNotification()
 
   // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [pathname])
 
-  // Modificar la función toggleSidebar para que el sidebar siempre esté visible
   const toggleSidebar = () => {
-    // Permitir siempre cambiar el estado del sidebar
-    setIsSidebarOpen(!isSidebarOpen);
+    setIsSidebarOpen(!isSidebarOpen)
   }
 
   const toggleMobileMenu = () => {
@@ -98,9 +71,6 @@ export default function AdminLayout({
     )
   }
 
-  const unreadCount = notifications.filter((n) => !n.read).length
-
-  // Modificar el array navItems para incluir coordinadores y observaciones
   const navItems = [
     { name: "Dashboard", href: "/admin", icon: <LayoutDashboard className="h-5 w-5" /> },
     {
@@ -146,11 +116,11 @@ export default function AdminLayout({
 
   // --- Renderizado Principal (Solo si es Admin) ---
   return (
-    <ThemeProvider attribute="class" defaultTheme="light"> {/* Re-añadir ThemeProvider wrapper */}
+    <ThemeProvider attribute="class" defaultTheme="light">
       <div className="min-h-screen bg-gray-100">
         {/* Sidebar para escritorio */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary transform transition-transform duration-300 ease-in-out ${ // Eliminado lg:translate-x-0
+          className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary transform transition-transform duration-300 ease-in-out ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           } flex flex-col`}
         >
@@ -223,7 +193,6 @@ export default function AdminLayout({
 
           <div className="p-4 border-t border-primary-light">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-primary-light" asChild>
-              {/* Usar la función logout del contexto */}
               <button onClick={logout} className="w-full flex items-center text-left">
                 <LogOut className="h-5 w-5 mr-3" />
                 Cerrar sesión
@@ -242,7 +211,6 @@ export default function AdminLayout({
                 <Button variant="ghost" size="icon" onClick={toggleSidebar} className="hidden lg:flex">
                   <Menu className="h-6 w-6" />
                 </Button>
-                {/* Corregir onClick para que controle el sidebar principal */}
                 <Button variant="ghost" size="icon" onClick={toggleSidebar} className="lg:hidden">
                   <Menu className="h-6 w-6" />
                 </Button>
@@ -275,7 +243,7 @@ export default function AdminLayout({
                     <ScrollArea className="h-[300px]">
                       {notifications.length > 0 ? (
                         notifications.map((notification) => (
-                          <DropdownMenuItem key={notification.id} className="p-0">
+                          <DropdownMenuItem key={notification.id} className="p-0" onSelect={() => !notification.read && markAsRead(notification.id)}>
                             <div className={`w-full p-3 ${notification.read ? "opacity-70" : "bg-primary-background"}`}>
                               <div className="flex justify-between items-start">
                                 <h4 className="font-medium text-sm">{notification.title}</h4>
@@ -296,14 +264,12 @@ export default function AdminLayout({
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative rounded-full">
                       <Avatar>
-                        {/* Usar datos del contexto */}
                         <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || "Admin"} />
                         <AvatarFallback className="bg-primary-light text-white">AD</AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {/* Usar datos del contexto */}
                     <DropdownMenuLabel>{user?.nombre || "Administrador"}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild className="cursor-pointer">
@@ -358,7 +324,9 @@ export default function AdminLayout({
                               <span className="ml-3">{item.name}</span>
                             </div>
                             <ChevronDown
-                              className={`h-4 w-4 transition-transform ${expandedItems.includes(item.name) ? "rotate-180" : ""}`}
+                              className={`h-4 w-4 transition-transform ${
+                                expandedItems.includes(item.name) ? "rotate-180" : ""
+                              }`}
                             />
                           </button>
 
@@ -398,7 +366,6 @@ export default function AdminLayout({
 
                 <div className="p-4 border-t border-primary-light">
                   <Button variant="ghost" className="w-full justify-start text-white hover:bg-primary-light" asChild>
-                    {/* Usar la función logout del contexto */}
                     <button onClick={logout} className="w-full flex items-center text-left">
                       <LogOut className="h-5 w-5 mr-3" />
                       Cerrar sesión
@@ -413,7 +380,7 @@ export default function AdminLayout({
           <main className="flex-grow p-4 md:p-6">{children}</main>
         </div>
       </div>
-    </ThemeProvider> // Re-añadir cierre de ThemeProvider
+    </ThemeProvider>
   )
 }
 

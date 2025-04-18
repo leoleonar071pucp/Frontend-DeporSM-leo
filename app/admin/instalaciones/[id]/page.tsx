@@ -9,35 +9,35 @@ import { ArrowLeft, Loader2, CheckCircle, AlertCircle, Calendar, Clock, MapPin, 
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 
-import { facilitiesDB } from "@/data/facilities"
+import { facilitiesDB, Facility } from "@/data/facilities"
 import EditFacility from "./edit-facility"
 
-export default function InstalacionDetalle({ params }: { params: { id: string } }) {
+export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [facility, setFacility] = useState<any>(null)
+  const [facility, setFacility] = useState<Facility | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const facilityId = React.use(params).id
+  const { id: facilityId } = React.use(params)
 
   useEffect(() => {
     // Simulación de carga de datos
     const loadData = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(facilityId))
-      setFacility(foundFacility)
+      setFacility(foundFacility || null)
       setIsLoading(false)
     }
 
     loadData()
   }, [facilityId])
 
-  const handleSave = (updatedFacility: any) => {
+  const handleSave = (updatedFacility: Facility) => {
     setFacility(updatedFacility)
     setIsEditing(false)
   }
 
-  const getMaintenanceStatusBadge = (status) => {
+  const getMaintenanceStatusBadge = (status: string) => {
     switch (status) {
       case "none":
         return null

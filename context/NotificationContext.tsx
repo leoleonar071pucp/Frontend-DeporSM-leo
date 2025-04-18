@@ -1,54 +1,155 @@
 "use client"
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useMemo, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 
-// Reutilizar o definir la interfaz Notification si no está globalmente disponible
+// Interfaces
 interface Notification {
     id: number;
     title: string;
     message: string;
-    date: string; // Podría ser Date si se necesita manipulación compleja
+    date: string;
     read: boolean;
-    type: "success" | "info" | "warning";
+    type: "success" | "info" | "warning" | "reserva" | "mantenimiento" | "pago" | "reporte";
 }
 
-// Datos iniciales de ejemplo (podrían venir de una API en el futuro)
-const initialNotifications: Notification[] = [
+type NewNotificationData = Omit<Notification, 'id' | 'read' | 'date'>;
+
+interface NotificationContextType {
+  notifications: Notification[];
+  unreadCount: number;
+  addNotification: (notificationData: NewNotificationData) => void;
+  markAsRead: (id: number) => void;
+  deleteNotification: (id: number) => void;
+  markAllAsRead: () => void;
+  deleteAllRead: () => void;
+}
+
+interface NotificationProviderProps {
+  children: ReactNode;
+}
+
+// Datos de ejemplo específicos para cada rol
+const vecinoNotifications: Notification[] = [
   { id: 1, title: "Reserva confirmada", message: "Tu reserva para Cancha de Fútbol (Grass) ha sido confirmada.", date: "Hoy, 14:30", read: false, type: "success" },
   { id: 2, title: "Recordatorio", message: "Tu reserva para Piscina Municipal es mañana a las 10:00.", date: "Hoy, 11:15", read: false, type: "info" },
   { id: 3, title: "Mantenimiento programado", message: "El Gimnasio Municipal estará cerrado por mantenimiento el próximo lunes.", date: "Ayer, 16:45", read: true, type: "warning" },
   { id: 4, title: "Reserva cancelada", message: "Tu reserva para Pista de Atletismo ha sido cancelada exitosamente.", date: "12/04/2025", read: true, type: "success" },
 ];
 
+const adminNotifications: Notification[] = [
+  { 
+    id: 1, 
+    title: "Nueva reserva", 
+    message: "Se ha realizado una nueva reserva para Cancha de Fútbol (Grass)", 
+    date: "Hace 10 minutos", 
+    read: false, 
+    type: "reserva" 
+  },
+  { 
+    id: 2, 
+    title: "Mantenimiento programado", 
+    message: "Recordatorio: Mantenimiento de Piscina Municipal mañana", 
+    date: "Hace 2 horas", 
+    read: false, 
+    type: "mantenimiento" 
+  },
+  { 
+    id: 3, 
+    title: "Pago confirmado", 
+    message: "Se ha confirmado el pago de la reserva #12345", 
+    date: "Hace 5 horas", 
+    read: true, 
+    type: "pago" 
+  },
+  { 
+    id: 4, 
+    title: "Solicitud de mantenimiento", 
+    message: "El coordinador ha solicitado mantenimiento para la Pista de Atletismo", 
+    date: "Hace 1 día", 
+    read: false, 
+    type: "mantenimiento" 
+  },
+  { 
+    id: 5, 
+    title: "Reserva cancelada", 
+    message: "La reserva #12346 ha sido cancelada por el usuario", 
+    date: "Hace 1 día", 
+    read: true, 
+    type: "reserva" 
+  },
+  { 
+    id: 6, 
+    title: "Reporte generado", 
+    message: "El reporte mensual de ingresos está disponible para su descarga", 
+    date: "Hace 2 días", 
+    read: true, 
+    type: "reporte" 
+  },
+  { 
+    id: 7, 
+    title: "Nueva solicitud de reserva", 
+    message: "Hay una nueva solicitud de reserva pendiente de aprobación", 
+    date: "Hace 3 días", 
+    read: true, 
+    type: "reserva" 
+  },
+];
 
-// Define la forma de los datos para una nueva notificación (omitimos id, read, date)
-type NewNotificationData = Omit<Notification, 'id' | 'read' | 'date'>;
+const coordinadorNotifications: Notification[] = [
+  {
+    id: 1,
+    title: "Nueva instalación asignada",
+    message: "Se te ha asignado la Cancha de Fútbol (Grass)",
+    date: "05/04/2025, 10:15",
+    read: false,
+    type: "info"
+  },
+  {
+    id: 2,
+    title: "Observación aprobada",
+    message: "Tu observación sobre la Piscina Municipal ha sido aprobada",
+    date: "04/04/2025, 14:30",
+    read: false,
+    type: "success"
+  },
+  {
+    id: 3,
+    title: "Recordatorio de inspección",
+    message: "Tienes una inspección programada para la Pista de Atletismo mañana",
+    date: "03/04/2025, 09:45",
+    read: false,
+    type: "warning"
+  },
+];
 
-// Define la forma del contexto
-interface NotificationContextType {
-  notifications: Notification[];
-  unreadCount: number;
-  addNotification: (notificationData: NewNotificationData) => void; // Añadir función
-  markAsRead: (id: number) => void;
-  deleteNotification: (id: number) => void;
-  markAllAsRead: () => void;
-  deleteAllRead: () => void;
-  // Podríamos añadir una función para cargar notificaciones de una API
-  // fetchNotifications: () => Promise<void>;
-}
-
-// Crea el contexto
+// Crear el contexto
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// Props para el proveedor
-interface NotificationProviderProps {
-  children: ReactNode;
-}
-
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const { user } = useAuth();
+  
+  // Seleccionar las notificaciones iniciales según el rol del usuario
+  const getInitialNotifications = () => {
+    switch (user?.role) {
+      case 'admin':
+        return adminNotifications;
+      case 'coordinador':
+        return coordinadorNotifications;
+      case 'vecino':
+        return vecinoNotifications;
+      default:
+        return [];
+    }
+  };
 
-  // Calcular unreadCount eficientemente
+  const [notifications, setNotifications] = useState<Notification[]>(getInitialNotifications());
+
+  // Actualizar notificaciones cuando cambia el rol del usuario
+  useEffect(() => {
+    setNotifications(getInitialNotifications());
+  }, [user?.role]);
+
   const unreadCount = useMemo(() => {
     return notifications.filter(n => !n.read).length;
   }, [notifications]);
@@ -57,45 +158,37 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, read: true } : n))
     );
-    console.log(`NotificationContext: Marcada como leída ID ${id}`);
   }, []);
 
   const deleteNotification = useCallback((id: number) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
-    console.log(`NotificationContext: Eliminada notificación ID ${id}`);
   }, []);
 
   const markAllAsRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    console.log(`NotificationContext: Marcadas todas como leídas`);
   }, []);
 
   const deleteAllRead = useCallback(() => {
     setNotifications(prev => prev.filter(n => !n.read));
-     console.log(`NotificationContext: Eliminadas todas las leídas`);
   }, []);
 
-  // Función para añadir una nueva notificación
   const addNotification = useCallback((notificationData: NewNotificationData) => {
     const newNotification: Notification = {
       ...notificationData,
-      id: Date.now(), // Usar timestamp como ID simple y único
+      id: Date.now(),
       read: false,
-      date: new Date().toLocaleString("es-PE", { // Formato de fecha/hora local
+      date: new Date().toLocaleString("es-PE", {
           day: 'numeric', month: 'numeric', year: 'numeric',
           hour: '2-digit', minute: '2-digit'
       })
     };
-    setNotifications(prev => [newNotification, ...prev]); // Añadir al principio de la lista
-    console.log(`NotificationContext: Añadida nueva notificación`, newNotification);
+    setNotifications(prev => [newNotification, ...prev]);
   }, []);
-
-  // Aquí podríamos tener un useEffect para cargar notificaciones iniciales de una API
 
   const value = {
     notifications,
     unreadCount,
-    addNotification, // Exponer la nueva función
+    addNotification,
     markAsRead,
     deleteNotification,
     markAllAsRead,
