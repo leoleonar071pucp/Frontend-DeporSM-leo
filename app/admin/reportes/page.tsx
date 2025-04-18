@@ -11,10 +11,10 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
+import { useNotification } from "@/context/NotificationContext"
 
 export default function ReportesAdmin() {
-  const { toast } = useToast()
+  const { addNotification } = useNotification()
   const [isLoading, setIsLoading] = useState(true)
   const [reportType, setReportType] = useState("reservas")
   const [dateRange, setDateRange] = useState<"day" | "week" | "month" | "year" | "custom">("month")
@@ -130,11 +130,14 @@ export default function ReportesAdmin() {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
       
-      // Mostrar notificación de éxito con más detalles
-      toast({
+      // Obtener el nombre legible del tipo de reporte
+      const reportTypeName = reportTypes.find(type => type.id === reportType)?.name || reportType
+
+      // Use the notification context with improved message
+      addNotification({
         title: "Reporte generado exitosamente",
-        description: `El reporte "${fileName}.${fileFormat === 'excel' ? 'csv' : 'pdf'}" ha sido generado y descargado.`,
-        variant: "default",
+        message: `Se ha generado el reporte de ${reportTypeName} para el período del ${format(startDate, "dd/MM/yyyy")} al ${format(endDate, "dd/MM/yyyy")}`,
+        type: "reporte"
       })
     }, 2000)
   }

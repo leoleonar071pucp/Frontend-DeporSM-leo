@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Menu, X, Calendar, Info, CheckCircle, User, LogIn, LogOut, UserPlus, Loader2 } from "lucide-react" // Added icons
+import { Bell, Menu, X, Calendar, Info, CheckCircle, User, LogIn, LogOut, UserPlus, Loader2, FileText } from "lucide-react" // Added icons
 import { Button, buttonVariants } from "@/components/ui/button" // Importar buttonVariants
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/context/AuthContext" // Import useAuth
@@ -42,6 +42,8 @@ export function Navbar() {
         return <CheckCircle className="h-5 w-5 text-green-500" />
       case "warning":
         return <Info className="h-5 w-5 text-yellow-500" />
+      case "reporte":
+        return <FileText className="h-5 w-5 text-purple-500" />
       case "info":
       default:
         return <Calendar className="h-5 w-5 text-primary" />
