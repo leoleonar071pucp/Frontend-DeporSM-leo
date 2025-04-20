@@ -165,6 +165,22 @@ export default function InstalacionesAdmin() {
     }
   }
 
+  const getStatusBadge = (status: Facility['status'], maintenanceStatus: Facility['maintenanceStatus']) => {
+    // No mostrar badge de "En mantenimiento" si ya hay un estado de mantenimiento específico
+    if (maintenanceStatus === "required" || maintenanceStatus === "scheduled") {
+      return status === "disponible" ? <Badge className="bg-green-100 text-green-800">Disponible</Badge> : null;
+    }
+
+    switch (status) {
+      case "disponible":
+        return <Badge className="bg-green-100 text-green-800">Disponible</Badge>
+      case "mantenimiento":
+        return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>
+      default:
+        return null
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -248,11 +264,9 @@ export default function InstalacionesAdmin() {
                       alt={facility.name}
                       className="w-full h-48 object-cover"
                     />
-                    {facility.status === "mantenimiento" && (
-                      <div className="absolute top-2 right-2">
-                        <Badge className="bg-red-500">En mantenimiento</Badge>
-                      </div>
-                    )}
+                    <div className="absolute top-2 right-2">
+                      {getStatusBadge(facility.status, facility.maintenanceStatus)}
+                    </div>
                   </div>
                   <CardHeader className="pb-2">
                     <CardTitle>{facility.name}</CardTitle>

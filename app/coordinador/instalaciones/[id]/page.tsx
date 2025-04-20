@@ -28,7 +28,8 @@ const facilitiesDB = [
     location: "Parque Juan Pablo II",
     description:
       "Cancha de fútbol con grass sintético de última generación, ideal para partidos de fútbol 7 o fútbol 11. Cuenta con iluminación para partidos nocturnos.",
-    status: "buen-estado" as const,
+    status: "disponible" as const,
+    maintenanceStatus: "none" as const,
     lastVisit: "01/04/2025",
     nextVisit: "05/04/2025, 14:00",
     isToday: true,
@@ -79,7 +80,8 @@ const facilitiesDB = [
     location: "Complejo Deportivo Municipal",
     description:
       "Piscina semiolímpica con carriles para natación y área recreativa. Ideal para practicar natación, clases de aquagym y actividades acuáticas.",
-    status: "requiere-atencion" as const,
+    status: "mantenimiento" as const,
+    maintenanceStatus: "required" as const,
     lastVisit: "02/04/2025",
     nextVisit: "05/04/2025, 16:30",
     isToday: true,
@@ -141,7 +143,8 @@ interface Facility {
   image: string;
   location: string;
   description: string;
-  status: 'buen-estado' | 'requiere-atencion' | 'mantenimiento-requerido' | 'en-mantenimiento';
+  status: 'disponible' | 'mantenimiento';
+  maintenanceStatus: 'none' | 'required' | 'scheduled' | 'in-progress';
   lastVisit: string;
   nextVisit: string;
   isToday: boolean;
@@ -169,16 +172,26 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     loadData()
   }, [resolvedParams.id])
 
-  const getStatusBadge = (status: Facility['status']) => {
+  const getStatusBadge = (status: Facility['status'], maintenanceStatus: Facility['maintenanceStatus']) => {
+    // Mostrar En Mantenimiento solo cuando está in-progress
+    if (maintenanceStatus === "in-progress") {
+      return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
+    }
+    
+    // En cualquier otro caso mostrar Disponible
+    return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
+  }
+
+  const getMaintenanceStatusBadge = (status: Facility['maintenanceStatus']) => {
     switch (status) {
-      case "buen-estado":
-        return <Badge className="bg-green-100 text-green-800">Buen estado</Badge>
-      case "requiere-atencion":
-        return <Badge className="bg-yellow-100 text-yellow-800">Requiere atención</Badge>
-      case "mantenimiento-requerido":
-        return <Badge className="bg-red-100 text-red-800">Mantenimiento requerido</Badge>
-      case "en-mantenimiento":
-        return <Badge className="bg-blue-100 text-blue-800">En mantenimiento</Badge>
+      case "none":
+        return null
+      case "required":
+        return <Badge className="bg-red-100 text-red-800">Requiere mantenimiento</Badge>
+      case "scheduled":
+        return <Badge className="bg-yellow-100 text-yellow-800">Mantenimiento programado</Badge>
+      case "in-progress":
+        return <Badge className="bg-blue-100 text-blue-800">En progreso</Badge>
       default:
         return null
     }
@@ -268,7 +281,8 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                   </CardDescription>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  {getStatusBadge(facility.status)}
+                  {getStatusBadge(facility.status, facility.maintenanceStatus)}
+                  {getMaintenanceStatusBadge(facility.maintenanceStatus)}
                   {facility.isToday && <Badge className="bg-blue-100 text-blue-800">Visita hoy</Badge>}
                 </div>
               </div>
@@ -308,13 +322,13 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                       <Calendar className="h-5 w-5 text-primary" />
                       <div>
                         <p className="font-medium">Próxima visita</p>
-                        <p className="text-sm text-gray-600">
+                        <span className="text-sm text-gray-600">
                           {facility.isToday ? (
                             <Badge className="bg-blue-100 text-blue-800">Hoy</Badge>
                           ) : (
                             facility.nextVisit
                           )}
-                        </p>
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -432,9 +446,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                 <Calendar className="h-5 w-5 text-primary" />
                 <div>
                   <p className="font-medium">Fecha y hora</p>
-                  <p className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-600">
                     {facility.isToday ? <Badge className="bg-blue-100 text-blue-800">Hoy</Badge> : facility.nextVisit}
-                  </p>
+                  </span>
                 </div>
               </div>
               <Separator />
@@ -448,7 +462,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
             </CardContent>
             <CardFooter>
               <Button className="w-full bg-primary hover:bg-primary-light" asChild>
-                <Link href={`/coordinador/asistencia/registrar?id=${facility.id}`}>Registrar Asistencia</Link>
+                <Link href={`/coordinador/asistencia/registrar?facilityId=${facility.id}`}>Registrar Asistencia</Link>
               </Button>
             </CardFooter>
           </Card>

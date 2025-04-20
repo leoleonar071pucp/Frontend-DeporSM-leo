@@ -8,13 +8,14 @@ import { ArrowLeft, MapPin, Navigation } from "lucide-react"
 import Link from "next/link"
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api"
 
-type FacilityStatus = 'buen-estado' | 'requiere-atencion' | 'mantenimiento-requerido' | 'en-mantenimiento';
+type FacilityStatus = 'disponible' | 'mantenimiento';
 
 interface Facility {
   id: number;
   name: string;
   location: string;
   status: FacilityStatus;
+  maintenanceStatus: 'none' | 'required' | 'scheduled' | 'in-progress';
   coordinates: {
     lat: number;
     lng: number;
@@ -22,13 +23,14 @@ interface Facility {
   isToday: boolean;
 }
 
-// Datos de ejemplo para las instalaciones
+// Datos de ejemplo para las instalaciones asignadas al coordinador
 const facilitiesData: Facility[] = [
   {
     id: 1,
     name: "Cancha de Fútbol (Grass)",
     location: "Parque Juan Pablo II",
-    status: "buen-estado",
+    status: "disponible",
+    maintenanceStatus: "none",
     coordinates: { lat: -12.077, lng: -77.083 },
     isToday: true,
   },
@@ -36,34 +38,11 @@ const facilitiesData: Facility[] = [
     id: 2,
     name: "Piscina Municipal",
     location: "Complejo Deportivo Municipal",
-    status: "requiere-atencion",
+    status: "mantenimiento",
+    maintenanceStatus: "required",
     coordinates: { lat: -12.079, lng: -77.085 },
     isToday: true,
-  },
-  {
-    id: 3,
-    name: "Gimnasio Municipal",
-    location: "Complejo Deportivo Municipal",
-    status: "buen-estado",
-    coordinates: { lat: -12.079, lng: -77.086 },
-    isToday: false,
-  },
-  {
-    id: 4,
-    name: "Pista de Atletismo",
-    location: "Complejo Deportivo Municipal",
-    status: "mantenimiento-requerido",
-    coordinates: { lat: -12.08, lng: -77.085 },
-    isToday: false,
-  },
-  {
-    id: 5,
-    name: "Cancha de Fútbol (Loza)",
-    location: "Parque Simón Bolívar",
-    status: "en-mantenimiento",
-    coordinates: { lat: -12.075, lng: -77.088 },
-    isToday: false,
-  },
+  }
 ]
 
 const mapContainerStyle = {
@@ -116,26 +95,18 @@ export default function MapaInstalaciones() {
 
   const getStatusColor = (status: FacilityStatus) => {
     switch (status) {
-      case "buen-estado":
+      case "disponible":
         return "bg-green-500"
-      case "requiere-atencion":
-        return "bg-yellow-500"
-      case "mantenimiento-requerido":
-        return "bg-red-500"
-      case "en-mantenimiento":
+      case "mantenimiento":
         return "bg-blue-500"
       default:
         return "bg-gray-500"
     }
   }
 
-  const getMarkerIcon = (status: FacilityStatus) => {
-    const color = {
-      "buen-estado": "#22c55e",
-      "requiere-atencion": "#eab308",
-      "mantenimiento-requerido": "#ef4444",
-      "en-mantenimiento": "#3b82f6",
-    }[status] || "#6b7280"
+  const getMarkerIcon = (status: FacilityStatus, maintenanceStatus: string) => {
+    // Verde para disponible, rojo para en mantenimiento
+    const color = maintenanceStatus === "in-progress" ? "#ef4444" : "#22c55e";
 
     return {
       path: google?.maps?.SymbolPath?.CIRCLE || 0,
@@ -147,19 +118,14 @@ export default function MapaInstalaciones() {
     }
   }
 
-  const getStatusBadge = (status: FacilityStatus) => {
-    switch (status) {
-      case "buen-estado":
-        return <Badge className="bg-green-100 text-green-800">Buen estado</Badge>
-      case "requiere-atencion":
-        return <Badge className="bg-yellow-100 text-yellow-800">Requiere atención</Badge>
-      case "mantenimiento-requerido":
-        return <Badge className="bg-red-100 text-red-800">Mantenimiento requerido</Badge>
-      case "en-mantenimiento":
-        return <Badge className="bg-blue-100 text-blue-800">En mantenimiento</Badge>
-      default:
-        return null
+  const getStatusBadge = (status: FacilityStatus, maintenanceStatus: string) => {
+    // Mostrar En Mantenimiento solo cuando está in-progress
+    if (maintenanceStatus === "in-progress") {
+      return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
     }
+    
+    // En cualquier otro caso mostrar Disponible
+    return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
   }
 
   const onLoad = useCallback((map: google.maps.Map) => {
@@ -193,7 +159,7 @@ export default function MapaInstalaciones() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Ubicación de Instalaciones</CardTitle>
-            <CardDescription>Visualiza todas las instalaciones asignadas en el mapa</CardDescription>
+            <CardDescription>Visualiza todas tus instalaciones asignadas en el mapa</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="relative w-full h-[500px] rounded-md overflow-hidden">
@@ -208,7 +174,7 @@ export default function MapaInstalaciones() {
                   <Marker
                     key={facility.id}
                     position={facility.coordinates}
-                    icon={getMarkerIcon(facility.status)}
+                    icon={getMarkerIcon(facility.status, facility.maintenanceStatus)}
                     onClick={() => setSelectedFacility(facility)}
                   />
                 ))}
@@ -235,7 +201,7 @@ export default function MapaInstalaciones() {
                     <div className="p-2">
                       <h3 className="font-bold mb-1">{selectedFacility.name}</h3>
                       <p className="text-sm text-gray-600 mb-2">{selectedFacility.location}</p>
-                      {getStatusBadge(selectedFacility.status)}
+                      {getStatusBadge(selectedFacility.status, selectedFacility.maintenanceStatus)}
                     </div>
                   </InfoWindow>
                 )}
@@ -244,18 +210,10 @@ export default function MapaInstalaciones() {
               <div className="flex flex-wrap gap-4 mt-4 justify-center">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-sm">Buen estado</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-sm">Requiere atención</span>
+                  <span className="text-sm">Disponible</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span className="text-sm">Mantenimiento requerido</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                   <span className="text-sm">En mantenimiento</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -269,8 +227,8 @@ export default function MapaInstalaciones() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Instalaciones Cercanas</CardTitle>
-            <CardDescription>Instalaciones ordenadas por cercanía a tu ubicación</CardDescription>
+            <CardTitle>Instalaciones Asignadas</CardTitle>
+            <CardDescription>Lista de todas tus instalaciones asignadas</CardDescription>
           </CardHeader>
           <CardContent>
             {selectedFacility ? (
@@ -278,7 +236,7 @@ export default function MapaInstalaciones() {
                 <div className="p-4 border rounded-lg">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold">{selectedFacility.name}</h3>
-                    {getStatusBadge(selectedFacility.status)}
+                    {getStatusBadge(selectedFacility.status, selectedFacility.maintenanceStatus)}
                   </div>
                   <p className="text-sm text-gray-500 mb-2">{selectedFacility.location}</p>
                   {selectedFacility.isToday && (
@@ -321,7 +279,7 @@ export default function MapaInstalaciones() {
                     >
                       <div className="flex justify-between items-start">
                         <h3 className="font-medium">{facility.name}</h3>
-                        {getStatusBadge(facility.status)}
+                        {getStatusBadge(facility.status, facility.maintenanceStatus)}
                       </div>
                       <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
                         <MapPin className="h-4 w-4" />

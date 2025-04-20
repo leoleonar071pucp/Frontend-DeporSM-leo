@@ -18,13 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 // Datos de ejemplo para las instalaciones
-const facilitiesData = [
+const facilitiesData: Facility[] = [
   {
     id: 1,
     name: "Cancha de Fútbol (Grass)",
     image: "/placeholder.svg?height=200&width=300",
     location: "Parque Juan Pablo II",
-    status: "buen-estado",
+    status: "disponible",
+    maintenanceStatus: "none",
     lastVisit: "01/04/2025",
     nextVisit: "05/04/2025, 14:00",
     isToday: true,
@@ -36,54 +37,33 @@ const facilitiesData = [
     name: "Piscina Municipal",
     image: "/placeholder.svg?height=200&width=300",
     location: "Complejo Deportivo Municipal",
-    status: "requiere-atencion",
+    status: "mantenimiento",
+    maintenanceStatus: "required",
     lastVisit: "02/04/2025",
     nextVisit: "05/04/2025, 16:30",
     isToday: true,
     observations: 3,
-    pendingObservations: 1,
-  },
-  {
-    id: 3,
-    name: "Gimnasio Municipal",
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Complejo Deportivo Municipal",
-    status: "buen-estado",
-    lastVisit: "31/03/2025",
-    nextVisit: "06/04/2025, 09:00",
-    isToday: false,
-    observations: 1,
-    pendingObservations: 0,
-  },
-  {
-    id: 4,
-    name: "Pista de Atletismo",
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Complejo Deportivo Municipal",
-    status: "mantenimiento-requerido",
-    lastVisit: "30/03/2025",
-    nextVisit: "06/04/2025, 11:30",
-    isToday: false,
-    observations: 4,
-    pendingObservations: 1,
-  },
-  {
-    id: 5,
-    name: "Cancha de Fútbol (Loza)",
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Parque Simón Bolívar",
-    status: "en-mantenimiento",
-    lastVisit: "29/03/2025",
-    nextVisit: "No programada",
-    isToday: false,
-    observations: 2,
     pendingObservations: 0,
   },
 ]
 
+interface Facility {
+  id: number;
+  name: string;
+  location: string;
+  image: string;
+  status: 'disponible' | 'mantenimiento';
+  maintenanceStatus: 'none' | 'required' | 'scheduled' | 'in-progress';
+  lastVisit: string;
+  nextVisit: string;
+  isToday: boolean;
+  observations: number;
+  pendingObservations: number;
+}
+
 export default function InstalacionesCoordinador() {
   const [isLoading, setIsLoading] = useState(true)
-  const [facilities, setFacilities] = useState([])
+  const [facilities, setFacilities] = useState<Facility[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("todas")
 
@@ -98,7 +78,7 @@ export default function InstalacionesCoordinador() {
     loadData()
   }, [])
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Filtrar instalaciones por nombre o ubicación
     const filtered = facilitiesData.filter(
@@ -109,30 +89,38 @@ export default function InstalacionesCoordinador() {
     setFacilities(filtered)
   }
 
-  const handleTabChange = (value) => {
+  const handleTabChange = (value: string) => {
     setActiveTab(value)
 
     if (value === "todas") {
-      setFacilities(facilitiesData)
+      setFacilities(facilitiesData) // Resetear a todos los datos originales
     } else if (value === "hoy") {
       setFacilities(facilitiesData.filter((f) => f.isToday))
-    } else if (value === "atencion") {
-      setFacilities(
-        facilitiesData.filter((f) => f.status === "requiere-atencion" || f.status === "mantenimiento-requerido"),
-      )
+    } else if (value === "pendientes") {
+      setFacilities(facilitiesData.filter((f) => f.pendingObservations > 0))
     }
   }
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: Facility['status'], maintenanceStatus: Facility['maintenanceStatus']) => {
+    // Mostrar En Mantenimiento solo cuando está in-progress
+    if (maintenanceStatus === "in-progress") {
+      return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
+    }
+    
+    // En cualquier otro caso mostrar Disponible
+    return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
+  }
+
+  const getMaintenanceStatusBadge = (status: Facility['maintenanceStatus']) => {
     switch (status) {
-      case "buen-estado":
-        return <Badge className="bg-green-100 text-green-800">Buen estado</Badge>
-      case "requiere-atencion":
-        return <Badge className="bg-yellow-100 text-yellow-800">Requiere atención</Badge>
-      case "mantenimiento-requerido":
-        return <Badge className="bg-red-100 text-red-800">Mantenimiento requerido</Badge>
-      case "en-mantenimiento":
-        return <Badge className="bg-blue-100 text-blue-800">En mantenimiento</Badge>
+      case "none":
+        return null;
+      case "required":
+        return <Badge className="bg-red-100 text-red-800">Requiere mantenimiento</Badge>
+      case "scheduled":
+        return <Badge className="bg-yellow-100 text-yellow-800">Mantenimiento programado</Badge>
+      case "in-progress":
+        return <Badge className="bg-blue-100 text-blue-800">En progreso</Badge>
       default:
         return null
     }
@@ -187,28 +175,25 @@ export default function InstalacionesCoordinador() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
+                <DropdownMenuLabel>Filtrar por estado de mantenimiento</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFacilities(facilitiesData)}>Todos</DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setFacilities(facilitiesData.filter((f) => f.status === "buen-estado"))}
-                >
-                  Buen estado
+                <DropdownMenuItem onClick={() => setFacilities(facilitiesData)}>
+                  Todos
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => setFacilities(facilitiesData.filter((f) => f.status === "requiere-atencion"))}
+                  onClick={() => setFacilities(facilitiesData.filter((f) => f.maintenanceStatus === "required"))}
                 >
-                  Requiere atención
+                  Requiere mantenimiento
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => setFacilities(facilitiesData.filter((f) => f.status === "mantenimiento-requerido"))}
+                  onClick={() => setFacilities(facilitiesData.filter((f) => f.maintenanceStatus === "scheduled"))}
                 >
-                  Mantenimiento requerido
+                  Mantenimiento programado
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => setFacilities(facilitiesData.filter((f) => f.status === "en-mantenimiento"))}
+                  onClick={() => setFacilities(facilitiesData.filter((f) => f.maintenanceStatus === "in-progress"))}
                 >
-                  En mantenimiento
+                  En progreso
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -221,7 +206,7 @@ export default function InstalacionesCoordinador() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="todas">Todas</TabsTrigger>
           <TabsTrigger value="hoy">Visitas Hoy</TabsTrigger>
-          <TabsTrigger value="atencion">Requieren Atención</TabsTrigger>
+          <TabsTrigger value="pendientes">Observaciones Pendientes</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
@@ -235,7 +220,9 @@ export default function InstalacionesCoordinador() {
                       alt={facility.name}
                       className="w-full h-48 object-cover"
                     />
-                    <div className="absolute top-2 right-2">{getStatusBadge(facility.status)}</div>
+                    <div className="absolute top-2 right-2">
+                      {getStatusBadge(facility.status, facility.maintenanceStatus)}
+                    </div>
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-bold text-lg mb-2">{facility.name}</h3>
@@ -279,6 +266,11 @@ export default function InstalacionesCoordinador() {
                           )}
                         </span>
                       </div>
+                      {getMaintenanceStatusBadge(facility.maintenanceStatus) && (
+                        <div className="flex justify-end mt-2">
+                          {getMaintenanceStatusBadge(facility.maintenanceStatus)}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button asChild variant="outline" className="flex-1">

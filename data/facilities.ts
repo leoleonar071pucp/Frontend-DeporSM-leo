@@ -31,7 +31,7 @@ export const facilitiesDB: Facility[] = [
     description:
       "Piscina semiolímpica con carriles para natación y área recreativa. Ideal para practicar natación, clases de aquagym y actividades acuáticas.",
     status: "disponible",
-    maintenanceStatus: "none",
+    maintenanceStatus: "required",
     lastMaintenance: "15/03/2025",
     nextMaintenance: null,
     capacity: "30 personas",
