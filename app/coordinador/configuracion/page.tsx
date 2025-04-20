@@ -3,289 +3,343 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Separator } from "@/components/ui/separator"
+import { Bell, Lock, Save, Loader2, CheckCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { Bell, Moon, Sun, Save, Smartphone } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ConfiguracionPage() {
   const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState("seguridad")
+  const [isSaving, setIsSaving] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+
+  // Estado para la configuración de notificaciones
   const [notificationSettings, setNotificationSettings] = useState({
     email: true,
-    push: true,
     observaciones: true,
     asignaciones: true,
     recordatorios: true,
-    mantenimiento: true,
-    frecuencia: "inmediata",
-  })
-  const [displaySettings, setDisplaySettings] = useState({
-    theme: "light",
-    fontSize: "normal",
-  })
-  const [mobileSettings, setMobileSettings] = useState({
-    geolocalizacion: true,
-    camaraRapida: true,
-    datosMoviles: false,
+    mantenimiento: true
   })
 
-  const handleNotificationChange = (key, value) => {
-    setNotificationSettings((prev) => ({ ...prev, [key]: value }))
+  // Estado para el cambio de contraseña
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
+
+  // Estado para errores de validación
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setPasswordData((prev) => ({ ...prev, [name]: value }))
+
+    // Limpiar error al editar
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
   }
 
-  const handleDisplayChange = (key, value) => {
-    setDisplaySettings((prev) => ({ ...prev, [key]: value }))
+  const handleNotificationChange = (key: string, checked: boolean) => {
+    setNotificationSettings((prev) => ({ ...prev, [key]: checked }))
   }
 
-  const handleMobileChange = (key, value) => {
-    setMobileSettings((prev) => ({ ...prev, [key]: value }))
+  const validatePasswordForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!passwordData.currentPassword) {
+      newErrors.currentPassword = "La contraseña actual es obligatoria"
+    }
+
+    if (!passwordData.newPassword) {
+      newErrors.newPassword = "La nueva contraseña es obligatoria"
+    } else if (passwordData.newPassword.length < 8) {
+      newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres"
+    }
+
+    if (!passwordData.confirmPassword) {
+      newErrors.confirmPassword = "Debes confirmar la nueva contraseña"
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      newErrors.confirmPassword = "Las contraseñas no coinciden"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  const handleSaveSettings = () => {
-    // Aquí iría la lógica para guardar la configuración
-    console.log("Guardando configuración:", {
-      notificationSettings,
-      displaySettings,
-      mobileSettings,
-    })
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault()
 
-    toast({
-      title: "Configuración guardada",
-      description: "Tu configuración ha sido actualizada exitosamente.",
-    })
+    if (!validatePasswordForm()) {
+      return
+    }
+
+    setIsSaving(true)
+
+    // Simulación de cambio de contraseña
+    setTimeout(() => {
+      setIsSaving(false)
+      setIsSuccess(true)
+
+      // Resetear formulario y mensaje de éxito
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
+
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 3000)
+    }, 1500)
+  }
+
+  const handleSaveNotifications = () => {
+    setIsSaving(true)
+
+    // Simulación de guardado
+    setTimeout(() => {
+      setIsSaving(false)
+      setIsSuccess(true)
+
+      toast({
+        title: "Configuración guardada",
+        description: "Tus preferencias han sido actualizadas exitosamente.",
+      })
+
+      // Resetear mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 3000)
+    }, 1500)
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notificaciones
-            </CardTitle>
-            <CardDescription>Configura cómo y cuándo quieres recibir notificaciones</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium">Canales de notificación</h3>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications">Correo electrónico</Label>
-                  <p className="text-sm text-gray-500">Recibir notificaciones por correo electrónico</p>
-                </div>
-                <Switch
-                  id="email-notifications"
-                  checked={notificationSettings.email}
-                  onCheckedChange={(checked) => handleNotificationChange("email", checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="push-notifications">Notificaciones push</Label>
-                  <p className="text-sm text-gray-500">Recibir notificaciones en el navegador</p>
-                </div>
-                <Switch
-                  id="push-notifications"
-                  checked={notificationSettings.push}
-                  onCheckedChange={(checked) => handleNotificationChange("push", checked)}
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium">Tipos de notificaciones</h3>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="observaciones-notifications">Observaciones</Label>
-                  <p className="text-sm text-gray-500">Notificaciones sobre tus observaciones reportadas</p>
-                </div>
-                <Switch
-                  id="observaciones-notifications"
-                  checked={notificationSettings.observaciones}
-                  onCheckedChange={(checked) => handleNotificationChange("observaciones", checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="asignaciones-notifications">Asignaciones</Label>
-                  <p className="text-sm text-gray-500">Notificaciones sobre nuevas instalaciones asignadas</p>
-                </div>
-                <Switch
-                  id="asignaciones-notifications"
-                  checked={notificationSettings.asignaciones}
-                  onCheckedChange={(checked) => handleNotificationChange("asignaciones", checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="recordatorios-notifications">Recordatorios</Label>
-                  <p className="text-sm text-gray-500">Recordatorios de visitas e inspecciones</p>
-                </div>
-                <Switch
-                  id="recordatorios-notifications"
-                  checked={notificationSettings.recordatorios}
-                  onCheckedChange={(checked) => handleNotificationChange("recordatorios", checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="mantenimiento-notifications">Mantenimiento</Label>
-                  <p className="text-sm text-gray-500">Notificaciones sobre mantenimiento programado</p>
-                </div>
-                <Switch
-                  id="mantenimiento-notifications"
-                  checked={notificationSettings.mantenimiento}
-                  onCheckedChange={(checked) => handleNotificationChange("mantenimiento", checked)}
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium">Frecuencia</h3>
-              <RadioGroup
-                value={notificationSettings.frecuencia}
-                onValueChange={(value) => handleNotificationChange("frecuencia", value)}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="inmediata" id="frecuencia-inmediata" />
-                  <Label htmlFor="frecuencia-inmediata">Inmediata</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="diaria" id="frecuencia-diaria" />
-                  <Label htmlFor="frecuencia-diaria">Resumen diario</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="semanal" id="frecuencia-semanal" />
-                  <Label htmlFor="frecuencia-semanal">Resumen semanal</Label>
-                </div>
-              </RadioGroup>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sun className="h-5 w-5" />
-                <Moon className="h-5 w-5" />
-                Pantalla y Apariencia
-              </CardTitle>
-              <CardDescription>Personaliza la apariencia de la aplicación</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Tema</h3>
-                <RadioGroup
-                  value={displaySettings.theme}
-                  onValueChange={(value) => handleDisplayChange("theme", value)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="light" id="theme-light" />
-                    <Label htmlFor="theme-light">Claro</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="dark" id="theme-dark" />
-                    <Label htmlFor="theme-dark">Oscuro</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="system" id="theme-system" />
-                    <Label htmlFor="theme-system">Usar configuración del sistema</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">Tamaño de fuente</h3>
-                <Select
-                  value={displaySettings.fontSize}
-                  onValueChange={(value) => handleDisplayChange("fontSize", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un tamaño" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="small">Pequeño</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="large">Grande</SelectItem>
-                    <SelectItem value="xlarge">Extra grande</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Smartphone className="h-5 w-5" />
-                Configuración Móvil
-              </CardTitle>
-              <CardDescription>Configura opciones específicas para dispositivos móviles</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="geolocalizacion">Geolocalización</Label>
-                  <p className="text-sm text-gray-500">Permitir acceso a la ubicación para validar visitas</p>
-                </div>
-                <Switch
-                  id="geolocalizacion"
-                  checked={mobileSettings.geolocalizacion}
-                  onCheckedChange={(checked) => handleMobileChange("geolocalizacion", checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="camara-rapida">Acceso rápido a cámara</Label>
-                  <p className="text-sm text-gray-500">Habilitar acceso rápido a la cámara para reportes</p>
-                </div>
-                <Switch
-                  id="camara-rapida"
-                  checked={mobileSettings.camaraRapida}
-                  onCheckedChange={(checked) => handleMobileChange("camaraRapida", checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="datos-moviles">Usar datos móviles</Label>
-                  <p className="text-sm text-gray-500">Permitir sincronización usando datos móviles</p>
-                </div>
-                <Switch
-                  id="datos-moviles"
-                  checked={mobileSettings.datosMoviles}
-                  onCheckedChange={(checked) => handleMobileChange("datosMoviles", checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
+        <p className="text-muted-foreground">Gestiona tu perfil y preferencias de notificaciones</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Guardar Configuración</CardTitle>
-          <CardDescription>Guarda todos los cambios realizados en tu configuración</CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button className="bg-primary hover:bg-primary-light" onClick={handleSaveSettings}>
-            <Save className="h-4 w-4 mr-2" />
-            Guardar Cambios
-          </Button>
-        </CardFooter>
-      </Card>
+      <Tabs defaultValue="seguridad" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
+          <TabsTrigger value="notificaciones">Notificaciones</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="seguridad" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <CardTitle>Cambiar Contraseña</CardTitle>
+                  <CardDescription>Actualiza tu contraseña de acceso</CardDescription>
+                </div>
+                {isSuccess && (
+                  <div className="flex items-center text-green-600">
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    <span className="text-sm">Contraseña actualizada correctamente</span>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleChangePassword}>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword" className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-primary" />
+                      Contraseña actual
+                    </Label>
+                    <Input
+                      id="currentPassword"
+                      name="currentPassword"
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      className={errors.currentPassword ? "border-red-500" : ""}
+                    />
+                    {errors.currentPassword && <p className="text-red-500 text-sm">{errors.currentPassword}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword" className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-primary" />
+                      Nueva contraseña
+                    </Label>
+                    <Input
+                      id="newPassword"
+                      name="newPassword"
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      className={errors.newPassword ? "border-red-500" : ""}
+                    />
+                    {errors.newPassword && <p className="text-red-500 text-sm">{errors.newPassword}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-primary" />
+                      Confirmar nueva contraseña
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={handlePasswordChange}
+                      className={errors.confirmPassword ? "border-red-500" : ""}
+                    />
+                    {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <Button type="submit" className="bg-primary hover:bg-primary-light" disabled={isSaving}>
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Actualizando...
+                        </>
+                      ) : (
+                        "Cambiar contraseña"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notificaciones" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <CardTitle>Preferencias de notificaciones</CardTitle>
+                  <CardDescription>Configura cómo y cuándo quieres recibir notificaciones</CardDescription>
+                </div>
+                {isSuccess && (
+                  <div className="flex items-center text-green-600">
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    <span className="text-sm">Preferencias guardadas correctamente</span>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Notificaciones por correo electrónico
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="email-notifications" className="font-medium">
+                          Recibir notificaciones por correo
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          Recibe todas las notificaciones en tu correo electrónico
+                        </p>
+                      </div>
+                      <Switch
+                        id="email-notifications"
+                        checked={notificationSettings.email}
+                        onCheckedChange={(checked) => handleNotificationChange("email", checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="observaciones-notifications" className="font-medium">
+                          Observaciones
+                        </Label>
+                        <p className="text-sm text-gray-500">Notificaciones sobre tus observaciones reportadas</p>
+                      </div>
+                      <Switch
+                        id="observaciones-notifications"
+                        checked={notificationSettings.observaciones}
+                        onCheckedChange={(checked) => handleNotificationChange("observaciones", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="asignaciones-notifications" className="font-medium">
+                          Asignaciones
+                        </Label>
+                        <p className="text-sm text-gray-500">Notificaciones sobre nuevas instalaciones asignadas</p>
+                      </div>
+                      <Switch
+                        id="asignaciones-notifications"
+                        checked={notificationSettings.asignaciones}
+                        onCheckedChange={(checked) => handleNotificationChange("asignaciones", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="recordatorios-notifications" className="font-medium">
+                          Recordatorios
+                        </Label>
+                        <p className="text-sm text-gray-500">Recordatorios de visitas e inspecciones</p>
+                      </div>
+                      <Switch
+                        id="recordatorios-notifications"
+                        checked={notificationSettings.recordatorios}
+                        onCheckedChange={(checked) => handleNotificationChange("recordatorios", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="mantenimiento-notifications" className="font-medium">
+                          Mantenimiento
+                        </Label>
+                        <p className="text-sm text-gray-500">Notificaciones sobre mantenimiento programado</p>
+                      </div>
+                      <Switch
+                        id="mantenimiento-notifications"
+                        checked={notificationSettings.mantenimiento}
+                        onCheckedChange={(checked) => handleNotificationChange("mantenimiento", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button className="bg-primary hover:bg-primary-light" onClick={handleSaveNotifications} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Guardar preferencias
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
