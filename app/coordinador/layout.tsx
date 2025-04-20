@@ -72,7 +72,7 @@ export default function CoordinadorLayout({
 
   // 2. useContext hooks
   const pathname = usePathname()
-  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
   const router = useRouter()
 
   // 3. useEffect hooks - All useEffect declarations together
@@ -245,11 +245,13 @@ export default function CoordinadorLayout({
           </ScrollArea>
 
           <div className="p-4 border-t border-primary-light">
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-primary-light" asChild>
-              <Link href="/logout">
-                <LogOut className="h-5 w-5 mr-3" />
-                Cerrar sesión
-              </Link>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-white hover:bg-primary-light"
+              onClick={() => logout()}
+            >
+              <LogOut className="h-5 w-5 mr-3" />
+              Cerrar sesión
             </Button>
           </div>
         </aside>
@@ -338,10 +340,11 @@ export default function CoordinadorLayout({
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/logout" className="w-full">
-                        Cerrar Sesión
-                      </Link>
+                    <DropdownMenuItem 
+                      onClick={() => logout()}
+                      className="w-full"
+                    >
+                      Cerrar Sesión
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -435,11 +438,13 @@ export default function CoordinadorLayout({
                 </nav>
 
                 <div className="p-4 border-t border-primary-light">
-                  <Button variant="ghost" className="w-full justify-start text-white hover:bg-primary-light" asChild>
-                    <Link href="/logout">
-                      <LogOut className="h-5 w-5 mr-3" />
-                      Cerrar sesión
-                    </Link>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-white hover:bg-primary-light"
+                    onClick={() => logout()}
+                  >
+                    <LogOut className="h-5 w-5 mr-3" />
+                    Cerrar sesión
                   </Button>
                 </div>
               </div>
