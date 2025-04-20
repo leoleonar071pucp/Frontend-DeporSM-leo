@@ -1,14 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, MapPin, Navigation } from "lucide-react"
 import Link from "next/link"
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api"
+
+type FacilityStatus = 'buen-estado' | 'requiere-atencion' | 'mantenimiento-requerido' | 'en-mantenimiento';
+
+interface Facility {
+  id: number;
+  name: string;
+  location: string;
+  status: FacilityStatus;
+  coordinates: {
+    lat: number;
+    lng: number;
+  };
+  isToday: boolean;
+}
 
 // Datos de ejemplo para las instalaciones
-const facilitiesData = [
+const facilitiesData: Facility[] = [
   {
     id: 1,
     name: "Cancha de Fútbol (Grass)",
@@ -51,11 +66,26 @@ const facilitiesData = [
   },
 ]
 
+const mapContainerStyle = {
+  width: "100%",
+  height: "500px",
+}
+
+const center = {
+  lat: -12.078,
+  lng: -77.084,
+}
+
 export default function MapaInstalaciones() {
   const [isLoading, setIsLoading] = useState(true)
-  const [facilities, setFacilities] = useState([])
-  const [userLocation, setUserLocation] = useState(null)
-  const [selectedFacility, setSelectedFacility] = useState(null)
+  const [facilities, setFacilities] = useState<Facility[]>(facilitiesData)
+  const [userLocation, setUserLocation] = useState(center)
+  const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null)
+
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+  })
 
   useEffect(() => {
     // Simulación de carga de datos
@@ -63,16 +93,28 @@ export default function MapaInstalaciones() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setFacilities(facilitiesData)
 
-      // Establecer una ubicación predeterminada para San Miguel, Lima
-      // en lugar de intentar obtener la ubicación del usuario
-      setUserLocation({ lat: -12.078, lng: -77.084 })
+      // Intentar obtener la ubicación del usuario
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            })
+          },
+          () => {
+            // En caso de error, usar ubicación predeterminada de San Miguel
+            setUserLocation(center)
+          }
+        )
+      }
       setIsLoading(false)
     }
 
     loadData()
   }, [])
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: FacilityStatus) => {
     switch (status) {
       case "buen-estado":
         return "bg-green-500"
@@ -87,7 +129,25 @@ export default function MapaInstalaciones() {
     }
   }
 
-  const getStatusBadge = (status) => {
+  const getMarkerIcon = (status: FacilityStatus) => {
+    const color = {
+      "buen-estado": "#22c55e",
+      "requiere-atencion": "#eab308",
+      "mantenimiento-requerido": "#ef4444",
+      "en-mantenimiento": "#3b82f6",
+    }[status] || "#6b7280"
+
+    return {
+      path: google?.maps?.SymbolPath?.CIRCLE || 0,
+      fillColor: color,
+      fillOpacity: 1,
+      strokeWeight: 1,
+      strokeColor: "#ffffff",
+      scale: 10,
+    }
+  }
+
+  const getStatusBadge = (status: FacilityStatus) => {
     switch (status) {
       case "buen-estado":
         return <Badge className="bg-green-100 text-green-800">Buen estado</Badge>
@@ -102,7 +162,14 @@ export default function MapaInstalaciones() {
     }
   }
 
-  if (isLoading) {
+  const onLoad = useCallback((map: google.maps.Map) => {
+    const bounds = new window.google.maps.LatLngBounds()
+    facilities.forEach((facility) => bounds.extend(facility.coordinates))
+    bounds.extend(userLocation)
+    map.fitBounds(bounds)
+  }, [facilities, userLocation])
+
+  if (isLoading || !isLoaded) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -127,67 +194,74 @@ export default function MapaInstalaciones() {
           <CardHeader>
             <CardTitle>Ubicación de Instalaciones</CardTitle>
             <CardDescription>Visualiza todas las instalaciones asignadas en el mapa</CardDescription>
-            <div className="text-sm text-amber-600 mb-2">
-              Nota: Se está utilizando una ubicación predeterminada para San Miguel. La geolocalización no está
-              disponible en el modo de vista previa.
-            </div>
           </CardHeader>
           <CardContent>
-            <div className="relative w-full h-[500px] bg-gray-200 rounded-md overflow-hidden">
-              {/* Aquí iría el componente de mapa real, pero para este ejemplo usaremos un placeholder */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-gray-500">Mapa de San Miguel, Lima</p>
-              </div>
+            <div className="relative w-full h-[500px] rounded-md overflow-hidden">
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={userLocation}
+                zoom={15}
+                onLoad={onLoad}
+              >
+                {/* Marcadores de instalaciones */}
+                {facilities.map((facility) => (
+                  <Marker
+                    key={facility.id}
+                    position={facility.coordinates}
+                    icon={getMarkerIcon(facility.status)}
+                    onClick={() => setSelectedFacility(facility)}
+                  />
+                ))}
 
-              {/* Marcadores de instalaciones (simulados) */}
-              {facilities.map((facility) => (
-                <div
-                  key={facility.id}
-                  className={`absolute w-6 h-6 rounded-full ${getStatusColor(facility.status)} cursor-pointer transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center border-2 border-white`}
-                  style={{
-                    left: `${((facility.coordinates.lng + 77.09) / 0.02) * 100}%`,
-                    top: `${((facility.coordinates.lat + 12.09) / 0.02) * 100}%`,
+                {/* Marcador de ubicación del usuario */}
+                <Marker
+                  position={userLocation}
+                  icon={{
+                    path: google?.maps?.SymbolPath?.CIRCLE || 0,
+                    fillColor: "#6366f1",
+                    fillOpacity: 1,
+                    strokeWeight: 2,
+                    strokeColor: "#ffffff",
+                    scale: 8,
                   }}
-                  onClick={() => setSelectedFacility(facility)}
-                >
-                  <MapPin className="h-4 w-4 text-white" />
-                </div>
-              ))}
+                />
 
-              {/* Marcador de ubicación del usuario (simulado) */}
-              {userLocation && (
-                <div
-                  className="absolute w-6 h-6 rounded-full bg-primary cursor-pointer transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center border-2 border-white animate-pulse"
-                  style={{
-                    left: `${((userLocation.lng + 77.09) / 0.02) * 100}%`,
-                    top: `${((userLocation.lat + 12.09) / 0.02) * 100}%`,
-                  }}
-                >
-                  <Navigation className="h-4 w-4 text-white" />
-                </div>
-              )}
-            </div>
+                {/* Ventana de información para la instalación seleccionada */}
+                {selectedFacility && (
+                  <InfoWindow
+                    position={selectedFacility.coordinates}
+                    onCloseClick={() => setSelectedFacility(null)}
+                  >
+                    <div className="p-2">
+                      <h3 className="font-bold mb-1">{selectedFacility.name}</h3>
+                      <p className="text-sm text-gray-600 mb-2">{selectedFacility.location}</p>
+                      {getStatusBadge(selectedFacility.status)}
+                    </div>
+                  </InfoWindow>
+                )}
+              </GoogleMap>
 
-            <div className="flex flex-wrap gap-4 mt-4 justify-center">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-sm">Buen estado</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <span className="text-sm">Requiere atención</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <span className="text-sm">Mantenimiento requerido</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span className="text-sm">En mantenimiento</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
-                <span className="text-sm">Tu ubicación</span>
+              <div className="flex flex-wrap gap-4 mt-4 justify-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-sm">Buen estado</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <span className="text-sm">Requiere atención</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span className="text-sm">Mantenimiento requerido</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-sm">En mantenimiento</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                  <span className="text-sm">Tu ubicación</span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -229,14 +303,13 @@ export default function MapaInstalaciones() {
               <div className="space-y-4">
                 {facilities
                   .sort((a, b) => {
-                    // Ordenar por distancia (simulada)
                     const distA = Math.sqrt(
-                      Math.pow(a.coordinates.lat - (userLocation?.lat || 0), 2) +
-                        Math.pow(a.coordinates.lng - (userLocation?.lng || 0), 2),
+                      Math.pow(a.coordinates.lat - userLocation.lat, 2) +
+                        Math.pow(a.coordinates.lng - userLocation.lng, 2)
                     )
                     const distB = Math.sqrt(
-                      Math.pow(b.coordinates.lat - (userLocation?.lat || 0), 2) +
-                        Math.pow(b.coordinates.lng - (userLocation?.lng || 0), 2),
+                      Math.pow(b.coordinates.lat - userLocation.lat, 2) +
+                        Math.pow(b.coordinates.lng - userLocation.lng, 2)
                     )
                     return distA - distB
                   })
