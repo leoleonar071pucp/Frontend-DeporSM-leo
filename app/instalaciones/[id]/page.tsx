@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -222,27 +222,45 @@ const facilitiesDB = [
   },
 ]
 
-export default function InstalacionDetalle({ params }: { params: { id: string } }) {
-  const { id: facilityId } = params; // Extraer id de params
+interface Facility {
+  id: number;
+  name: string;
+  image: string;
+  description: string;
+  type: string;
+  location: string;
+  price: string;
+  features: string[];
+  amenities: string[];
+  rules: string[];
+  schedule: string;
+  capacity: string;
+  icon: React.ReactNode;
+  availableTimes: string[];
+}
+
+export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params) as { id: string }
+  const [isLoading, setIsLoading] = useState(true)
+  const [facility, setFacility] = useState<Facility | null>(null)
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
-  const [facility, setFacility] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
 
   const router = useRouter()
-  const { isAuthenticated } = useAuth() // Obtener estado de autenticación
+  const { isAuthenticated } = useAuth()
 
   useEffect(() => {
-    // Simulación de carga de datos
-    setLoading(true)
-    setTimeout(() => {
-      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(facilityId)) // Usar facilityId extraído
+    const loadData = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(resolvedParams.id))
       setFacility(foundFacility || null)
-      setLoading(false)
-    }, 500)
-  }, [facilityId]) // Usar facilityId en dependencias
+      setIsLoading(false)
+    }
 
-  if (loading) {
+    loadData()
+  }, [resolvedParams.id])
+
+  if (isLoading) {
     return (
       <main className="min-h-screen flex flex-col">
         <Navbar />
@@ -453,7 +471,7 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
                         // Si está autenticado y tiene fecha/hora, proceder a confirmar
                         const encodedTime = encodeURIComponent(selectedTime)
                         const encodedDate = encodeURIComponent(date.toISOString())
-                        router.push(`/reserva/confirmar?id=${facilityId}&date=${encodedDate}&time=${encodedTime}`) // Usar facilityId extraído
+                        router.push(`/reserva/confirmar?id=${resolvedParams.id}&date=${encodedDate}&time=${encodedTime}`) // Usar facilityId extraído
                       }
                     }}
                   >

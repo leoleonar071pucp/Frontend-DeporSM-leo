@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -28,7 +28,7 @@ const facilitiesDB = [
     location: "Parque Juan Pablo II",
     description:
       "Cancha de fútbol con grass sintético de última generación, ideal para partidos de fútbol 7 o fútbol 11. Cuenta con iluminación para partidos nocturnos.",
-    status: "buen-estado",
+    status: "buen-estado" as const,
     lastVisit: "01/04/2025",
     nextVisit: "05/04/2025, 14:00",
     isToday: true,
@@ -58,14 +58,14 @@ const facilitiesDB = [
         id: 1,
         date: "01/04/2025",
         description: "Daños en la red de la portería norte",
-        status: "pendiente",
+        status: "pendiente" as const,
         photos: ["/placeholder.svg?height=100&width=100"],
       },
       {
         id: 2,
         date: "15/03/2025",
         description: "Grass desgastado en el área central",
-        status: "aprobada",
+        status: "aprobada" as const,
         photos: ["/placeholder.svg?height=100&width=100"],
       },
     ],
@@ -79,7 +79,7 @@ const facilitiesDB = [
     location: "Complejo Deportivo Municipal",
     description:
       "Piscina semiolímpica con carriles para natación y área recreativa. Ideal para practicar natación, clases de aquagym y actividades acuáticas.",
-    status: "requiere-atencion",
+    status: "requiere-atencion" as const,
     lastVisit: "02/04/2025",
     nextVisit: "05/04/2025, 16:30",
     isToday: true,
@@ -104,21 +104,21 @@ const facilitiesDB = [
         id: 3,
         date: "02/04/2025",
         description: "Filtro de agua requiere mantenimiento",
-        status: "aprobada",
+        status: "aprobada" as const,
         photos: ["/placeholder.svg?height=100&width=100"],
       },
       {
         id: 4,
         date: "20/03/2025",
         description: "Azulejos rotos en el borde sur de la piscina",
-        status: "aprobada",
+        status: "aprobada" as const,
         photos: ["/placeholder.svg?height=100&width=100"],
       },
       {
         id: 5,
         date: "10/03/2025",
         description: "Fuga de agua en las duchas de hombres",
-        status: "completada",
+        status: "completada" as const,
         photos: ["/placeholder.svg?height=100&width=100"],
       },
     ],
@@ -127,23 +127,49 @@ const facilitiesDB = [
   },
 ]
 
-export default function InstalacionDetalle({ params }: { params: { id: string } }) {
+interface Observation {
+  id: number;
+  date: string;
+  description: string;
+  status: 'pendiente' | 'aprobada' | 'rechazada' | 'completada';
+  photos: string[];
+}
+
+interface Facility {
+  id: number;
+  name: string;
+  image: string;
+  location: string;
+  description: string;
+  status: 'buen-estado' | 'requiere-atencion' | 'mantenimiento-requerido' | 'en-mantenimiento';
+  lastVisit: string;
+  nextVisit: string;
+  isToday: boolean;
+  features: string[];
+  amenities: string[];
+  rules: string[];
+  observations: Observation[];
+  schedule: string;
+  contactNumber: string;
+}
+
+export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params) as { id: string }
   const [isLoading, setIsLoading] = useState(true)
-  const [facility, setFacility] = useState<any>(null)
+  const [facility, setFacility] = useState<Facility | null>(null)
 
   useEffect(() => {
-    // Simulación de carga de datos
     const loadData = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(params.id))
+      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(resolvedParams.id))
       setFacility(foundFacility || null)
       setIsLoading(false)
     }
 
     loadData()
-  }, [params.id])
+  }, [resolvedParams.id])
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: Facility['status']) => {
     switch (status) {
       case "buen-estado":
         return <Badge className="bg-green-100 text-green-800">Buen estado</Badge>
@@ -158,7 +184,7 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
     }
   }
 
-  const getObservationStatusBadge = (status) => {
+  const getObservationStatusBadge = (status: Observation['status']) => {
     switch (status) {
       case "pendiente":
         return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
