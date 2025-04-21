@@ -103,10 +103,11 @@ export default function CoordinadorLayout({
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1024) {
-        // En móviles, puede estar cerrado
+        // En móviles, el estado puede cambiar
+        // pero no lo forzamos aquí, dejamos que el usuario lo controle
       } else {
-        // En pantallas grandes, siempre visible
-        setIsSidebarOpen(true)
+        // No forzamos que sea visible en pantallas grandes
+        // para permitir ocultarlo con el botón de toggle
       }
     }
 
@@ -123,9 +124,8 @@ export default function CoordinadorLayout({
 
   // Helper functions
   const toggleSidebar = () => {
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(!isSidebarOpen)
-    }
+    // Permitir el toggle del sidebar sin importar el tamaño de la pantalla
+    setIsSidebarOpen(!isSidebarOpen)
   }
 
   const toggleMobileMenu = () => {
@@ -171,7 +171,7 @@ export default function CoordinadorLayout({
       <div className="min-h-screen bg-gray-100">
         {/* Sidebar para escritorio */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary transform transition-transform duration-300 ease-in-out ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           } flex flex-col`}
         >
