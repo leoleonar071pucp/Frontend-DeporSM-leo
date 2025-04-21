@@ -5,12 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Calendar, Clock, MapPin, Filter, CheckCircle } from "lucide-react"
+import { Search, Calendar as CalendarIcon, Clock, MapPin, Filter } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,109 +18,123 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { AttendanceRecord } from "./types"
+import { DepartureDialog } from "./components/departure-dialog"
+import { AttendanceDetailsDialog } from "./components/attendance-details-dialog"
+import { toast } from "@/components/ui/use-toast"
 
 // Datos de ejemplo para las asistencias
-const attendanceData = [
+const attendanceData: AttendanceRecord[] = [
   {
     id: 1,
     facilityId: 1,
+    scheduleId: 101,
     facilityName: "Cancha de Fútbol (Grass)",
     location: "Parque Juan Pablo II",
-    date: "2025-04-05",
-    scheduledTime: "14:00",
-    arrivalTime: "13:55",
+    date: "2025-04-05", // Viernes
+    scheduledTime: "08:00",
+    scheduledEndTime: "12:00",
+    arrivalTime: "07:55",
+    departureTime: "12:05",
     status: "a-tiempo",
-    notes: "Todo en orden",
+    departureStatus: "a-tiempo",
+    notes: "", // Notas vacías para estado "a-tiempo"
+    departureNotes: "",
+  },
+  // Ejemplo de registro con entrada pero sin salida (día actual)
+  {
+    id: 6,
+    facilityId: 2,
+    scheduleId: 203,
+    facilityName: "Piscina Municipal",
+    location: "Complejo Deportivo Este",
+    date: "2025-04-19", // Día actual (19 de abril)
+    scheduledTime: "08:00",
+    scheduledEndTime: "12:00",
+    arrivalTime: "08:05",
+    departureTime: null, // Salida no registrada
+    status: "a-tiempo",
+    departureStatus: "pendiente",
+    notes: "",
+    departureNotes: "",
   },
   {
     id: 2,
-    facilityId: 2,
-    facilityName: "Piscina Municipal",
-    location: "Complejo Deportivo Municipal",
-    date: "2025-04-05",
-    scheduledTime: "16:30",
-    arrivalTime: "16:45",
+    facilityId: 1,
+    scheduleId: 103,
+    facilityName: "Cancha de Fútbol (Grass)",
+    location: "Parque Juan Pablo II",
+    date: "2025-04-03", // Miércoles
+    scheduledTime: "08:00",
+    scheduledEndTime: "12:00",
+    arrivalTime: "08:10",
+    departureTime: "11:45",
     status: "tarde",
+    departureStatus: "a-tiempo",
     notes: "Tráfico en la avenida principal",
+    departureNotes: "Reunión urgente en la municipalidad",
   },
   {
     id: 3,
-    facilityId: 3,
-    facilityName: "Gimnasio Municipal",
+    facilityId: 2,
+    scheduleId: 201,
+    facilityName: "Piscina Municipal",
     location: "Complejo Deportivo Municipal",
-    date: "2025-04-04",
-    scheduledTime: "09:00",
-    arrivalTime: "09:00",
+    date: "2025-04-02", // Martes
+    scheduledTime: "08:00",
+    scheduledEndTime: "12:00",
+    arrivalTime: "08:00",
+    departureTime: "12:00",
     status: "a-tiempo",
-    notes: "",
+    departureStatus: "a-tiempo",
+    notes: "", // Notas vacías para estado "a-tiempo"
+    departureNotes: "",
   },
   {
     id: 4,
-    facilityId: 4,
-    facilityName: "Pista de Atletismo",
+    facilityId: 2,
+    scheduleId: 202,
+    facilityName: "Piscina Municipal",
     location: "Complejo Deportivo Municipal",
-    date: "2025-04-03",
-    scheduledTime: "11:30",
+    date: "2025-04-04", // Jueves
+    scheduledTime: "08:00",
+    scheduledEndTime: "12:00",
     arrivalTime: null,
+    departureTime: null,
     status: "no-asistio",
+    departureStatus: "no-asistio",
     notes: "Problemas de salud",
+    departureNotes: "",
   },
   {
     id: 5,
     facilityId: 1,
+    scheduleId: 102,
     facilityName: "Cancha de Fútbol (Grass)",
     location: "Parque Juan Pablo II",
-    date: "2025-04-02",
-    scheduledTime: "14:00",
-    arrivalTime: "14:05",
+    date: "2025-04-01", // Lunes
+    scheduledTime: "08:00",
+    scheduledEndTime: "12:00",
+    arrivalTime: "08:05",
+    departureTime: "12:15",
     status: "a-tiempo",
-    notes: "",
-  },
-]
-
-// Datos de ejemplo para las visitas programadas
-const scheduledVisits = [
-  {
-    id: 101,
-    facilityId: 1,
-    facilityName: "Cancha de Fútbol (Grass)",
-    location: "Parque Juan Pablo II",
-    date: "2025-04-06",
-    scheduledTime: "14:00",
-  },
-  {
-    id: 102,
-    facilityId: 2,
-    facilityName: "Piscina Municipal",
-    location: "Complejo Deportivo Municipal",
-    date: "2025-04-06",
-    scheduledTime: "16:30",
-  },
-  {
-    id: 103,
-    facilityId: 3,
-    facilityName: "Gimnasio Municipal",
-    location: "Complejo Deportivo Municipal",
-    date: "2025-04-07",
-    scheduledTime: "09:00",
+    departureStatus: "tarde",
+    notes: "", // Notas vacías para estado "a-tiempo"
+    departureNotes: "Hubo que resolver un problema con usuarios",
   },
 ]
 
 export default function AsistenciaPage() {
   const [isLoading, setIsLoading] = useState(true)
-  const [attendance, setAttendance] = useState([])
-  const [scheduled, setScheduled] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("historial")
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [filteredData, setFilteredData] = useState([])
+  const [filteredData, setFilteredData] = useState<AttendanceRecord[]>([])
+  const [departureDialogOpen, setDepartureDialogOpen] = useState(false)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [selectedAttendance, setSelectedAttendance] = useState<AttendanceRecord | null>(null)
 
   useEffect(() => {
-    // Simulación de carga de datos
     const loadData = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      setAttendance(attendanceData)
-      setScheduled(scheduledVisits)
       setFilteredData(attendanceData)
       setIsLoading(false)
     }
@@ -131,51 +143,26 @@ export default function AsistenciaPage() {
   }, [])
 
   useEffect(() => {
-    if (activeTab === "historial") {
-      let filtered = attendance
+    let filtered = attendanceData
 
-      // Aplicar filtro de búsqueda
-      if (searchQuery) {
-        filtered = filtered.filter(
-          (item) =>
-            item.facilityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.location.toLowerCase().includes(searchQuery.toLowerCase()),
-        )
-      }
-
-      setFilteredData(filtered)
-    } else if (activeTab === "calendario") {
-      // Filtrar por fecha seleccionada
-      const dateStr = format(selectedDate, "yyyy-MM-dd")
-
-      const filtered = attendance.filter((item) => item.date === dateStr)
-      setFilteredData(filtered)
-    } else if (activeTab === "programadas") {
-      let filtered = scheduled
-
-      // Aplicar filtro de búsqueda
-      if (searchQuery) {
-        filtered = filtered.filter(
-          (item) =>
-            item.facilityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.location.toLowerCase().includes(searchQuery.toLowerCase()),
-        )
-      }
-
-      setFilteredData(filtered)
+    // Aplicar filtro de búsqueda
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (item) =>
+          item.facilityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.location.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
     }
-  }, [activeTab, searchQuery, selectedDate, attendance, scheduled])
 
-  const handleSearch = (e) => {
+    setFilteredData(filtered)
+  }, [searchQuery])
+
+  const handleSearchForm = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     // La búsqueda se aplica en el useEffect
   }
 
-  const handleTabChange = (value) => {
-    setActiveTab(value)
-  }
-
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: AttendanceRecord["status"] | AttendanceRecord["departureStatus"]) => {
     switch (status) {
       case "a-tiempo":
         return <Badge className="bg-green-100 text-green-800">A tiempo</Badge>
@@ -183,9 +170,74 @@ export default function AsistenciaPage() {
         return <Badge className="bg-yellow-100 text-yellow-800">Tarde</Badge>
       case "no-asistio":
         return <Badge className="bg-red-100 text-red-800">No asistió</Badge>
+      case "pendiente":
+        return <Badge className="bg-gray-100 text-gray-800">Pendiente</Badge>
       default:
         return null
     }
+  }
+
+  const openDepartureDialog = (attendance: AttendanceRecord) => {
+    setSelectedAttendance(attendance)
+    setDepartureDialogOpen(true)
+  }
+  
+  const openDetailsDialog = (attendance: AttendanceRecord) => {
+    setSelectedAttendance(attendance)
+    setDetailsDialogOpen(true)
+  }
+
+  const handleRegisterDeparture = (
+    attendanceId: number,
+    departureTime: string,
+    location: GeolocationCoordinates,
+    notes: string
+  ) => {
+    // En un escenario real, aquí llamaríamos a una API para registrar la salida
+    console.log("Registrando salida:", {
+      attendanceId,
+      departureTime,
+      location,
+      notes,
+    })
+
+    // Actualizar los datos en el estado local para reflejar la salida registrada
+    setFilteredData((prevData) =>
+      prevData.map((item) => {
+        if (item.id === attendanceId) {
+          // Determinar el estado de salida basado en la hora programada de fin y la hora actual
+          const scheduledEnd = item.scheduledEndTime || "00:00"
+          let departureStatus: "a-tiempo" | "tarde" = "a-tiempo"
+          
+          // Convertir las horas a minutos para comparar fácilmente
+          const schedEndParts = scheduledEnd.split(":")
+          const schedEndMinutes = parseInt(schedEndParts[0]) * 60 + parseInt(schedEndParts[1])
+          
+          const depParts = departureTime.split(":")
+          const depMinutes = parseInt(depParts[0]) * 60 + parseInt(depParts[1])
+          
+          // Si la diferencia es mayor a 5 minutos después, es tarde
+          if (depMinutes - schedEndMinutes > 5) {
+            departureStatus = "tarde"
+          } else {
+            departureStatus = "a-tiempo"
+          }
+          
+          return {
+            ...item,
+            departureTime,
+            departureStatus,
+            departureNotes: notes,
+          }
+        }
+        return item
+      })
+    )
+
+    toast({
+      title: "Salida registrada",
+      description: `Has registrado tu salida a las ${departureTime}`,
+    })
   }
 
   if (isLoading) {
@@ -198,18 +250,46 @@ export default function AsistenciaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Registro de Asistencia</h1>
-          <p className="text-muted-foreground">Gestiona tus visitas y asistencias a las instalaciones asignadas</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Registro de Asistencia</h1>
+        <p className="text-muted-foreground">Gestiona tus visitas y asistencias a las instalaciones asignadas</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="hover:border-primary transition-colors">
+          <Link href="/coordinador/asistencia/calendario">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Vista Calendario
+              </CardTitle>
+              <CardDescription>
+                Visualiza tu horario de las instalaciones asignadas
+              </CardDescription>
+            </CardHeader>
+          </Link>
+        </Card>
+
+        <Card className="hover:border-primary transition-colors">
+          <Link href="/coordinador/asistencia/programadas">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Visitas Programadas
+              </CardTitle>
+              <CardDescription>
+                Revisa y gestiona tus próximas visitas programadas
+              </CardDescription>
+            </CardHeader>
+          </Link>
+        </Card>
       </div>
 
       {/* Filtros y búsqueda */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <form onSubmit={handleSearch} className="flex-grow flex gap-2">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <form onSubmit={handleSearchForm} className="flex-grow flex gap-2">
               <div className="relative flex-grow">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
@@ -233,14 +313,14 @@ export default function AsistenciaPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilteredData(attendance)}>Todos</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilteredData(attendance.filter((a) => a.status === "a-tiempo"))}>
+                <DropdownMenuItem onClick={() => setFilteredData(attendanceData)}>Todos</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilteredData(attendanceData.filter((a) => a.status === "a-tiempo"))}>
                   A tiempo
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilteredData(attendance.filter((a) => a.status === "tarde"))}>
+                <DropdownMenuItem onClick={() => setFilteredData(attendanceData.filter((a) => a.status === "tarde"))}>
                   Tarde
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilteredData(attendance.filter((a) => a.status === "no-asistio"))}>
+                <DropdownMenuItem onClick={() => setFilteredData(attendanceData.filter((a) => a.status === "no-asistio"))}>
                   No asistió
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -249,193 +329,105 @@ export default function AsistenciaPage() {
         </CardContent>
       </Card>
 
-      {/* Pestañas */}
-      <Tabs defaultValue="historial" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="historial">Historial</TabsTrigger>
-          <TabsTrigger value="calendario">Calendario</TabsTrigger>
-          <TabsTrigger value="programadas">Programadas</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="historial" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Historial de Asistencias</CardTitle>
-              <CardDescription>Registro de todas tus visitas a instalaciones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Instalación</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Hora Programada</TableHead>
-                      <TableHead>Hora de Llegada</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Notas</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.length > 0 ? (
-                      filteredData.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{item.facilityName}</p>
-                              <p className="text-sm text-gray-500">{item.location}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>{format(new Date(item.date), "dd/MM/yyyy")}</TableCell>
-                          <TableCell>{item.scheduledTime}</TableCell>
-                          <TableCell>{item.arrivalTime || "-"}</TableCell>
-                          <TableCell>{getStatusBadge(item.status)}</TableCell>
-                          <TableCell>{item.notes || "-"}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-6 text-gray-500">
-                          No se encontraron registros de asistencia
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="calendario" className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Calendario</CardTitle>
-                <CardDescription>Selecciona una fecha para ver tus asistencias</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CalendarComponent
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  className="rounded-md border"
-                  locale={es}
-                />
-              </CardContent>
-            </Card>
-
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle>Asistencias del {format(selectedDate, "d 'de' MMMM 'de' yyyy", { locale: es })}</CardTitle>
-              </CardHeader>
-              <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial de Asistencias</CardTitle>
+          <CardDescription>Registro de todas tus visitas a instalaciones</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Instalación</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Hora Programada</TableHead>
+                  <TableHead>Entrada</TableHead>
+                  <TableHead>Estado Entrada</TableHead>
+                  <TableHead>Salida</TableHead>
+                  <TableHead>Estado Salida</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredData.length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredData.map((item) => (
-                      <div key={item.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-medium">{item.facilityName}</h3>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                              <MapPin className="h-4 w-4" /> {item.location}
-                            </p>
-                          </div>
-                          {getStatusBadge(item.status)}
+                  filteredData.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{item.facilityName}</p>
+                          <p className="text-sm text-gray-500">{item.location}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-primary" />
-                            <div>
-                              <p className="text-sm text-gray-500">Hora programada</p>
-                              <p className="font-medium">{item.scheduledTime}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-primary" />
-                            <div>
-                              <p className="text-sm text-gray-500">Hora de llegada</p>
-                              <p className="font-medium">{item.arrivalTime || "-"}</p>
-                            </div>
-                          </div>
+                      </TableCell>
+                      <TableCell>{format(new Date(item.date), "dd/MM/yyyy")}</TableCell>
+                      <TableCell>
+                        {item.scheduledTime} - {item.scheduledEndTime || "N/A"}
+                      </TableCell>
+                      <TableCell>{item.arrivalTime || "-"}</TableCell>
+                      <TableCell>{getStatusBadge(item.status)}</TableCell>
+                      <TableCell>{item.departureTime || "-"}</TableCell>
+                      <TableCell>
+                        {item.status === "no-asistio" 
+                          ? getStatusBadge("no-asistio") 
+                          : (item.arrivalTime && !item.departureTime 
+                              ? getStatusBadge("pendiente") 
+                              : item.departureStatus 
+                                ? getStatusBadge(item.departureStatus) 
+                                : "-"
+                            )
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          {item.arrivalTime && !item.departureTime && (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 border-2 border-primary"
+                              onClick={() => openDepartureDialog(item)}
+                            >
+                              Registrar Salida
+                            </Button>
+                          )}
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-8 border-2 border-gray-300"
+                            onClick={() => openDetailsDialog(item)}
+                          >
+                            Detalles
+                          </Button>
                         </div>
-                        {item.notes && (
-                          <div className="mt-4 pt-4 border-t">
-                            <p className="text-sm text-gray-500">Notas:</p>
-                            <p>{item.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : (
-                  <div className="text-center py-12">
-                    <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium">No hay registros para esta fecha</h3>
-                    <p className="text-gray-500 mt-2">
-                      No se encontraron asistencias registradas para el día seleccionado.
-                    </p>
-                  </div>
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-6 text-gray-500">
+                      No se encontraron registros de asistencia
+                    </TableCell>
+                  </TableRow>
                 )}
-              </CardContent>
-            </Card>
+              </TableBody>
+            </Table>
           </div>
-        </TabsContent>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="programadas" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Visitas Programadas</CardTitle>
-              <CardDescription>Próximas visitas que debes realizar</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {scheduled.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {scheduled.map((visit) => (
-                    <div key={visit.id} className="border rounded-lg p-4 hover:border-primary transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-medium">{visit.facilityName}</h3>
-                        <Badge className="bg-blue-100 text-blue-800">Programada</Badge>
-                      </div>
-                      <p className="text-sm text-gray-500 flex items-center gap-1 mb-4">
-                        <MapPin className="h-4 w-4" /> {visit.location}
-                      </p>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        <div>
-                          <p className="text-sm text-gray-500">Fecha</p>
-                          <p className="font-medium">{format(new Date(visit.date), "dd/MM/yyyy")}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Clock className="h-4 w-4 text-primary" />
-                        <div>
-                          <p className="text-sm text-gray-500">Hora</p>
-                          <p className="font-medium">{visit.scheduledTime}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-4">
-                        <Button asChild variant="outline" className="flex-1">
-                          <Link href={`/coordinador/instalaciones/${visit.facilityId}`}>Ver Detalles</Link>
-                        </Button>
-                        <Button asChild className="flex-1 bg-primary hover:bg-primary-light">
-                          <Link href={`/coordinador/asistencia/registrar?id=${visit.id}`}>Registrar Asistencia</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <CheckCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium">No hay visitas programadas</h3>
-                  <p className="text-gray-500 mt-2">No tienes visitas programadas próximamente.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Diálogo de registro de salida */}
+      <DepartureDialog
+        open={departureDialogOpen}
+        onClose={() => setDepartureDialogOpen(false)}
+        attendance={selectedAttendance}
+        onRegisterDeparture={handleRegisterDeparture}
+      />
+      
+      {/* Diálogo de detalles de asistencia */}
+      <AttendanceDetailsDialog
+        open={detailsDialogOpen}
+        onClose={() => setDetailsDialogOpen(false)}
+        attendance={selectedAttendance}
+      />
     </div>
   )
 }

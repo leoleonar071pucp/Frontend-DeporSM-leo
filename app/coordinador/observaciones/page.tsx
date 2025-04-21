@@ -24,23 +24,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { FormEvent } from "react"
 
-// Datos de ejemplo para las observaciones
-const observationsData = [
+// Definimos la interfaz para un objeto de observación
+interface Observation {
+  id: number;
+  facilityId: number;
+  facilityName: string;
+  description: string;
+  status: string;
+  date: string;
+  createdAt: string;
+  photos: string[];
+  priority: string;
+  completedAt?: string;
+  feedback?: string;
+  location: string; // Añadimos la ubicación
+}
+
+// Datos actualizados con los nombres de instalaciones corregidos e información de ubicación
+const observationsData: Observation[] = [
   {
     id: 1,
     facilityId: 1,
-    facilityName: "Cancha de Fútbol (Grass)",
-    description: "Daños en la red de la portería norte",
-    status: "pendiente",
-    date: "05/04/2025",
-    createdAt: "05/04/2025",
-    photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "media",
-  },
-  {
-    id: 2,
-    facilityId: 2,
     facilityName: "Piscina Municipal",
     description: "Filtro de agua requiere mantenimiento",
     status: "aprobada",
@@ -48,94 +54,130 @@ const observationsData = [
     createdAt: "02/04/2025",
     photos: ["/placeholder.svg?height=100&width=100"],
     priority: "alta",
+    location: "Complejo Deportivo Municipal"
+  },
+  {
+    id: 2,
+    facilityId: 1,
+    facilityName: "Piscina Municipal",
+    description: "Azulejos rotos en el borde sur de la piscina",
+    status: "aprobada",
+    date: "20/03/2025",
+    createdAt: "20/03/2025",
+    photos: ["/placeholder.svg?height=100&width=100"],
+    priority: "media",
+    location: "Complejo Deportivo Municipal"
   },
   {
     id: 3,
-    facilityId: 3,
-    facilityName: "Gimnasio Municipal",
-    description: "Máquina de cardio #3 fuera de servicio",
-    status: "rechazada",
-    date: "01/04/2025",
-    createdAt: "01/04/2025",
+    facilityId: 1,
+    facilityName: "Piscina Municipal",
+    description: "Fuga de agua en las duchas de hombres",
+    status: "completada",
+    date: "10/03/2025",
+    createdAt: "10/03/2025",
+    completedAt: "15/03/2025",
     photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "baja",
-    feedback: "Ya se ha reportado anteriormente y está en proceso de reparación.",
+    priority: "alta",
+    location: "Complejo Deportivo Municipal"
   },
   {
     id: 4,
-    facilityId: 4,
-    facilityName: "Pista de Atletismo",
-    description: "Marcas de carril borrosas en la curva sur",
-    status: "aprobada",
-    date: "30/03/2025",
-    createdAt: "30/03/2025",
+    facilityId: 2,
+    facilityName: "Cancha de Fútbol (Grass)",
+    description: "Daños en la red de la portería norte",
+    status: "pendiente",
+    date: "01/04/2025",
+    createdAt: "01/04/2025",
     photos: ["/placeholder.svg?height=100&width=100"],
     priority: "media",
+    location: "Parque Juan Pablo II"
   },
   {
     id: 5,
     facilityId: 2,
-    facilityName: "Piscina Municipal",
-    description: "Azulejos rotos en el borde sur de la piscina",
-    status: "completada",
-    date: "20/03/2025",
-    createdAt: "20/03/2025",
-    completedAt: "25/03/2025",
+    facilityName: "Cancha de Fútbol (Grass)",
+    description: "Grass desgastado en el área central",
+    status: "aprobada",
+    date: "15/03/2025",
+    createdAt: "15/03/2025",
     photos: ["/placeholder.svg?height=100&width=100"],
-    priority: "alta",
+    priority: "baja",
+    location: "Parque Juan Pablo II"
   },
 ]
 
 export default function ObservacionesCoordinador() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [observations, setObservations] = useState([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("todas")
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
-  const [selectedObservation, setSelectedObservation] = useState(null)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [observations, setObservations] = useState<Observation[]>([])
+  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<string>("todas")
+  const [activePriority, setActivePriority] = useState<string>("todas")
+  const [showDetailsDialog, setShowDetailsDialog] = useState<boolean>(false)
+  const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null)
+
+  // Función para aplicar los filtros actuales (estado y prioridad)
+  const applyFilters = (tab: string = activeTab, priority: string = activePriority, query: string = searchQuery) => {
+    let filtered = [...observationsData];
+    
+    // Aplicar filtro por estado (pestaña)
+    if (tab !== "todas") {
+      filtered = filtered.filter((o) => o.status === tab.slice(0, -1)); // "pendientes" -> "pendiente"
+    }
+    
+    // Aplicar filtro por prioridad
+    if (priority !== "todas") {
+      filtered = filtered.filter((o) => o.priority === priority);
+    }
+    
+    // Aplicar búsqueda
+    if (query) {
+      filtered = filtered.filter(
+        (observation) =>
+          observation.description.toLowerCase().includes(query.toLowerCase()) ||
+          observation.facilityName.toLowerCase().includes(query.toLowerCase()),
+      );
+    }
+    
+    return filtered;
+  }
 
   useEffect(() => {
     // Simulación de carga de datos
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setObservations(observationsData)
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      setObservations(applyFilters())
       setIsLoading(false)
     }
 
     loadData()
+    // Eliminamos la dependencia de activeTab y activePriority para evitar rerenderizados
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // Filtrar observaciones por descripción o instalación
-    const filtered = observationsData.filter(
-      (observation) =>
-        observation.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        observation.facilityName.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    setObservations(filtered)
+    setObservations(applyFilters(activeTab, activePriority, searchQuery))
   }
 
-  const handleTabChange = (value) => {
+  const handleTabChange = (value: string) => {
     setActiveTab(value)
-
-    if (value === "todas") {
-      setObservations(observationsData)
-    } else if (value === "pendientes") {
-      setObservations(observationsData.filter((o) => o.status === "pendiente"))
-    } else if (value === "aprobadas") {
-      setObservations(observationsData.filter((o) => o.status === "aprobada"))
-    } else if (value === "completadas") {
-      setObservations(observationsData.filter((o) => o.status === "completada"))
-    }
+    // Aplicamos los filtros inmediatamente para evitar un segundo renderizado
+    setObservations(applyFilters(value, activePriority, searchQuery))
+  }
+  
+  const handlePriorityChange = (priority: string) => {
+    setActivePriority(priority)
+    // Aplicamos los filtros inmediatamente para evitar un segundo renderizado
+    setObservations(applyFilters(activeTab, priority, searchQuery))
   }
 
-  const handleViewDetails = (observation) => {
+  const handleViewDetails = (observation: Observation) => {
     setSelectedObservation(observation)
     setShowDetailsDialog(true)
   }
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "pendiente":
         return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
@@ -150,7 +192,7 @@ export default function ObservacionesCoordinador() {
     }
   }
 
-  const getPriorityBadge = (priority) => {
+  const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "alta":
         return <Badge className="bg-red-100 text-red-800">Alta</Badge>
@@ -214,20 +256,16 @@ export default function ObservacionesCoordinador() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Filtrar por prioridad</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setObservations(observationsData)}>Todas</DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setObservations(observationsData.filter((o) => o.priority === "alta"))}
-                >
+                <DropdownMenuItem onClick={() => handlePriorityChange("todas")}>
+                  Todas
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePriorityChange("alta")}>
                   Alta
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setObservations(observationsData.filter((o) => o.priority === "media"))}
-                >
+                <DropdownMenuItem onClick={() => handlePriorityChange("media")}>
                   Media
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setObservations(observationsData.filter((o) => o.priority === "baja"))}
-                >
+                <DropdownMenuItem onClick={() => handlePriorityChange("baja")}>
                   Baja
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -274,8 +312,8 @@ export default function ObservacionesCoordinador() {
                           <div className="flex items-center gap-2">
                             <MapPin className="h-5 w-5 text-primary" />
                             <div>
-                              <p className="text-sm text-gray-500">Instalación</p>
-                              <p>{observation.facilityName}</p>
+                              <p className="text-sm text-gray-500">Ubicación</p>
+                              <p>{observation.location}</p>
                             </div>
                           </div>
                         </div>
@@ -321,7 +359,7 @@ export default function ObservacionesCoordinador() {
                 className="mt-4"
                 onClick={() => {
                   setSearchQuery("")
-                  setObservations(observationsData)
+                  handlePriorityChange("todas")
                 }}
               >
                 Limpiar filtros
@@ -330,6 +368,20 @@ export default function ObservacionesCoordinador() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Limpiar filtros */}
+      {activePriority !== "todas" && (
+        <div className="flex justify-end mt-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => handlePriorityChange("todas")}
+            className="text-sm"
+          >
+            Limpiar filtro de prioridad: {activePriority.charAt(0).toUpperCase() + activePriority.slice(1)}
+          </Button>
+        </div>
+      )}
 
       {/* Diálogo de detalles de observación */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
@@ -360,16 +412,19 @@ export default function ObservacionesCoordinador() {
                   <p className="text-sm text-gray-500">Fecha de observación</p>
                   <p>{selectedObservation.date}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Fecha de creación</p>
-                  <p>{selectedObservation.createdAt}</p>
-                </div>
                 {selectedObservation.completedAt && (
                   <div>
                     <p className="text-sm text-gray-500">Fecha de completado</p>
                     <p>{selectedObservation.completedAt}</p>
                   </div>
                 )}
+                <div>
+                  <p className="text-sm text-gray-500">Ubicación</p>
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <p>{selectedObservation.location}</p>
+                  </div>
+                </div>
               </div>
 
               {selectedObservation.feedback && (

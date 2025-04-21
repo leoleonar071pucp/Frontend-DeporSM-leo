@@ -1,90 +1,115 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, MapPin, Save, Loader2, AlertTriangle, Clock } from "lucide-react"
-import Link from "next/link"
-import { useSearchParams, useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { ArrowLeft, MapPin, Clock, Calendar, Loader2, Save } from "lucide-react"
+import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { useToast } from "@/hooks/use-toast"
+
+// Interfaces
+interface Schedule {
+  id: number
+  day: string
+  startTime: string
+  endTime: string
+}
+
+interface AssignedSchedules {
+  [key: string]: {
+    facilityId: number
+    schedules: Schedule[]
+  }
+}
+
+interface Visit {
+  id: number
+  facilityId: number
+  scheduleId: number
+  facilityName: string
+  location: string
+  date: string
+  scheduledTime: string
+  scheduledEndTime: string
+  image: string
+}
+
+interface FormData {
+  status: "a-tiempo" | "tarde" | "no-asistio"
+  arrivalTime: string
+}
+
+interface UserLocation {
+  lat: number
+  lng: number
+}
+
+// Estructura de horarios asignados (ejemplo basado en la estructura del admin)
+const assignedSchedules: AssignedSchedules = {
+  "1": {
+    facilityId: 1,
+    schedules: [
+      { id: 101, day: "lunes", startTime: "08:00", endTime: "12:00" },
+      { id: 102, day: "miercoles", startTime: "08:00", endTime: "12:00" },
+      { id: 103, day: "viernes", startTime: "08:00", endTime: "12:00" }
+    ]
+  },
+  "2": {
+    facilityId: 2,
+    schedules: [
+      { id: 201, day: "martes", startTime: "14:00", endTime: "18:00" },
+      { id: 202, day: "jueves", startTime: "14:00", endTime: "18:00" }
+    ]
+  }
+}
 
 // Datos de ejemplo para las visitas programadas
-const scheduledVisits = [
+const scheduledVisits: Visit[] = [
   {
     id: 101,
     facilityId: 1,
+    scheduleId: 101,
     facilityName: "Cancha de Fútbol (Grass)",
     location: "Parque Juan Pablo II",
-    date: "2025-04-06",
-    scheduledTime: "14:00",
+    date: "2025-04-22", // Lunes
+    scheduledTime: "08:00",
+    scheduledEndTime: "12:00",
     image: "/placeholder.svg?height=400&width=800",
   },
   {
     id: 102,
     facilityId: 2,
+    scheduleId: 201,
     facilityName: "Piscina Municipal",
     location: "Complejo Deportivo Municipal",
-    date: "2025-04-06",
-    scheduledTime: "16:30",
+    date: "2025-04-23", // Martes
+    scheduledTime: "14:00",
+    scheduledEndTime: "18:00",
     image: "/placeholder.svg?height=400&width=800",
-  },
-  {
-    id: 103,
-    facilityId: 3,
-    facilityName: "Gimnasio Municipal",
-    location: "Complejo Deportivo Municipal",
-    date: "2025-04-07",
-    scheduledTime: "09:00",
-    image: "/placeholder.svg?height=400&width=800",
-  },
+  }
 ]
 
-// Datos de ejemplo para las instalaciones
-const facilitiesData = [
-  {
-    id: 1,
-    name: "Cancha de Fútbol (Grass)",
-    location: "Parque Juan Pablo II",
-    image: "/placeholder.svg?height=400&width=800",
-    scheduledTime: "14:00",
-  },
-  {
-    id: 2,
-    name: "Piscina Municipal",
-    location: "Complejo Deportivo Municipal",
-    image: "/placeholder.svg?height=400&width=800",
-    scheduledTime: "16:30",
-  },
-  {
-    id: 3,
-    name: "Gimnasio Municipal",
-    location: "Complejo Deportivo Municipal",
-    image: "/placeholder.svg?height=400&width=800",
-    scheduledTime: "09:00",
-  },
-  {
-    id: 4,
-    name: "Pista de Atletismo",
-    location: "Complejo Deportivo Municipal",
-    image: "/placeholder.svg?height=400&width=800",
-    scheduledTime: "11:30",
-  },
-  {
-    id: 5,
-    name: "Cancha de Tenis",
-    location: "Parque Juan Pablo II",
-    image: "/placeholder.svg?height=400&width=800",
-    scheduledTime: "15:00",
-  },
-]
+// Función para validar si la fecha corresponde al día de la semana asignado
+const validateScheduledVisit = (visit: Visit, schedules: AssignedSchedules): boolean => {
+  const visitDate = new Date(visit.date)
+  // Usamos toLocaleDateString para obtener el nombre del día en español
+  const dayOfWeek = visitDate.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase()
+  
+  const facilitySchedules = schedules[visit.facilityId]?.schedules || []
+  return facilitySchedules.some(schedule => 
+    schedule.day === dayOfWeek &&
+    schedule.startTime === visit.scheduledTime &&
+    schedule.endTime === visit.scheduledEndTime
+  )
+}
 
 export default function RegistrarAsistenciaPage() {
   const { toast } = useToast()
@@ -94,47 +119,71 @@ export default function RegistrarAsistenciaPage() {
   const facilityId = searchParams.get("facilityId")
 
   const [isLoading, setIsLoading] = useState(true)
-  const [visit, setVisit] = useState(null)
-  const [userLocation, setUserLocation] = useState(null)
-  const [locationError, setLocationError] = useState(null)
-  const [isLocationValid, setIsLocationValid] = useState(false)
-  const [isCheckingLocation, setIsCheckingLocation] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-
-  const [formData, setFormData] = useState({
-    status: "a-tiempo",
+  const [visit, setVisit] = useState<Visit | null>(null)
+  const [formData, setFormData] = useState<FormData>({
+    status: "" as any, // Inicialmente no tendrá estado hasta validar ubicación
     arrivalTime: "",
-    notes: "",
   })
 
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [isLocationValid, setIsLocationValid] = useState(false)
+  const [isCheckingLocation, setIsCheckingLocation] = useState(false)
+
   useEffect(() => {
-    // Simulación de carga de datos
     const loadData = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      // Si tenemos un ID de visita, buscamos en las visitas programadas
-      if (visitId) {
-        const foundVisit = scheduledVisits.find((v) => v.id === Number(visitId))
-        if (foundVisit) {
-          setVisit(foundVisit)
-        }
+      // Validar que tengamos tanto el ID de visita como el ID de instalación
+      if (!visitId || !facilityId) {
+        toast({
+          title: "Error",
+          description: "Parámetros de visita inválidos.",
+          variant: "destructive",
+        })
+        router.push("/coordinador/asistencia/programadas")
+        return
       }
-      // Si tenemos un ID de instalación, creamos una visita simulada
-      else if (facilityId) {
-        const facility = facilitiesData.find((f) => f.id === Number(facilityId))
-        if (facility) {
-          const simulatedVisit = {
-            id: 1000 + Number(facilityId),
-            facilityId: Number(facilityId),
-            facilityName: facility.name,
-            location: facility.location,
-            date: format(new Date(), "yyyy-MM-dd"),
-            scheduledTime: facility.scheduledTime,
-            image: facility.image,
-          }
-          setVisit(simulatedVisit)
-        }
+
+      console.log("Buscando visita con ID:", visitId, "y facilityId:", facilityId)
+      
+      // Convertir los IDs a números para la comparación
+      const numVisitId = Number(visitId)
+      const numFacilityId = Number(facilityId)
+
+      // Buscar la visita en las visitas programadas
+      // Modificamos la lógica para manejar IDs largos generados dinámicamente
+      let foundVisit = scheduledVisits.find((v) => v.id === numVisitId && v.facilityId === numFacilityId)
+      
+      // Si no encontramos una coincidencia exacta, usamos una visita de la misma instalación
+      // Esto es temporal y debe mejorarse en producción con una correcta sincronización de datos
+      if (!foundVisit) {
+        // Intentamos encontrar cualquier visita para la instalación solicitada
+        foundVisit = scheduledVisits.find((v) => v.facilityId === numFacilityId)
       }
+
+      if (!foundVisit) {
+        toast({
+          title: "Error",
+          description: "Visita no encontrada.",
+          variant: "destructive",
+        })
+        router.push("/coordinador/asistencia/programadas")
+        return
+      }
+
+      // Validar que la visita corresponda a un horario asignado
+      if (!validateScheduledVisit(foundVisit, assignedSchedules)) {
+        toast({
+          title: "Error de validación",
+          description: "Esta visita no corresponde a un horario asignado válido.",
+          variant: "destructive",
+        })
+        router.push("/coordinador/asistencia/programadas")
+        return
+      }
+      setVisit(foundVisit)
 
       // Establecer la hora actual como hora de llegada por defecto
       const now = new Date()
@@ -149,14 +198,14 @@ export default function RegistrarAsistenciaPage() {
     }
 
     loadData()
-  }, [visitId, facilityId])
+  }, [visitId, facilityId, router, toast])
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSelectChange = (name, value) => {
+  const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
@@ -172,40 +221,34 @@ export default function RegistrarAsistenciaPage() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const userCoords = {
+        const userCoords: UserLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         }
         setUserLocation(userCoords)
 
         // Simulación de validación de ubicación
-        // En un caso real, se calcularía la distancia entre las coordenadas
         const isValid = Math.random() > 0.3 // 70% de probabilidad de éxito para la demo
 
         setIsLocationValid(isValid)
         setIsCheckingLocation(false)
 
-        // Actualizar automáticamente la hora de llegada
-        const now = new Date()
-        const hours = now.getHours().toString().padStart(2, "0")
-        const minutes = now.getMinutes().toString().padStart(2, "0")
-        const currentTime = `${hours}:${minutes}`
+        if (isValid && visit) {
+          // Actualizar automáticamente la hora de llegada
+          const now = new Date()
+          const hours = now.getHours().toString().padStart(2, "0")
+          const minutes = now.getMinutes().toString().padStart(2, "0")
+          const currentTime = `${hours}:${minutes}`
 
-        // Determinar automáticamente el estado de la asistencia
-        let status = "a-tiempo"
-        if (visit && visit.scheduledTime) {
-          if (isLate(visit.scheduledTime, currentTime)) {
-            status = "tarde"
-          }
-        }
+          // Determinar automáticamente el estado de la asistencia basado en la hora actual
+          const status = determineAttendanceStatus(visit.scheduledTime, visit.scheduledEndTime, currentTime)
 
-        setFormData((prev) => ({
-          ...prev,
-          arrivalTime: currentTime,
-          status: status,
-        }))
+          setFormData((prev) => ({
+            ...prev,
+            arrivalTime: currentTime,
+            status: status,
+          }))
 
-        if (isValid) {
           toast({
             title: "Ubicación validada",
             description: "Tu ubicación ha sido validada correctamente.",
@@ -246,7 +289,7 @@ export default function RegistrarAsistenciaPage() {
     )
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!isLocationValid && formData.status !== "no-asistio") {
@@ -273,7 +316,7 @@ export default function RegistrarAsistenciaPage() {
     // Simulación de guardado
     setTimeout(() => {
       // En un caso real, aquí se haría la llamada a la API para registrar la asistencia
-      console.log("Registrando asistencia:", { ...formData, visitId: visit.id })
+      console.log("Registrando asistencia:", { ...formData, visitId: visit!.id })
 
       toast({
         title: "Asistencia registrada",
@@ -282,13 +325,13 @@ export default function RegistrarAsistenciaPage() {
 
       setIsSaving(false)
 
-      // Redireccionar a la lista de asistencias
-      router.push("/coordinador/asistencia")
+      // Redireccionar a la lista de asistencias programadas
+      router.push("/coordinador/asistencia/programadas")
     }, 1500)
   }
 
-  // Determinar si la llegada es a tiempo o tarde
-  const isLate = (scheduledTime, arrivalTime) => {
+  // Determinar si la llegada es tarde (10 minutos o más después de la hora programada)
+  const isLate = (scheduledTime: string, arrivalTime: string): boolean => {
     if (!scheduledTime || !arrivalTime) return false
 
     const [schedHours, schedMinutes] = scheduledTime.split(":").map(Number)
@@ -298,8 +341,39 @@ export default function RegistrarAsistenciaPage() {
     const schedTotalMinutes = schedHours * 60 + schedMinutes
     const arrivalTotalMinutes = arrivalHours * 60 + arrivalMinutes
 
-    // Si la diferencia es mayor a 20 minutos, se considera tarde
-    return arrivalTotalMinutes - schedTotalMinutes > 20
+    // Si la diferencia es de 10 minutos o más, se considera tarde
+    return arrivalTotalMinutes - schedTotalMinutes >= 10
+  }
+
+  // Determinar si la llegada es posterior a la hora de finalización
+  const isPastEndTime = (scheduledEndTime: string, arrivalTime: string): boolean => {
+    if (!scheduledEndTime || !arrivalTime) return false
+
+    const [endHours, endMinutes] = scheduledEndTime.split(":").map(Number)
+    const [arrivalHours, arrivalMinutes] = arrivalTime.split(":").map(Number)
+
+    // Convertir a minutos para comparar fácilmente
+    const endTotalMinutes = endHours * 60 + endMinutes
+    const arrivalTotalMinutes = arrivalHours * 60 + arrivalMinutes
+
+    // Si la hora de llegada es igual o posterior a la hora de finalización, se considera no asistió
+    return arrivalTotalMinutes >= endTotalMinutes
+  }
+
+  // Determinar automáticamente el estado de la asistencia
+  const determineAttendanceStatus = (scheduledTime: string, scheduledEndTime: string, arrivalTime: string): FormData["status"] => {
+    // Si es posterior a la hora de finalización, se considera no asistió
+    if (isPastEndTime(scheduledEndTime, arrivalTime)) {
+      return "no-asistio"
+    }
+    // Si es 10 minutos o más después de la hora de inicio, se considera tarde
+    else if (isLate(scheduledTime, arrivalTime)) {
+      return "tarde"
+    }
+    // En otro caso, se considera a tiempo
+    else {
+      return "a-tiempo"
+    }
   }
 
   if (isLoading) {
@@ -325,7 +399,7 @@ export default function RegistrarAsistenciaPage() {
 
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+            <Calendar className="h-12 w-12 text-red-500 mb-4" />
             <h3 className="text-lg font-medium">Visita no encontrada</h3>
             <p className="text-gray-500 mt-2">La visita que estás buscando no existe o ya ha sido registrada.</p>
             <Button className="mt-6 bg-primary hover:bg-primary-light" asChild>
@@ -376,35 +450,53 @@ export default function RegistrarAsistenciaPage() {
                   <div className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="font-medium">Fecha programada</p>
+                      <p className="font-medium">Horario programado</p>
                       <p className="text-sm text-gray-600">
-                        {format(new Date(visit.date), "EEEE d 'de' MMMM 'de' yyyy", { locale: es })}
+                        {new Date(visit.date).toLocaleDateString('es-ES', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
                       </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Hora programada</p>
-                      <p className="text-sm text-gray-600">{visit.scheduledTime}</p>
+                      <p className="text-sm text-gray-600">
+                        {visit.scheduledTime} - {visit.scheduledEndTime}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="my-4" />
 
                 <div className="space-y-2">
-                  <Label htmlFor="status">Estado de asistencia</Label>
-                  <Select value={formData.status} onValueChange={(value) => handleSelectChange("status", value)}>
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Selecciona el estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="a-tiempo">A tiempo</SelectItem>
-                      <SelectItem value="tarde">Tarde</SelectItem>
-                      <SelectItem value="no-asistio">No asistí</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Estado de la visita</Label>
+                  <div className="flex items-center gap-2">
+                    {!formData.status ? (
+                      <div className="flex items-center gap-2">
+                        <Badge className="px-3 py-1 bg-gray-100 text-gray-800">Pendiente</Badge>
+                        <span className="text-sm text-gray-500">
+                          Valida tu ubicación para determinar el estado de la visita
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <Badge className={`px-3 py-1 ${
+                          formData.status === "a-tiempo" ? "bg-green-100 text-green-800" :
+                          formData.status === "tarde" ? "bg-yellow-100 text-yellow-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {formData.status === "a-tiempo" ? "A tiempo" :
+                          formData.status === "tarde" ? "Tarde" :
+                          "No asistió"}
+                        </Badge>
+                        <span className="text-sm text-gray-500">
+                          {formData.status === "a-tiempo" ? "Llegada dentro de los 9 minutos de tolerancia" :
+                          formData.status === "tarde" ? "Llegada 10 minutos o más tarde de lo programado" :
+                          "Llegada después de la hora de finalización"}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {formData.status !== "no-asistio" && (
@@ -417,31 +509,24 @@ export default function RegistrarAsistenciaPage() {
                       name="arrivalTime"
                       type="time"
                       value={formData.arrivalTime}
-                      onChange={handleInputChange}
-                      required={formData.status !== "no-asistio"}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        // Solo actualizamos automáticamente el estado si ya validamos la ubicación
+                        if (visit && e.target.value && isLocationValid && formData.status) {
+                          const newStatus = determineAttendanceStatus(visit.scheduledTime, visit.scheduledEndTime, e.target.value);
+                          setFormData(prev => ({ ...prev, status: newStatus }));
+                        }
+                      }}
+                      required
                     />
-                    {formData.arrivalTime &&
-                      formData.status === "a-tiempo" &&
-                      isLate(visit.scheduledTime, formData.arrivalTime) && (
-                        <p className="text-yellow-600 text-sm">
-                          La hora registrada indica un retraso mayor a 20 minutos. Considera cambiar el estado a
-                          "Tarde".
-                        </p>
-                      )}
+                    {!isLocationValid && formData.arrivalTime && (
+                      <p className="text-amber-600 text-sm">
+                        Valida tu ubicación para determinar el estado de la visita
+                      </p>
+                    )}
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notas</Label>
-                  <Textarea
-                    id="notes"
-                    name="notes"
-                    placeholder="Añade notas o comentarios sobre la visita"
-                    rows={4}
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                  />
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -462,8 +547,7 @@ export default function RegistrarAsistenciaPage() {
                     <div className="bg-primary-pale p-4 rounded-md">
                       <h3 className="text-sm font-medium mb-2">Importante</h3>
                       <p className="text-sm text-gray-700">
-                        Para registrar tu asistencia, debes estar físicamente en la instalación. El sistema validará tu
-                        ubicación mediante geolocalización.
+                        El sistema validará tu ubicación mediante geolocalización.
                       </p>
                     </div>
 
@@ -510,8 +594,7 @@ export default function RegistrarAsistenciaPage() {
                   <div className="bg-blue-100 text-blue-800 p-4 rounded-md">
                     <p className="font-medium">No es necesario validar la ubicación</p>
                     <p className="text-sm mt-1">
-                      Has seleccionado que no asististe a esta visita. No es necesario validar tu ubicación. Por favor,
-                      proporciona una nota explicando el motivo de la inasistencia.
+                      Se detectó que no asististe a esta visita.
                     </p>
                   </div>
                 )}

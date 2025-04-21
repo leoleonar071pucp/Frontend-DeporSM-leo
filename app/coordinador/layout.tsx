@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Calendar,
   Loader2,
+  Clock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -151,7 +152,16 @@ export default function CoordinadorLayout({
   const navItems = [
     { name: "Dashboard", href: "/coordinador", icon: <LayoutDashboard className="h-5 w-5" /> },
     { name: "Instalaciones Asignadas", href: "/coordinador/instalaciones", icon: <MapPin className="h-5 w-5" /> },
-    { name: "Asistencia", href: "/coordinador/asistencia", icon: <Calendar className="h-5 w-5" /> },
+    { 
+      name: "Asistencia", 
+      href: "/coordinador/asistencia", 
+      icon: <Calendar className="h-5 w-5" />,
+      subItems: [
+        { name: "Historial", href: "/coordinador/asistencia", icon: <ClipboardList className="h-4 w-4" /> },
+        { name: "Calendario", href: "/coordinador/asistencia/calendario", icon: <Calendar className="h-4 w-4" /> },
+        { name: "Programadas", href: "/coordinador/asistencia/programadas", icon: <Clock className="h-4 w-4" /> },
+      ],
+    },
     { name: "Observaciones", href: "/coordinador/observaciones", icon: <ClipboardList className="h-5 w-5" /> },
     { name: "Configuración", href: "/coordinador/configuracion", icon: <Settings className="h-5 w-5" /> },
   ]
@@ -178,7 +188,7 @@ export default function CoordinadorLayout({
             <nav className="px-2 space-y-1">
               {navItems.map((item) => (
                 <div key={item.name}>
-                  {item.name === "Instalaciones Asignadas" ? (
+                  {item.name === "Instalaciones Asignadas" || item.subItems ? (
                     <>
                       <button
                         onClick={() => toggleSubMenu(item.name)}
@@ -201,28 +211,47 @@ export default function CoordinadorLayout({
 
                       {expandedItems.includes(item.name) && (
                         <div className="ml-6 mt-1 space-y-1">
-                          <Link
-                            href="/coordinador/instalaciones"
-                            className={`${
-                              pathname === "/coordinador/instalaciones"
-                                ? "bg-primary-light text-white"
-                                : "text-white hover:bg-primary-light"
-                            } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
-                          >
-                            <MapPin className="h-4 w-4" />
-                            <span className="ml-3">Ver todas</span>
-                          </Link>
-                          <Link
-                            href="/coordinador/instalaciones/mapa"
-                            className={`${
-                              pathname === "/coordinador/instalaciones/mapa"
-                                ? "bg-primary-light text-white"
-                                : "text-white hover:bg-primary-light"
-                            } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
-                          >
-                            <MapPin className="h-4 w-4" />
-                            <span className="ml-3">Mapa</span>
-                          </Link>
+                          {item.subItems ? (
+                            item.subItems.map((subItem) => (
+                              <Link
+                                key={subItem.name}
+                                href={subItem.href}
+                                className={`${
+                                  pathname === subItem.href
+                                    ? "bg-primary-light text-white"
+                                    : "text-white hover:bg-primary-light"
+                                } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
+                              >
+                                {subItem.icon}
+                                <span className="ml-3">{subItem.name}</span>
+                              </Link>
+                            ))
+                          ) : (
+                            <>
+                              <Link
+                                href="/coordinador/instalaciones"
+                                className={`${
+                                  pathname === "/coordinador/instalaciones"
+                                    ? "bg-primary-light text-white"
+                                    : "text-white hover:bg-primary-light"
+                                } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
+                              >
+                                <MapPin className="h-4 w-4" />
+                                <span className="ml-3">Ver todas</span>
+                              </Link>
+                              <Link
+                                href="/coordinador/instalaciones/mapa"
+                                className={`${
+                                  pathname === "/coordinador/instalaciones/mapa"
+                                    ? "bg-primary-light text-white"
+                                    : "text-white hover:bg-primary-light"
+                                } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
+                              >
+                                <MapPin className="h-4 w-4" />
+                                <span className="ml-3">Mapa</span>
+                              </Link>
+                            </>
+                          )}
                         </div>
                       )}
                     </>
@@ -369,7 +398,7 @@ export default function CoordinadorLayout({
                 <nav className="px-2 py-4 space-y-1">
                   {navItems.map((item) => (
                     <div key={item.name}>
-                      {item.name === "Instalaciones Asignadas" ? (
+                      {item.name === "Instalaciones Asignadas" || item.subItems ? (
                         <>
                           <button
                             onClick={() => toggleSubMenu(item.name)}
@@ -392,30 +421,50 @@ export default function CoordinadorLayout({
 
                           {expandedItems.includes(item.name) && (
                             <div className="ml-6 mt-1 space-y-1">
-                              <Link
-                                href="/coordinador/instalaciones"
-                                className={`${
-                                  pathname === "/coordinador/instalaciones"
-                                    ? "bg-primary-light text-white"
-                                    : "text-white hover:bg-primary-light"
-                                } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
-                                onClick={toggleMobileMenu}
-                              >
-                                <MapPin className="h-4 w-4" />
-                                <span className="ml-3">Ver todas</span>
-                              </Link>
-                              <Link
-                                href="/coordinador/instalaciones/mapa"
-                                className={`${
-                                  pathname === "/coordinador/instalaciones/mapa"
-                                    ? "bg-primary-light text-white"
-                                    : "text-white hover:bg-primary-light"
-                                } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
-                                onClick={toggleMobileMenu}
-                              >
-                                <MapPin className="h-4 w-4" />
-                                <span className="ml-3">Mapa</span>
-                              </Link>
+                              {item.subItems ? (
+                                item.subItems.map((subItem) => (
+                                  <Link
+                                    key={subItem.name}
+                                    href={subItem.href}
+                                    className={`${
+                                      pathname === subItem.href
+                                        ? "bg-primary-light text-white"
+                                        : "text-white hover:bg-primary-light"
+                                    } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
+                                    onClick={toggleMobileMenu}
+                                  >
+                                    {subItem.icon}
+                                    <span className="ml-3">{subItem.name}</span>
+                                  </Link>
+                                ))
+                              ) : (
+                                <>
+                                  <Link
+                                    href="/coordinador/instalaciones"
+                                    className={`${
+                                      pathname === "/coordinador/instalaciones"
+                                        ? "bg-primary-light text-white"
+                                        : "text-white hover:bg-primary-light"
+                                    } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
+                                    onClick={toggleMobileMenu}
+                                  >
+                                    <MapPin className="h-4 w-4" />
+                                    <span className="ml-3">Ver todas</span>
+                                  </Link>
+                                  <Link
+                                    href="/coordinador/instalaciones/mapa"
+                                    className={`${
+                                      pathname === "/coordinador/instalaciones/mapa"
+                                        ? "bg-primary-light text-white"
+                                        : "text-white hover:bg-primary-light"
+                                    } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
+                                    onClick={toggleMobileMenu}
+                                  >
+                                    <MapPin className="h-4 w-4" />
+                                    <span className="ml-3">Mapa</span>
+                                  </Link>
+                                </>
+                              )}
                             </div>
                           )}
                         </>
