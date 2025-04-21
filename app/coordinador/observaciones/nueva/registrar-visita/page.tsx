@@ -15,11 +15,32 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { X } from "lucide-react"
 
+// Define interfaces
+interface Facility {
+  id: number;
+  name: string;
+  image: string;
+  location: string;
+  coordinates: { lat: number; lng: number };
+}
+
+interface PhotoData {
+  id: number;
+  name: string;
+  url: string;
+}
+
+interface FormData {
+  description: string;
+  priority: string;
+  photos: PhotoData[];
+}
+
 // Datos de ejemplo para las instalaciones
-const facilitiesDB = [
+const facilitiesDB: Facility[] = [
   {
     id: 1,
-    name: "Cancha de Fútbol (Grass)",
+    name: "Cancha de Futbol (Grass)",
     image: "/placeholder.svg?height=400&width=800",
     location: "Parque Juan Pablo II",
     coordinates: { lat: -12.0464, lng: -77.0428 }, // Coordenadas ficticias
@@ -39,14 +60,14 @@ export default function RegistrarVisitaPage() {
   const facilityId = searchParams.get("id")
 
   const [isLoading, setIsLoading] = useState(true)
-  const [facility, setFacility] = useState(null)
-  const [formData, setFormData] = useState({
+  const [facility, setFacility] = useState<Facility | null>(null)
+  const [formData, setFormData] = useState<FormData>({
     description: "",
     priority: "media",
     photos: [],
   })
-  const [userLocation, setUserLocation] = useState(null)
-  const [locationError, setLocationError] = useState(null)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locationError, setLocationError] = useState<string | null>(null)
   const [isLocationValid, setIsLocationValid] = useState(false)
   const [isCheckingLocation, setIsCheckingLocation] = useState(false)
 
@@ -54,7 +75,7 @@ export default function RegistrarVisitaPage() {
     // Simulación de carga de datos
     const loadData = async () => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(facilityId))
+      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(facilityId || "0"))
       setFacility(foundFacility || null)
       setIsLoading(false)
     }
@@ -62,16 +83,16 @@ export default function RegistrarVisitaPage() {
     loadData()
   }, [facilityId])
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSelectChange = (name, value) => {
+  const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Simulación de carga de fotos
     if (e.target.files && e.target.files.length > 0) {
       const newPhotos = Array.from(e.target.files).map((file) => ({
@@ -87,7 +108,7 @@ export default function RegistrarVisitaPage() {
     }
   }
 
-  const removePhoto = (photoId) => {
+  const removePhoto = (photoId: number) => {
     setFormData((prev) => ({
       ...prev,
       photos: prev.photos.filter((photo) => photo.id !== photoId),
@@ -160,7 +181,7 @@ export default function RegistrarVisitaPage() {
     )
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!isLocationValid) {
@@ -183,7 +204,9 @@ export default function RegistrarVisitaPage() {
     }
 
     // Aquí iría la lógica para guardar la observación
-    console.log("Guardando observación:", { ...formData, facilityId: facility.id })
+    if (facility) {
+      console.log("Guardando observación:", { ...formData, facilityId: facility.id })
+    }
 
     toast({
       title: "Visita registrada",
@@ -320,7 +343,10 @@ export default function RegistrarVisitaPage() {
                         type="button"
                         variant="outline"
                         className="w-full h-full"
-                        onClick={() => document.getElementById("photos").click()}
+                        onClick={() => {
+                          const photoInput = document.getElementById("photos");
+                          if (photoInput) photoInput.click();
+                        }}
                       >
                         <Upload className="h-5 w-5 mr-2" />
                         Subir fotos

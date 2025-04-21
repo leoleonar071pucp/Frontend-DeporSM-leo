@@ -34,31 +34,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeProvider } from "@/components/theme-provider"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
-
-// Datos de ejemplo para las notificaciones
-const notifications = [
-  {
-    id: 1,
-    title: "Nueva instalación asignada",
-    message: "Se te ha asignado la Cancha de Fútbol (Grass)",
-    date: "Hace 10 minutos",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Recordatorio de inspección",
-    message: "Tienes una inspección programada para la Piscina Municipal mañana",
-    date: "Hace 2 horas",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Observación aprobada",
-    message: "Tu observación sobre la Pista de Atletismo ha sido aprobada",
-    date: "Hace 5 horas",
-    read: true,
-  },
-]
+import { useNotification } from "@/context/NotificationContext"
 
 export default function CoordinadorLayout({
   children,
@@ -75,6 +51,7 @@ export default function CoordinadorLayout({
   const pathname = usePathname()
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
   const router = useRouter()
+  const { notifications, unreadCount, markAsRead } = useNotification()
 
   // 3. useEffect hooks - All useEffect declarations together
   useEffect(() => {
@@ -146,8 +123,6 @@ export default function CoordinadorLayout({
       </div>
     );
   }
-
-  const unreadCount = notifications.filter((n) => !n.read).length
 
   const navItems = [
     { name: "Dashboard", href: "/coordinador", icon: <LayoutDashboard className="h-5 w-5" /> },
@@ -328,7 +303,10 @@ export default function CoordinadorLayout({
                       {notifications.length > 0 ? (
                         notifications.map((notification) => (
                           <DropdownMenuItem key={notification.id} className="p-0">
-                            <div className={`w-full p-3 ${notification.read ? "opacity-70" : "bg-primary-background"}`}>
+                            <div 
+                              className={`w-full p-3 ${!notification.read ? "bg-primary-background cursor-pointer hover:bg-blue-50" : ""}`}
+                              onClick={() => !notification.read && markAsRead(notification.id)}
+                            >
                               <div className="flex justify-between items-start">
                                 <h4 className="font-medium text-sm">{notification.title}</h4>
                                 <span className="text-xs text-gray-500">{notification.date}</span>

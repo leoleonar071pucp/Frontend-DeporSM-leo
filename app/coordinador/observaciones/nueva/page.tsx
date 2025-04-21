@@ -17,11 +17,8 @@ import { Badge } from "@/components/ui/badge"
 
 // Datos de ejemplo para las instalaciones
 const facilitiesData = [
-  { id: 1, name: "Cancha de Fútbol (Grass)" },
+  { id: 1, name: "Cancha de Futbol (Grass)" },
   { id: 2, name: "Piscina Municipal" },
-  { id: 3, name: "Gimnasio Municipal" },
-  { id: 4, name: "Pista de Atletismo" },
-  { id: 5, name: "Cancha de Fútbol (Loza)" },
 ]
 
 export default function NuevaObservacion() {
@@ -84,12 +81,9 @@ export default function NuevaObservacion() {
           const selectedFacilityId = Number(formData.facilityId)
 
           // Coordenadas simuladas de las instalaciones
-          const facilityLocations = {
-            1: { lat: -12.077, lng: -77.083 }, // Cancha de Fútbol (Grass)
+          const facilityLocations: Record<number, { lat: number; lng: number }> = {
+            1: { lat: -12.077, lng: -77.083 }, // Cancha de Futbol (Grass)
             2: { lat: -12.079, lng: -77.085 }, // Piscina Municipal
-            3: { lat: -12.079, lng: -77.086 }, // Gimnasio Municipal
-            4: { lat: -12.08, lng: -77.085 }, // Pista de Atletismo
-            5: { lat: -12.075, lng: -77.088 }, // Cancha de Fútbol (Loza)
           }
 
           // Calcular distancia (simulada)

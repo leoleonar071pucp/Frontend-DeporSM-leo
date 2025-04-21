@@ -11,6 +11,8 @@ interface Notification {
     date: string;
     read: boolean;
     type: "success" | "info" | "warning" | "reserva" | "mantenimiento" | "pago" | "reporte"; // Actualizar tipos
+    category?: string; // Propiedad opcional para categorizar notificaciones
+    feedback?: string; // Propiedad opcional para retroalimentación
 }
 
 type NewNotificationData = Omit<Notification, 'id' | 'read' | 'date'>;
@@ -103,7 +105,8 @@ const coordinadorNotifications: Notification[] = [
     message: "Se te ha asignado la Cancha de Fútbol (Grass)",
     date: "05/04/2025, 10:15",
     read: false,
-    type: "info"
+    type: "info",
+    category: "asignacion"
   },
   {
     id: 2,
@@ -111,7 +114,8 @@ const coordinadorNotifications: Notification[] = [
     message: "Tu observación sobre la Piscina Municipal ha sido aprobada",
     date: "04/04/2025, 14:30",
     read: false,
-    type: "success"
+    type: "success",
+    category: "observacion"
   },
   {
     id: 3,
@@ -119,8 +123,28 @@ const coordinadorNotifications: Notification[] = [
     message: "Tienes una inspección programada para la Pista de Atletismo mañana",
     date: "03/04/2025, 09:45",
     read: false,
-    type: "warning"
+    type: "warning",
+    category: "recordatorio"
   },
+  {
+    id: 4,
+    title: "Observación rechazada",
+    message: "Tu observación sobre el Gimnasio Municipal ha sido rechazada",
+    date: "02/04/2025, 16:20",
+    read: true,
+    type: "warning",
+    category: "observacion",
+    feedback: "Ya se ha reportado anteriormente y está en proceso de reparación."
+  },
+  {
+    id: 5,
+    title: "Mantenimiento programado",
+    message: "Se ha programado mantenimiento para la Piscina Municipal",
+    date: "01/04/2025, 11:10",
+    read: true,
+    type: "info",
+    category: "mantenimiento"
+  }
 ];
 
 // Crear el contexto
