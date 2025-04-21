@@ -30,8 +30,23 @@ export default function Login() {
     console.log("Intentando iniciar sesión con:", { email, password })
     setTimeout(() => {
       // Simular éxito o fracaso
+      // Simular superadmin si el correo es superadmin@example.com
+      if (email === "superadmin@example.com" && password === "password") {
+        console.log("Inicio de sesión simulado exitoso (SUPERADMIN)")
+        const simulatedUser = {
+          id: "superadmin-001",
+          nombre: "Administrador Principal del Sistema",
+          email: email,
+          dni: "00000000",
+          telefono: "900000000",
+          direccion: "Oficina de Sistemas",
+          role: 'superadmin' as const // Asignar rol superadmin
+        };
+        login(simulatedUser);
+        router.push("/superadmin"); // Redirigir al dashboard de superadmin
+      }
       // Simular admin si el correo es admin@example.com
-      if (email === "admin@example.com" && password === "password") {
+      else if (email === "admin@example.com" && password === "password") {
         console.log("Inicio de sesión simulado exitoso (ADMIN)")
         const simulatedUser = {
           id: "admin-001",

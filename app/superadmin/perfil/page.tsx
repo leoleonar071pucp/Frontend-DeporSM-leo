@@ -2,19 +2,45 @@
 
 import { Badge } from "@/components/ui/badge"
 
-import { useState } from "react"
+import { useState, useEffect, ChangeEvent } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, Mail, Phone, Shield, Lock, Save, Upload, Bell, Clock } from "lucide-react"
+import { User, Mail, Phone, Shield, Lock, Save, Upload, Bell, Clock, CheckCircle, Loader2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAuth } from "@/context/AuthContext" // Importar el contexto de autenticación
+import { useToast } from "@/hooks/use-toast" // Importar el hook para toast
+
+// Definición de tipos para mejorar la seguridad de tipos
+interface ProfileData {
+  name: string;
+  email: string;
+  phone: string;
+  department: string;
+  lastLogin: string;
+  ipAddress: string;
+}
+
+interface NotificationSettings {
+  emailAlerts: boolean;
+  systemAlerts: boolean;
+  securityAlerts: boolean;
+  maintenanceAlerts: boolean;
+  emailFrequency: string;
+}
 
 export default function PerfilSuperadminPage() {
-  const [profileData, setProfileData] = useState({
+  const { user } = useAuth() // Obtener el usuario del contexto de autenticación
+  const { toast } = useToast() // Obtener toast para notificaciones
+  const [isSaving, setIsSaving] = useState(false) // Estado para botón de guardado
+  const [isSuccess, setIsSuccess] = useState(false) // Estado para mensaje de éxito
+
+  // Inicializar datos del perfil con la información de usuario del contexto
+  const [profileData, setProfileData] = useState<ProfileData>({
     name: "Administrador Principal",
     email: "superadmin@munisanmiguel.gob.pe",
     phone: "(01) 987-6543",
@@ -23,7 +49,8 @@ export default function PerfilSuperadminPage() {
     ipAddress: "192.168.1.3",
   })
 
-  const [notificationSettings, setNotificationSettings] = useState({
+  // Estado para configuración de notificaciones
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     emailAlerts: true,
     systemAlerts: true,
     securityAlerts: true,
@@ -31,28 +58,80 @@ export default function PerfilSuperadminPage() {
     emailFrequency: "immediate",
   })
 
-  const handleInputChange = (e) => {
+  // Actualizar los datos del perfil cuando cambia el usuario
+  useEffect(() => {
+    if (user) {
+      setProfileData(prevData => ({
+        ...prevData,
+        name: user.nombre || prevData.name,
+        email: user.email || prevData.email,
+        phone: user.telefono || prevData.phone,
+      }))
+    }
+  }, [user])
+
+  // Manejadores de eventos
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setProfileData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleNotificationToggle = (setting) => {
+  const handleNotificationToggle = (setting: keyof Omit<NotificationSettings, 'emailFrequency'>) => {
     setNotificationSettings((prev) => ({ ...prev, [setting]: !prev[setting] }))
   }
 
-  const handleFrequencyChange = (value) => {
+  const handleFrequencyChange = (value: string) => {
     setNotificationSettings((prev) => ({ ...prev, emailFrequency: value }))
   }
 
   const handleSaveProfile = () => {
-    // Aquí iría la lógica para guardar el perfil
-    console.log("Guardando perfil:", profileData)
+    setIsSaving(true)
+    
+    // Simulación de guardado
+    setTimeout(() => {
+      setIsSaving(false)
+      setIsSuccess(true)
+      
+      // Mostrar toast de éxito
+      toast({
+        title: "Perfil actualizado",
+        description: "Tu información ha sido actualizada correctamente.",
+      })
+      
+      // Ocultar mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 3000)
+    }, 1500)
   }
 
   const handleSaveNotifications = () => {
-    // Aquí iría la lógica para guardar las notificaciones
-    console.log("Guardando notificaciones:", notificationSettings)
+    setIsSaving(true)
+    
+    // Simulación de guardado
+    setTimeout(() => {
+      setIsSaving(false)
+      setIsSuccess(true)
+      
+      toast({
+        title: "Preferencias actualizadas",
+        description: "Tus preferencias de notificación han sido actualizadas.",
+      })
+      
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 3000)
+    }, 1500)
   }
+
+  // Generar iniciales para el avatar desde el nombre del usuario
+  const userInitials = user?.nombre
+    ? user.nombre.split(' ')
+      .map(n => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase()
+    : 'SA';
 
   return (
     <div className="space-y-6">
@@ -70,15 +149,15 @@ export default function PerfilSuperadminPage() {
           <CardContent className="flex flex-col items-center text-center">
             <div className="relative mb-4">
               <Avatar className="h-32 w-32">
-                <AvatarImage src="/placeholder.svg?height=128&width=128" alt="@superadmin" />
-                <AvatarFallback className="bg-[#0cb7f2] text-white text-2xl">SA</AvatarFallback>
+                <AvatarImage src={user?.avatarUrl || "/placeholder.svg?height=128&width=128"} alt="@superadmin" />
+                <AvatarFallback className="bg-[#0cb7f2] text-white text-2xl">{userInitials}</AvatarFallback>
               </Avatar>
               <Button variant="outline" size="icon" className="absolute bottom-0 right-0 rounded-full bg-white">
                 <Upload className="h-4 w-4" />
                 <span className="sr-only">Cambiar imagen</span>
               </Button>
             </div>
-            <h3 className="text-xl font-bold">{profileData.name}</h3>
+            <h3 className="text-xl font-bold">{user?.nombre || profileData.name}</h3>
             <p className="text-sm text-muted-foreground">Superadministrador</p>
             <div className="mt-4 w-full">
               <div className="flex items-center justify-between py-2 border-b">
@@ -152,6 +231,7 @@ export default function PerfilSuperadminPage() {
                         className="pl-8"
                         value={profileData.email}
                         onChange={handleInputChange}
+                        disabled={true}
                       />
                     </div>
                   </div>
@@ -176,7 +256,7 @@ export default function PerfilSuperadminPage() {
                       value={profileData.department}
                       onValueChange={(value) => setProfileData((prev) => ({ ...prev, department: value }))}
                     >
-                      <SelectTrigger id="department">
+                      <SelectTrigger>
                         <SelectValue placeholder="Selecciona un departamento" />
                       </SelectTrigger>
                       <SelectContent>
@@ -188,10 +268,25 @@ export default function PerfilSuperadminPage() {
                     </Select>
                   </div>
 
-                  <div className="flex justify-end">
-                    <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveProfile}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar Cambios
+                  <div className="flex justify-end items-center gap-2">
+                    {isSuccess && (
+                      <div className="flex items-center text-green-600">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        <span className="text-sm">Guardado correctamente</span>
+                      </div>
+                    )}
+                    <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveProfile} disabled={isSaving}>
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Guardar Cambios
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -214,7 +309,6 @@ export default function PerfilSuperadminPage() {
                         </p>
                       </div>
                       <Switch
-                        id="emailAlerts"
                         checked={notificationSettings.emailAlerts}
                         onCheckedChange={() => handleNotificationToggle("emailAlerts")}
                       />
@@ -228,7 +322,6 @@ export default function PerfilSuperadminPage() {
                         </p>
                       </div>
                       <Switch
-                        id="systemAlerts"
                         checked={notificationSettings.systemAlerts}
                         onCheckedChange={() => handleNotificationToggle("systemAlerts")}
                       />
@@ -242,7 +335,6 @@ export default function PerfilSuperadminPage() {
                         </p>
                       </div>
                       <Switch
-                        id="securityAlerts"
                         checked={notificationSettings.securityAlerts}
                         onCheckedChange={() => handleNotificationToggle("securityAlerts")}
                       />
@@ -256,7 +348,6 @@ export default function PerfilSuperadminPage() {
                         </p>
                       </div>
                       <Switch
-                        id="maintenanceAlerts"
                         checked={notificationSettings.maintenanceAlerts}
                         onCheckedChange={() => handleNotificationToggle("maintenanceAlerts")}
                       />
@@ -264,11 +355,10 @@ export default function PerfilSuperadminPage() {
                   </div>
 
                   <div className="space-y-2 pt-4 border-t">
-                    <Label htmlFor="emailFrequency">Frecuencia de Emails</Label>
+                    <Label>Frecuencia de Emails</Label>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-2 text-gray-500" />
                       <Select
-                        id="emailFrequency"
                         value={notificationSettings.emailFrequency}
                         onValueChange={handleFrequencyChange}
                       >
@@ -285,10 +375,25 @@ export default function PerfilSuperadminPage() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end">
-                    <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveNotifications}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Guardar Preferencias
+                  <div className="flex justify-end items-center gap-2">
+                    {isSuccess && (
+                      <div className="flex items-center text-green-600">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        <span className="text-sm">Guardado correctamente</span>
+                      </div>
+                    )}
+                    <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveNotifications} disabled={isSaving}>
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Guardar Preferencias
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>

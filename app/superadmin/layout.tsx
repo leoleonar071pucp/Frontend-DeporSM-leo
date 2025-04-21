@@ -4,21 +4,27 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
+import { useNotification } from "@/context/NotificationContext"
 import {
   LayoutDashboard,
+  User,
   Users,
   Settings,
+  FileText,
   LogOut,
   Menu,
   X,
+  Bell,
+  ChevronDown,
   Shield,
-  FileText,
-  BarChart3,
-  Lock,
+  Loader2,
+  MonitorSmartphone,
+  Database,
   Server,
-  AlertTriangle,
   Globe,
+  Lock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -30,48 +36,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeProvider } from "@/components/theme-provider"
 
-export default function SuperadminLayout({
+export default function SuperAdminLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const pathname = usePathname()
-
-  // Cerrar sidebar automáticamente en pantallas pequeñas
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        // En móviles, puede estar cerrado
-      } else {
-        // En pantallas grandes, siempre visible
-        setIsSidebarOpen(true)
-      }
-    }
-
-    // Configuración inicial
-    handleResize()
-
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [])
+  const router = useRouter()
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
+  const { notifications, unreadCount, markAsRead } = useNotification()
 
   // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [pathname])
 
-  // Modificar la función toggleSidebar para que el sidebar siempre esté visible
   const toggleSidebar = () => {
-    // Solo permitir cerrar el sidebar en pantallas pequeñas
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(!isSidebarOpen)
-    }
+    setIsSidebarOpen(!isSidebarOpen)
   }
 
   const toggleMobileMenu = () => {
@@ -80,53 +70,85 @@ export default function SuperadminLayout({
 
   const toggleSubMenu = (itemName: string) => {
     setExpandedItems((prev) =>
-      prev.includes(itemName) ? prev.filter((item) => item !== itemName) : [...prev, itemName],
+      prev.includes(itemName) ? prev.filter((item) => item !== itemName) : [...prev, itemName]
     )
   }
 
   const navItems = [
     { name: "Dashboard", href: "/superadmin", icon: <LayoutDashboard className="h-5 w-5" /> },
     {
-      name: "Gestión de Usuarios",
+      name: "Usuarios",
       href: "/superadmin/usuarios",
       icon: <Users className="h-5 w-5" />,
       subItems: [
         { name: "Administradores", href: "/superadmin/usuarios/administradores", icon: <Shield className="h-4 w-4" /> },
-        { name: "Coordinadores", href: "/superadmin/usuarios/coordinadores", icon: <Users className="h-4 w-4" /> },
-        { name: "Vecinos", href: "/superadmin/usuarios/vecinos", icon: <Users className="h-4 w-4" /> },
+        { name: "Coordinadores", href: "/superadmin/usuarios/coordinadores", icon: <User className="h-4 w-4" /> },
+        { name: "Vecinos", href: "/superadmin/usuarios/vecinos", icon: <Users className="h-4 w-4" /> }
       ],
     },
-    {
-      name: "Gestión del Sistema",
-      href: "/superadmin/sistema",
+    { 
+      name: "Sistema", 
+      href: "/superadmin/sistema", 
       icon: <Server className="h-5 w-5" />,
       subItems: [
-        {
-          name: "Configuración General",
-          href: "/superadmin/sistema/configuracion",
-          icon: <Settings className="h-4 w-4" />,
-        },
+        { name: "General", href: "/superadmin/sistema/configuracion", icon: <Settings className="h-4 w-4" /> },
         { name: "Seguridad", href: "/superadmin/sistema/seguridad", icon: <Lock className="h-4 w-4" /> },
       ],
     },
-    {
-      name: "Monitoreo",
-      href: "/superadmin/monitoreo",
-      icon: <BarChart3 className="h-5 w-5" />,
+    { 
+      name: "Sitio", 
+      href: "/superadmin/sitio", 
+      icon: <Globe className="h-5 w-5" />,
+    },
+    { 
+      name: "Monitoreo", 
+      href: "/superadmin/monitoreo", 
+      icon: <MonitorSmartphone className="h-5 w-5" />,
       subItems: [
-        { name: "Logs del Sistema", href: "/superadmin/monitoreo/logs", icon: <FileText className="h-4 w-4" /> },
-        { name: "Alertas", href: "/superadmin/monitoreo/alertas", icon: <AlertTriangle className="h-4 w-4" /> },
+        { name: "Historial", href: "/superadmin/monitoreo/historial", icon: <FileText className="h-4 w-4" /> },
+        { name: "Rendimiento", href: "/superadmin/monitoreo/rendimiento", icon: <Database className="h-4 w-4" /> },
       ],
     },
-    { name: "Sitio Web", href: "/superadmin/sitio", icon: <Globe className="h-5 w-5" /> },
   ]
 
+  // --- Protección de Ruta por Rol ---
+  useEffect(() => {
+    if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
+      if (!isAuthenticated) {
+        router.push('/login?redirect=/superadmin'); // Redirigir a login si no está autenticado
+      } else if (user?.role !== 'superadmin') {
+        console.warn("Acceso denegado: Usuario no es superadministrador.");
+        // Redirigir a una página de 'no autorizado' o a la página principal del usuario
+        router.push('/');
+      }
+    }
+  }, [isAuthenticated, isAuthLoading, user, router]);
+
+  // --- Renderizado Condicional por Carga/Autenticación/Rol ---
+  if (isAuthLoading || !isAuthenticated || user?.role !== 'superadmin') {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-100">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0cb7f2]" />
+      </div>
+    );
+  }
+
+  // Generar iniciales para el avatar desde el nombre del usuario
+  const userInitials = user?.nombre
+    ? user.nombre.split(' ')
+      .map(n => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase()
+    : 'SA';
+
+  // --- Renderizado Principal (Solo si es SuperAdmin) ---
   return (
     <ThemeProvider attribute="class" defaultTheme="light">
       <div className="min-h-screen bg-gray-100">
         {/* Sidebar para escritorio */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0cb7f2] transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0cb7f2] transform transition-transform duration-300 ease-in-out ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           } flex flex-col`}
         >
@@ -148,26 +170,18 @@ export default function SuperadminLayout({
                       <button
                         onClick={() => toggleSubMenu(item.name)}
                         className={`${
-                          pathname.startsWith(item.href) ? "bg-[#53d4ff] text-white" : "text-white hover:bg-[#53d4ff]"
+                          pathname.startsWith(item.href)
+                            ? "bg-[#53d4ff] text-white"
+                            : "text-white hover:bg-[#53d4ff]"
                         } group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md w-full`}
                       >
                         <div className="flex items-center">
                           {item.icon}
                           <span className="ml-3">{item.name}</span>
                         </div>
-                        <svg
+                        <ChevronDown
                           className={`h-4 w-4 transition-transform ${expandedItems.includes(item.name) ? "rotate-180" : ""}`}
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
+                        />
                       </button>
 
                       {expandedItems.includes(item.name) && (
@@ -177,7 +191,9 @@ export default function SuperadminLayout({
                               key={subItem.name}
                               href={subItem.href}
                               className={`${
-                                pathname === subItem.href ? "bg-[#53d4ff] text-white" : "text-white hover:bg-[#53d4ff]"
+                                pathname === subItem.href
+                                  ? "bg-[#53d4ff] text-white"
+                                  : "text-white hover:bg-[#53d4ff]"
                               } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
                             >
                               {subItem.icon}
@@ -205,10 +221,10 @@ export default function SuperadminLayout({
 
           <div className="p-4 border-t border-[#53d4ff]">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-[#53d4ff]" asChild>
-              <Link href="/logout">
+              <button onClick={logout} className="w-full flex items-center text-left">
                 <LogOut className="h-5 w-5 mr-3" />
                 Cerrar sesión
-              </Link>
+              </button>
             </Button>
           </div>
         </aside>
@@ -229,33 +245,74 @@ export default function SuperadminLayout({
               </div>
 
               <div className="flex items-center space-x-4">
-                <DropdownMenu>
+                <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500">
+                          {unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className="flex justify-between items-center">
+                      <span>Notificaciones</span>
+                      <Link
+                        href="/superadmin/notificaciones"
+                        className="text-xs text-[#0cb7f2] hover:underline"
+                        onClick={() => setIsNotificationsOpen(false)}
+                      >
+                        Ver todas
+                      </Link>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <ScrollArea className="h-[300px]">
+                      {notifications.length > 0 ? (
+                        notifications.map((notification) => (
+                          <DropdownMenuItem key={notification.id} className="p-0" onSelect={() => !notification.read && markAsRead(notification.id)}>
+                            <div className={`w-full p-3 ${notification.read ? "opacity-70" : "bg-[#e6f9ff]"}`}>
+                              <div className="flex justify-between items-start">
+                                <h4 className="font-medium text-sm">{notification.title}</h4>
+                                <span className="text-xs text-gray-500">{notification.date}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                            </div>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">No tienes notificaciones</div>
+                      )}
+                    </ScrollArea>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative rounded-full">
                       <Avatar>
-                        <AvatarImage src="/placeholder.svg?height=32&width=32" alt="@superadmin" />
-                        <AvatarFallback className="bg-gray-800 text-white">SA</AvatarFallback>
+                        <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || "SuperAdmin"} />
+                        <AvatarFallback className="bg-[#0cb7f2] text-white">{userInitials}</AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+                    <DropdownMenuLabel>{user?.nombre || "Superadministrador"}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Link href="/superadmin/perfil" className="w-full">
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/superadmin/perfil" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
                         Perfil
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link href="/superadmin/cambiar-contrasena" className="w-full">
-                        Cambiar Contraseña
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link href="/superadmin/cambiar-contrasena" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
+                        Cambiar contraseña
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Link href="/logout" className="w-full">
-                        Cerrar Sesión
-                      </Link>
+                    <DropdownMenuItem onSelect={() => { logout(); setIsProfileMenuOpen(false); }} className="cursor-pointer">
+                      Cerrar Sesión
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -267,8 +324,8 @@ export default function SuperadminLayout({
           {isMobileMenuOpen && (
             <div className="fixed inset-0 z-40 lg:hidden">
               <div className="fixed inset-0 bg-black bg-opacity-50" onClick={toggleMobileMenu}></div>
-              <div className="fixed inset-y-0 left-0 w-64 bg-[#0f172a] overflow-y-auto">
-                <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
+              <div className="fixed inset-y-0 left-0 w-64 bg-[#0cb7f2] overflow-y-auto">
+                <div className="flex items-center justify-between h-16 px-4 border-b border-[#53d4ff]">
                   <Link href="/superadmin" className="flex items-center">
                     <span className="text-white text-xl font-bold">DeporSM SuperAdmin</span>
                   </Link>
@@ -286,27 +343,19 @@ export default function SuperadminLayout({
                             onClick={() => toggleSubMenu(item.name)}
                             className={`${
                               pathname.startsWith(item.href)
-                                ? "bg-gray-800 text-white"
-                                : "text-gray-300 hover:bg-gray-800"
+                                ? "bg-[#53d4ff] text-white"
+                                : "text-white hover:bg-[#53d4ff]"
                             } group flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md w-full`}
                           >
                             <div className="flex items-center">
                               {item.icon}
                               <span className="ml-3">{item.name}</span>
                             </div>
-                            <svg
-                              className={`h-4 w-4 transition-transform ${expandedItems.includes(item.name) ? "rotate-180" : ""}`}
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              aria-hidden="true"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform ${
+                                expandedItems.includes(item.name) ? "rotate-180" : ""
+                              }`}
+                            />
                           </button>
 
                           {expandedItems.includes(item.name) && (
@@ -317,8 +366,8 @@ export default function SuperadminLayout({
                                   href={subItem.href}
                                   className={`${
                                     pathname === subItem.href
-                                      ? "bg-gray-800 text-white"
-                                      : "text-gray-300 hover:bg-gray-800"
+                                      ? "bg-[#53d4ff] text-white"
+                                      : "text-white hover:bg-[#53d4ff]"
                                   } group flex items-center px-3 py-2 text-xs font-medium rounded-md w-full`}
                                 >
                                   {subItem.icon}
@@ -332,7 +381,7 @@ export default function SuperadminLayout({
                         <Link
                           href={item.href}
                           className={`${
-                            pathname === item.href ? "bg-gray-800 text-white" : "text-gray-300 hover:bg-gray-800"
+                            pathname === item.href ? "bg-[#53d4ff] text-white" : "text-white hover:bg-[#53d4ff]"
                           } group flex items-center px-3 py-2 text-sm font-medium rounded-md w-full`}
                         >
                           {item.icon}
@@ -343,12 +392,12 @@ export default function SuperadminLayout({
                   ))}
                 </nav>
 
-                <div className="p-4 border-t border-gray-800">
-                  <Button variant="ghost" className="w-full justify-start text-gray-300 hover:bg-gray-800" asChild>
-                    <Link href="/logout">
+                <div className="p-4 border-t border-[#53d4ff]">
+                  <Button variant="ghost" className="w-full justify-start text-white hover:bg-[#53d4ff]" asChild>
+                    <button onClick={logout} className="w-full flex items-center text-left">
                       <LogOut className="h-5 w-5 mr-3" />
                       Cerrar sesión
-                    </Link>
+                    </button>
                   </Button>
                 </div>
               </div>
