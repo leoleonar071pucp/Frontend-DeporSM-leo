@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import React, { useState } from "react"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,11 +9,33 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Clock, RefreshCw, UserX, FileText } from "lucide-react"
+import { CheckCircle, Loader2, Save } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useToast } from "@/hooks/use-toast"
+
+// Definir la interface para el estado de configuración de seguridad
+interface SecuritySettings {
+  twoFactorAuth: boolean;
+  passwordExpiration: boolean;
+  passwordExpirationDays: string;
+  minPasswordLength: string;
+  requireSpecialChars: boolean;
+  requireNumbers: boolean;
+  requireUppercase: boolean;
+  maxLoginAttempts: string;
+  lockoutDuration: string;
+  sessionTimeout: string;
+  ipRestriction: boolean;
+  allowedIPs: string;
+}
 
 export default function SeguridadPage() {
-  const [securitySettings, setSecuritySettings] = useState({
+  const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState("general")
+  const [isSaving, setIsSaving] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>({
     twoFactorAuth: true,
     passwordExpiration: true,
     passwordExpirationDays: "90",
@@ -28,84 +50,38 @@ export default function SeguridadPage() {
     allowedIPs: "",
   })
 
-  const handleSwitchChange = (setting, checked) => {
+  const handleSwitchChange = (setting: string, checked: boolean) => {
     setSecuritySettings((prev) => ({ ...prev, [setting]: checked }))
   }
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setSecuritySettings((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSelectChange = (name, value) => {
+  const handleSelectChange = (name: string, value: string) => {
     setSecuritySettings((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSaveSettings = () => {
-    // Aquí iría la lógica para guardar la configuración
-    console.log("Guardando configuración de seguridad:", securitySettings)
+    setIsSaving(true)
+
+    // Simulación de guardado
+    setTimeout(() => {
+      setIsSaving(false)
+      setIsSuccess(true)
+
+      toast({
+        title: "Configuración de seguridad guardada",
+        description: "Los cambios en la configuración de seguridad han sido guardados exitosamente.",
+      })
+
+      // Resetear mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 3000)
+    }, 1500)
   }
-
-  // Datos de ejemplo para intentos de inicio de sesión fallidos
-  const failedLoginAttempts = [
-    {
-      id: 1,
-      user: "usuario@example.com",
-      ip: "192.168.1.10",
-      date: "05/04/2025, 10:15",
-      attempts: 3,
-      status: "bloqueado",
-    },
-    {
-      id: 2,
-      user: "admin@example.com",
-      ip: "192.168.1.11",
-      date: "05/04/2025, 09:30",
-      attempts: 5,
-      status: "bloqueado",
-    },
-    {
-      id: 3,
-      user: "coordinador@example.com",
-      ip: "192.168.1.12",
-      date: "04/04/2025, 16:45",
-      attempts: 2,
-      status: "activo",
-    },
-    {
-      id: 4,
-      user: "vecino@example.com",
-      ip: "192.168.1.13",
-      date: "04/04/2025, 14:20",
-      attempts: 4,
-      status: "bloqueado",
-    },
-  ]
-
-  // Datos de ejemplo para actividad sospechosa
-  const suspiciousActivity = [
-    {
-      id: 1,
-      type: "Múltiples inicios de sesión",
-      details: "5 inicios desde diferentes ubicaciones",
-      date: "05/04/2025, 11:30",
-      severity: "alta",
-    },
-    {
-      id: 2,
-      type: "Intento de acceso a área restringida",
-      details: "Intento de acceso a configuración del sistema",
-      date: "05/04/2025, 10:45",
-      severity: "media",
-    },
-    {
-      id: 3,
-      type: "Cambio de contraseña frecuente",
-      details: "3 cambios en las últimas 24 horas",
-      date: "04/04/2025, 15:20",
-      severity: "baja",
-    },
-  ]
 
   return (
     <div className="space-y-6">
@@ -114,26 +90,17 @@ export default function SeguridadPage() {
         <p className="text-muted-foreground">Configura los parámetros de seguridad del sistema</p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="bg-[#bceeff]">
-          <TabsTrigger value="general" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
-            General
-          </TabsTrigger>
-          <TabsTrigger value="password" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
-            Contraseñas
-          </TabsTrigger>
-          <TabsTrigger value="session" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
-            Sesiones
-          </TabsTrigger>
-          <TabsTrigger value="monitoring" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
-            Monitoreo
-          </TabsTrigger>
+      <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="password">Contraseñas</TabsTrigger>
+          <TabsTrigger value="session">Sesiones</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general">
+        <TabsContent value="general" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Configuración General de Seguridad</CardTitle>
+              <CardTitle>Seguridad General</CardTitle>
               <CardDescription>Configura los parámetros generales de seguridad del sistema</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -217,17 +184,32 @@ export default function SeguridadPage() {
                   </p>
                 </div>
               </div>
-
-              <div className="flex justify-end">
-                <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveSettings}>
-                  Guardar Configuración
-                </Button>
-              </div>
             </CardContent>
+            <CardFooter className="flex justify-between">
+              {isSuccess && (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <span className="text-sm">Guardado correctamente</span>
+                </div>
+              )}
+              <Button className="bg-gray-900 hover:bg-gray-800 ml-auto" onClick={handleSaveSettings} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="password">
+        <TabsContent value="password" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Política de Contraseñas</CardTitle>
@@ -325,17 +307,32 @@ export default function SeguridadPage() {
                   </div>
                 </div>
               </div>
-
-              <div className="flex justify-end">
-                <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveSettings}>
-                  Guardar Configuración
-                </Button>
-              </div>
             </CardContent>
+            <CardFooter className="flex justify-between">
+              {isSuccess && (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <span className="text-sm">Guardado correctamente</span>
+                </div>
+              )}
+              <Button className="bg-gray-900 hover:bg-gray-800 ml-auto" onClick={handleSaveSettings} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="session">
+        <TabsContent value="session" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Gestión de Sesiones</CardTitle>
@@ -419,122 +416,29 @@ export default function SeguridadPage() {
                   </div>
                 </div>
               </div>
-
-              <div className="flex justify-end">
-                <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveSettings}>
-                  Guardar Configuración
-                </Button>
-              </div>
             </CardContent>
+            <CardFooter className="flex justify-between">
+              {isSuccess && (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <span className="text-sm">Guardado correctamente</span>
+                </div>
+              )}
+              <Button className="bg-gray-900 hover:bg-gray-800 ml-auto" onClick={handleSaveSettings} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
+            </CardFooter>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="monitoring">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Intentos de Inicio de Sesión Fallidos</CardTitle>
-                <CardDescription>Usuarios con múltiples intentos fallidos de inicio de sesión</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Usuario</TableHead>
-                        <TableHead>IP</TableHead>
-                        <TableHead>Intentos</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {failedLoginAttempts.map((attempt) => (
-                        <TableRow key={attempt.id}>
-                          <TableCell>{attempt.user}</TableCell>
-                          <TableCell>{attempt.ip}</TableCell>
-                          <TableCell>{attempt.attempts}</TableCell>
-                          <TableCell>
-                            {attempt.status === "bloqueado" ? (
-                              <Badge className="bg-red-100 text-red-800">Bloqueado</Badge>
-                            ) : (
-                              <Badge className="bg-green-100 text-green-800">Activo</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {attempt.status === "bloqueado" ? (
-                              <Button variant="outline" size="sm">
-                                <RefreshCw className="h-4 w-4 mr-1" />
-                                Desbloquear
-                              </Button>
-                            ) : (
-                              <Button variant="outline" size="sm">
-                                <UserX className="h-4 w-4 mr-1" />
-                                Bloquear
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Actividad Sospechosa</CardTitle>
-                <CardDescription>Actividades potencialmente maliciosas detectadas en el sistema</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {suspiciousActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start space-x-3 pb-4 border-b last:border-0">
-                      <div className="mt-0.5">
-                        <AlertTriangle
-                          className={`h-5 w-5 ${
-                            activity.severity === "alta"
-                              ? "text-red-500"
-                              : activity.severity === "media"
-                                ? "text-yellow-500"
-                                : "text-blue-500"
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <div className="flex items-center">
-                          <p className="font-medium">{activity.type}</p>
-                          <Badge
-                            className={`ml-2 ${
-                              activity.severity === "alta"
-                                ? "bg-red-100 text-red-800"
-                                : activity.severity === "media"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {activity.severity}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-500">{activity.details}</p>
-                        <div className="flex items-center text-xs text-gray-500 mt-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          <span>{activity.date}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  <Button variant="outline" className="w-full">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Ver Informe Completo
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
     </div>

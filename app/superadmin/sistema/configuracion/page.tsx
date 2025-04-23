@@ -9,17 +9,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle, Loader2, Save } from "lucide-react"
+import { CheckCircle, Loader2, Save, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+
+// Interfaces para los estados
+interface GeneralConfig {
+  siteName: string;
+  siteDescription: string;
+  contactEmail: string;
+  contactPhone: string;
+  maintenanceMode: boolean;
+  enableRegistration: boolean;
+  enableReservations: boolean;
+  maxReservationsPerUser: string;
+  reservationTimeLimit: string;
+}
+
+interface EmailConfig {
+  smtpServer: string;
+  smtpPort: string;
+  smtpUsername: string;
+  smtpPassword: string;
+  senderName: string;
+  senderEmail: string;
+  enableEmailNotifications: boolean;
+}
+
+interface PaymentConfig {
+  enableOnlinePayments: boolean;
+  enableBankTransfer: boolean;
+  paymentTimeLimit: string;
+  bankName: string;
+  bankAccount: string;
+  bankAccountHolder: string;
+  visaEnabled: boolean;
+  mastercardEnabled: boolean;
+}
 
 export default function ConfiguracionSistemaPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("general")
-  const [isSaving, setIsSaving] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
+  const [isSavingGeneral, setIsSavingGeneral] = useState(false)
+  const [isSavingEmail, setIsSavingEmail] = useState(false)
+  const [isSavingPayment, setIsSavingPayment] = useState(false)
+  const [isSuccessGeneral, setIsSuccessGeneral] = useState(false)
+  const [isSuccessEmail, setIsSuccessEmail] = useState(false)
+  const [isSuccessPayment, setIsSuccessPayment] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Estado para la configuración general
-  const [generalConfig, setGeneralConfig] = useState({
+  const [generalConfig, setGeneralConfig] = useState<GeneralConfig>({
     siteName: "DeporSM - Sistema de Reservas Deportivas",
     siteDescription: "Sistema de reserva de canchas y servicios deportivos para la Municipalidad de San Miguel.",
     contactEmail: "deportes@munisanmiguel.gob.pe",
@@ -32,18 +71,18 @@ export default function ConfiguracionSistemaPage() {
   })
 
   // Estado para la configuración de correo
-  const [emailConfig, setEmailConfig] = useState({
+  const [emailConfig, setEmailConfig] = useState<EmailConfig>({
     smtpServer: "smtp.munisanmiguel.gob.pe",
     smtpPort: "587",
     smtpUsername: "notificaciones@munisanmiguel.gob.pe",
-    smtpPassword: "••••••••••••",
+    smtpPassword: "Smtp2025!Password", // Contraseña real en lugar de bullets
     senderName: "DeporSM - Municipalidad de San Miguel",
     senderEmail: "notificaciones@munisanmiguel.gob.pe",
     enableEmailNotifications: true,
   })
 
   // Estado para la configuración de pagos
-  const [paymentConfig, setPaymentConfig] = useState({
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({
     enableOnlinePayments: true,
     enableBankTransfer: true,
     paymentTimeLimit: "24",
@@ -54,81 +93,98 @@ export default function ConfiguracionSistemaPage() {
     mastercardEnabled: true,
   })
 
-  const handleGeneralChange = (e) => {
+  const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setGeneralConfig((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleGeneralSwitchChange = (name, checked) => {
+  const handleGeneralSwitchChange = (name: string, checked: boolean) => {
     setGeneralConfig((prev) => ({ ...prev, [name]: checked }))
   }
 
-  const handleEmailChange = (e) => {
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setEmailConfig((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleEmailSwitchChange = (name, checked) => {
+  const handleEmailSwitchChange = (name: string, checked: boolean) => {
     setEmailConfig((prev) => ({ ...prev, [name]: checked }))
   }
 
-  const handlePaymentChange = (e) => {
+  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setPaymentConfig((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handlePaymentSwitchChange = (name, checked) => {
+  const handlePaymentSwitchChange = (name: string, checked: boolean) => {
     setPaymentConfig((prev) => ({ ...prev, [name]: checked }))
   }
 
-  const handleSaveConfig = () => {
-    setIsSaving(true)
+  const handleSaveGeneralConfig = () => {
+    setIsSavingGeneral(true)
 
     // Simulación de guardado
     setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
+      setIsSavingGeneral(false)
+      setIsSuccessGeneral(true)
 
       toast({
-        title: "Configuración guardada",
-        description: "Los cambios han sido guardados exitosamente.",
+        title: "Configuración general guardada",
+        description: "Los cambios en la configuración general han sido guardados exitosamente.",
       })
 
       // Resetear mensaje de éxito después de 3 segundos
       setTimeout(() => {
-        setIsSuccess(false)
+        setIsSuccessGeneral(false)
+      }, 3000)
+    }, 1500)
+  }
+
+  const handleSaveEmailConfig = () => {
+    setIsSavingEmail(true)
+
+    // Simulación de guardado
+    setTimeout(() => {
+      setIsSavingEmail(false)
+      setIsSuccessEmail(true)
+
+      toast({
+        title: "Configuración de correo guardada",
+        description: "Los cambios en la configuración de correo han sido guardados exitosamente.",
+      })
+
+      // Resetear mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setIsSuccessEmail(false)
+      }, 3000)
+    }, 1500)
+  }
+
+  const handleSavePaymentConfig = () => {
+    setIsSavingPayment(true)
+
+    // Simulación de guardado
+    setTimeout(() => {
+      setIsSavingPayment(false)
+      setIsSuccessPayment(true)
+
+      toast({
+        title: "Configuración de pagos guardada",
+        description: "Los cambios en la configuración de pagos han sido guardados exitosamente.",
+      })
+
+      // Resetear mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setIsSuccessPayment(false)
       }, 3000)
     }, 1500)
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Configuración del Sistema</h1>
-          <p className="text-muted-foreground">Gestiona la configuración general del sistema</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isSuccess && (
-            <div className="flex items-center text-green-600">
-              <CheckCircle className="h-4 w-4 mr-1" />
-              <span className="text-sm">Guardado correctamente</span>
-            </div>
-          )}
-          <Button className="bg-gray-900 hover:bg-gray-800" onClick={handleSaveConfig} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Guardar Cambios
-              </>
-            )}
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Configuración del Sistema</h1>
+        <p className="text-muted-foreground">Gestiona la configuración general del sistema</p>
       </div>
 
       <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
@@ -262,6 +318,27 @@ export default function ConfiguracionSistemaPage() {
                 </div>
               </div>
             </CardContent>
+            <CardFooter className="flex justify-between">
+              {isSuccessGeneral && (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <span className="text-sm">Guardado correctamente</span>
+                </div>
+              )}
+              <Button className="bg-gray-900 hover:bg-gray-800 ml-auto" onClick={handleSaveGeneralConfig} disabled={isSavingGeneral}>
+                {isSavingGeneral ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -300,13 +377,23 @@ export default function ConfiguracionSistemaPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="smtpPassword">Contraseña SMTP</Label>
-                  <Input
-                    id="smtpPassword"
-                    name="smtpPassword"
-                    type="password"
-                    value={emailConfig.smtpPassword}
-                    onChange={handleEmailChange}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="smtpPassword"
+                      name="smtpPassword"
+                      type={showPassword ? "text" : "password"}
+                      value={emailConfig.smtpPassword}
+                      onChange={handleEmailChange}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -350,6 +437,27 @@ export default function ConfiguracionSistemaPage() {
                 />
               </div>
             </CardContent>
+            <CardFooter className="flex justify-between">
+              {isSuccessEmail && (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <span className="text-sm">Guardado correctamente</span>
+                </div>
+              )}
+              <Button className="bg-gray-900 hover:bg-gray-800 ml-auto" onClick={handleSaveEmailConfig} disabled={isSavingEmail}>
+                {isSavingEmail ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -479,9 +587,15 @@ export default function ConfiguracionSistemaPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button className="bg-gray-900 hover:bg-gray-800" onClick={handleSaveConfig} disabled={isSaving}>
-                {isSaving ? (
+            <CardFooter className="flex justify-between">
+              {isSuccessPayment && (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <span className="text-sm">Guardado correctamente</span>
+                </div>
+              )}
+              <Button className="bg-gray-900 hover:bg-gray-800 ml-auto" onClick={handleSavePaymentConfig} disabled={isSavingPayment}>
+                {isSavingPayment ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Guardando...

@@ -87,7 +87,7 @@ export default function SuperAdminLayout({
       href: "/superadmin/sistema", 
       icon: <Server className="h-5 w-5" />,
       subItems: [
-        { name: "General", href: "/superadmin/sistema/configuracion", icon: <Settings className="h-4 w-4" /> },
+        { name: "Configuración", href: "/superadmin/sistema/configuracion", icon: <Settings className="h-4 w-4" /> },
         { name: "Seguridad", href: "/superadmin/sistema/seguridad", icon: <Lock className="h-4 w-4" /> },
       ],
     },
