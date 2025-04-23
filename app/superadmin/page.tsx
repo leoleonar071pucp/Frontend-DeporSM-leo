@@ -5,19 +5,64 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   Users,
   Server,
-  AlertTriangle,
   CheckCircle,
   Database,
   ArrowUpRight,
   ArrowDownRight,
   Activity,
+  User,
+  Lock,
+  Shield,
+  Eye,
+  Settings,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 
+// Definición de interfaces para tipos
+interface StatCardProps {
+  title: string;
+  value: number | string;
+  icon: React.ReactNode;
+  change?: string;
+  isIncrease?: boolean;
+  description: string;
+}
+
+interface ChartItem {
+  name: string;
+  value: number;
+}
+
+interface BarChartProps {
+  data: ChartItem[];
+  title: string;
+}
+
+interface UserActivityItem {
+  id: number;
+  user: string;
+  action: string;
+  userType: string;
+  date: string;
+  type: "login" | "action";
+}
+
+interface UserActivityProps {
+  activity: UserActivityItem;
+}
+
+interface StatsData {
+  totalUsers: number;
+  adminUsers: number;
+  coordUsers: number;
+  vecinoUsers: number;
+  securityIssues: number;
+}
+
 // Componente para las tarjetas de estadísticas
-const StatCard = ({ title, value, icon, change, isIncrease, description }) => (
+const StatCard = ({ title, value, icon, change, isIncrease, description }: StatCardProps) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -40,59 +85,12 @@ const StatCard = ({ title, value, icon, change, isIncrease, description }) => (
   </Card>
 )
 
-// Componente para las alertas del sistema
-const SystemAlert = ({ alert }) => {
-  const getAlertIcon = (priority) => {
-    switch (priority) {
-      case "alta":
-        return <AlertTriangle className="h-5 w-5 text-red-500" />
-      case "media":
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />
-      case "baja":
-        return <AlertTriangle className="h-5 w-5 text-blue-500" />
-      case "resuelta":
-        return <CheckCircle className="h-5 w-5 text-green-500" />
-      default:
-        return null
-    }
-  }
-
-  return (
-    <div className="flex items-center p-3 border-b last:border-0">
-      <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mr-3 flex-shrink-0">
-        {getAlertIcon(alert.priority)}
-      </div>
-      <div className="flex-grow">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="font-medium">{alert.title}</p>
-            <p className="text-sm text-gray-500">{alert.description}</p>
-          </div>
-          <div className="flex flex-col items-end">
-            <Badge
-              className={`
-              ${alert.priority === "alta" ? "bg-red-100 text-red-800" : ""}
-              ${alert.priority === "media" ? "bg-yellow-100 text-yellow-800" : ""}
-              ${alert.priority === "baja" ? "bg-blue-100 text-blue-800" : ""}
-              ${alert.priority === "resuelta" ? "bg-green-100 text-green-800" : ""}
-            `}
-            >
-              {alert.priority === "resuelta" ? "Resuelta" : `Prioridad ${alert.priority}`}
-            </Badge>
-            <span className="text-xs text-gray-500 mt-1">{alert.date}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Componente para simular un gráfico de barras
-const BarChartComponent = ({ data, title }) => (
+const BarChartComponent = ({ data, title }: BarChartProps) => (
   <div className="space-y-4">
     <h3 className="font-medium text-lg">{title}</h3>
     <div className="space-y-2">
-      {data.map((item, index) => (
+      {data.map((item: ChartItem, index: number) => (
         <div key={index} className="space-y-1">
           <div className="flex justify-between text-sm">
             <span>{item.name}</span>
@@ -101,7 +99,7 @@ const BarChartComponent = ({ data, title }) => (
           <div className="w-full bg-gray-100 rounded-full h-2.5">
             <div
               className="bg-gray-900 h-2.5 rounded-full"
-              style={{ width: `${(item.value / Math.max(...data.map((d) => d.value))) * 100}%` }}
+              style={{ width: `${(item.value / Math.max(...data.map((d: ChartItem) => d.value))) * 100}%` }}
             ></div>
           </div>
         </div>
@@ -110,19 +108,50 @@ const BarChartComponent = ({ data, title }) => (
   </div>
 )
 
+// Componente para la actividad reciente de usuarios
+const UserActivity = ({ activity }: UserActivityProps) => {
+  return (
+    <div className="flex items-center p-3 border-b last:border-0">
+      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 flex-shrink-0">
+        {activity.type === "login" ? (
+          <Eye className="h-5 w-5 text-blue-500" />
+        ) : (
+          <CheckCircle className="h-5 w-5 text-green-500" />
+        )}
+      </div>
+      <div className="flex-grow">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="font-medium">{activity.user}</p>
+            <p className="text-sm text-gray-500">{activity.action}</p>
+          </div>
+          <div className="flex flex-col items-end">
+            <Badge
+              className={activity.userType === "Administrador" ? "bg-[#def7ff] text-[#0cb7f2]" : 
+                activity.userType === "Coordinador" ? "bg-green-100 text-green-800" : 
+                "bg-gray-100 text-gray-800"}
+            >
+              {activity.userType}
+            </Badge>
+            <span className="text-xs text-gray-500 mt-1">{activity.date}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function SuperadminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<StatsData>({
     totalUsers: 0,
-    activeUsers: 0,
-    totalReservations: 0,
-    systemAlerts: 0,
-    serverUptime: 0,
-    databaseSize: 0,
+    adminUsers: 0,
+    coordUsers: 0,
+    vecinoUsers: 0,
+    securityIssues: 0,
   })
-  const [systemAlerts, setSystemAlerts] = useState([])
-  const [userStats, setUserStats] = useState([])
-  const [recentLogins, setRecentLogins] = useState([])
+  const [userStats, setUserStats] = useState<ChartItem[]>([])
+  const [recentActivity, setRecentActivity] = useState<UserActivityItem[]>([])
 
   useEffect(() => {
     // Simulación de carga de datos
@@ -131,44 +160,12 @@ export default function SuperadminDashboard() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
       setStats({
-        totalUsers: 1248,
-        activeUsers: 856,
-        totalReservations: 3542,
-        systemAlerts: 3,
-        serverUptime: 99.98,
-        databaseSize: 2.4,
+        totalUsers: 1073,
+        adminUsers: 8,
+        coordUsers: 15,
+        vecinoUsers: 1050,
+        securityIssues: 1,
       })
-
-      setSystemAlerts([
-        {
-          id: 1,
-          title: "Error de conexión a la base de datos",
-          description: "Se detectó un error temporal de conexión a la base de datos",
-          priority: "alta",
-          date: "Hace 2 horas",
-        },
-        {
-          id: 2,
-          title: "Uso elevado de CPU",
-          description: "El servidor principal está experimentando un uso elevado de CPU",
-          priority: "media",
-          date: "Hace 5 horas",
-        },
-        {
-          id: 3,
-          title: "Actualización de seguridad pendiente",
-          description: "Hay una actualización de seguridad pendiente para el sistema",
-          priority: "baja",
-          date: "Hace 1 día",
-        },
-        {
-          id: 4,
-          title: "Error de autenticación resuelto",
-          description: "El problema con el servicio de autenticación ha sido resuelto",
-          priority: "resuelta",
-          date: "Hace 2 días",
-        },
-      ])
 
       setUserStats([
         { name: "Vecinos", value: 1050 },
@@ -176,35 +173,46 @@ export default function SuperadminDashboard() {
         { name: "Administradores", value: 8 },
       ])
 
-      setRecentLogins([
+      setRecentActivity([
         {
           id: 1,
-          user: "admin@munisanmiguel.gob.pe",
-          role: "Administrador",
-          date: "05/04/2025, 09:15",
-          ip: "192.168.1.1",
+          user: "Carlos Mendoza",
+          action: "Se conectó al sistema",
+          userType: "Administrador",
+          date: "Hace 15 minutos",
+          type: "login",
         },
         {
           id: 2,
-          user: "coord@munisanmiguel.gob.pe",
-          role: "Coordinador",
-          date: "05/04/2025, 08:30",
-          ip: "192.168.1.2",
+          user: "Ana Rodríguez",
+          action: "Creó un nuevo administrador",
+          userType: "Superadmin",
+          date: "Hace 45 minutos",
+          type: "action",
         },
         {
           id: 3,
-          user: "superadmin@munisanmiguel.gob.pe",
-          role: "Superadmin",
-          date: "05/04/2025, 08:00",
-          ip: "192.168.1.3",
+          user: "Roberto Gómez",
+          action: "Se conectó al sistema",
+          userType: "Coordinador",
+          date: "Hace 1 hora",
+          type: "login",
         },
-        { id: 4, user: "vecino@example.com", role: "Vecino", date: "05/04/2025, 07:45", ip: "192.168.1.4" },
+        {
+          id: 4,
+          user: "María López",
+          action: "Cambió configuración del sistema",
+          userType: "Superadmin",
+          date: "Hace 2 horas",
+          type: "action",
+        },
         {
           id: 5,
-          user: "admin2@munisanmiguel.gob.pe",
-          role: "Administrador",
-          date: "04/04/2025, 18:20",
-          ip: "192.168.1.5",
+          user: "Jorge Ramírez",
+          action: "Se conectó al sistema",
+          userType: "Coordinador", 
+          date: "Hace 3 horas",
+          type: "login",
         },
       ])
 
@@ -230,7 +238,7 @@ export default function SuperadminDashboard() {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total de Usuarios"
           value={stats.totalUsers}
@@ -240,69 +248,35 @@ export default function SuperadminDashboard() {
           description="Usuarios registrados en el sistema"
         />
         <StatCard
-          title="Usuarios Activos"
-          value={stats.activeUsers}
-          icon={<Activity className="h-4 w-4" />}
-          change="+5% desde la semana pasada"
-          isIncrease={true}
-          description="Usuarios que han iniciado sesión en los últimos 30 días"
-        />
-        <StatCard
-          title="Total de Reservas"
-          value={stats.totalReservations}
-          icon={<CheckCircle className="h-4 w-4" />}
-          change="+8% desde el mes pasado"
-          isIncrease={true}
-          description="Reservas realizadas en el sistema"
-        />
-        <StatCard
-          title="Alertas del Sistema"
-          value={stats.systemAlerts}
-          icon={<AlertTriangle className="h-4 w-4" />}
-          change="-2 desde la semana pasada"
+          title="Administradores"
+          value={stats.adminUsers}
+          icon={<Shield className="h-4 w-4" />}
+          change=""
           isIncrease={false}
-          description="Alertas activas que requieren atención"
+          description="Administradores activos en el sistema"
         />
         <StatCard
-          title="Uptime del Servidor"
-          value={`${stats.serverUptime}%`}
-          icon={<Server className="h-4 w-4" />}
-          description="Disponibilidad del servidor en los últimos 30 días"
-        />
-        <StatCard
-          title="Tamaño de la Base de Datos"
-          value={`${stats.databaseSize} GB`}
-          icon={<Database className="h-4 w-4" />}
-          change="+0.2 GB desde el mes pasado"
+          title="Coordinadores"
+          value={stats.coordUsers}
+          icon={<User className="h-4 w-4" />}
+          change="+2 desde el mes pasado"
           isIncrease={true}
-          description="Espacio utilizado por la base de datos"
+          description="Coordinadores activos en el sistema"
+        />
+        <StatCard
+          title="Vecinos"
+          value={stats.vecinoUsers}
+          icon={<Users className="h-4 w-4" />}
+          change="+55 desde el mes pasado"
+          isIncrease={true}
+          description="Vecinos registrados en el sistema"
         />
       </div>
 
       {/* Contenido principal */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        {/* Alertas del sistema */}
-        <Card className="lg:col-span-4">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Alertas del Sistema</CardTitle>
-              <CardDescription>Alertas recientes que requieren atención</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/superadmin/monitoreo/alertas">Ver todas</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-0 divide-y">
-              {systemAlerts.map((alert) => (
-                <SystemAlert key={alert.id} alert={alert} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4 md:grid-cols-2">
         {/* Distribución de usuarios */}
-        <Card className="lg:col-span-3">
+        <Card>
           <CardHeader>
             <CardTitle>Distribución de Usuarios</CardTitle>
             <CardDescription>Usuarios registrados por tipo de rol</CardDescription>
@@ -311,145 +285,99 @@ export default function SuperadminDashboard() {
             <BarChartComponent data={userStats} title="Usuarios por Rol" />
           </CardContent>
         </Card>
+
+        {/* Actividad reciente de usuarios */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Actividad Reciente</CardTitle>
+              <CardDescription>Últimas acciones realizadas en el sistema</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/superadmin/monitoreo/actividad-usuarios">Ver todas</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-0 divide-y">
+              {recentActivity.map((activity) => (
+                <UserActivity key={activity.id} activity={activity} />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Inicios de sesión recientes */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Inicios de Sesión Recientes</CardTitle>
-            <CardDescription>Últimos accesos al sistema</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/superadmin/monitoreo/logs">Ver historial completo</Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">Usuario</th>
-                  <th className="text-left py-3 px-4 font-medium">Rol</th>
-                  <th className="text-left py-3 px-4 font-medium">Fecha y Hora</th>
-                  <th className="text-left py-3 px-4 font-medium">Dirección IP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentLogins.map((login) => (
-                  <tr key={login.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4">{login.user}</td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        className={`
-                      ${login.role === "Superadmin" ? "bg-purple-100 text-purple-800" : ""}
-                      ${login.role === "Administrador" ? "bg-blue-100 text-blue-800" : ""}
-                      ${login.role === "Coordinador" ? "bg-green-100 text-green-800" : ""}
-                      ${login.role === "Vecino" ? "bg-gray-100 text-gray-800" : ""}
-                    `}
-                      >
-                        {login.role}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4">{login.date}</td>
-                    <td className="py-3 px-4">{login.ip}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Enlaces rápidos */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Gestión de Usuarios</CardTitle>
+            <CardDescription>Administra los usuarios del sistema</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/superadmin/usuarios/administradores">
+                <Shield className="h-4 w-4 mr-2" />
+                Administradores
+              </Link>
+            </Button>
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/superadmin/usuarios/coordinadores">
+                <User className="h-4 w-4 mr-2" />
+                Coordinadores
+              </Link>
+            </Button>
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/superadmin/usuarios/vecinos">
+                <Users className="h-4 w-4 mr-2" />
+                Vecinos
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
 
-      {/* Estado del sistema */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Estado del Sistema</CardTitle>
-          <CardDescription>Resumen del estado actual de los componentes del sistema</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">Componente</th>
-                  <th className="text-left py-3 px-4 font-medium">Estado</th>
-                  <th className="text-left py-3 px-4 font-medium">Uptime</th>
-                  <th className="text-left py-3 px-4 font-medium">Última Actualización</th>
-                  <th className="text-left py-3 px-4 font-medium">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b">
-                  <td className="py-3 px-4">Servidor Web</td>
-                  <td className="py-3 px-4">
-                    <Badge className="bg-green-100 text-green-800">Operativo</Badge>
-                  </td>
-                  <td className="py-3 px-4">99.98%</td>
-                  <td className="py-3 px-4">05/04/2025, 08:00</td>
-                  <td className="py-3 px-4">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/superadmin/sistema/servidores">Ver detalles</Link>
-                    </Button>
-                  </td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4">Base de Datos</td>
-                  <td className="py-3 px-4">
-                    <Badge className="bg-green-100 text-green-800">Operativa</Badge>
-                  </td>
-                  <td className="py-3 px-4">99.95%</td>
-                  <td className="py-3 px-4">05/04/2025, 08:00</td>
-                  <td className="py-3 px-4">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/superadmin/sistema/configuracion">Ver detalles</Link>
-                    </Button>
-                  </td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4">Servicio de Correo</td>
-                  <td className="py-3 px-4">
-                    <Badge className="bg-green-100 text-green-800">Operativo</Badge>
-                  </td>
-                  <td className="py-3 px-4">99.90%</td>
-                  <td className="py-3 px-4">05/04/2025, 08:00</td>
-                  <td className="py-3 px-4">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/superadmin/sistema/servicios">Ver detalles</Link>
-                    </Button>
-                  </td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4">Servicio de Autenticación</td>
-                  <td className="py-3 px-4">
-                    <Badge className="bg-yellow-100 text-yellow-800">Degradado</Badge>
-                  </td>
-                  <td className="py-3 px-4">98.50%</td>
-                  <td className="py-3 px-4">05/04/2025, 08:00</td>
-                  <td className="py-3 px-4">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/superadmin/sistema/servicios">Ver detalles</Link>
-                    </Button>
-                  </td>
-                </tr>
-                <tr className="border-b">
-                  <td className="py-3 px-4">Servicio de Almacenamiento</td>
-                  <td className="py-3 px-4">
-                    <Badge className="bg-green-100 text-green-800">Operativo</Badge>
-                  </td>
-                  <td className="py-3 px-4">99.99%</td>
-                  <td className="py-3 px-4">05/04/2025, 08:00</td>
-                  <td className="py-3 px-4">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/superadmin/sistema/servicios">Ver detalles</Link>
-                    </Button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Monitoreo del Sistema</CardTitle>
+            <CardDescription>Supervisa la actividad del sistema</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/superadmin/monitoreo/actividad-usuarios">
+                <Activity className="h-4 w-4 mr-2" />
+                Actividad de Usuarios
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Configuración</CardTitle>
+            <CardDescription>Configura los parámetros del sistema</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/superadmin/sistema/configuracion">
+                <Settings className="h-4 w-4 mr-2" />
+                Configuración General
+              </Link>
+            </Button>
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/superadmin/sistema/seguridad">
+                <Lock className="h-4 w-4 mr-2" />
+                Seguridad
+              </Link>
+            </Button>
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link href="/superadmin/perfil">
+                <User className="h-4 w-4 mr-2" />
+                Mi Perfil
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

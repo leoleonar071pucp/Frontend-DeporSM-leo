@@ -25,6 +25,20 @@ interface ProfileData {
   ipAddress: string;
 }
 
+// Función para formatear teléfono
+const formatPhoneNumber = (phoneNumber: string): string => {
+  // Eliminar cualquier caracter que no sea un número
+  const cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // Verificar si el teléfono tiene 9 dígitos (formato peruano)
+  if (cleaned.length === 9) {
+    return cleaned.replace(/(\d{3})(\d{3})(\d{3})/, '$1-$2-$3');
+  }
+  
+  // Si tiene otro número de dígitos, devolver con formato básico
+  return cleaned.replace(/(\d{3})(\d{3})(\d+)/, '$1-$2-$3');
+}
+
 export default function PerfilSuperadminPage() {
   const { user } = useAuth() // Obtener el usuario del contexto de autenticación
   const { toast } = useToast() // Obtener toast para notificaciones
@@ -44,19 +58,40 @@ export default function PerfilSuperadminPage() {
   // Actualizar los datos del perfil cuando cambia el usuario
   useEffect(() => {
     if (user) {
-      setProfileData(prevData => ({
-        ...prevData,
-        name: user.nombre || prevData.name,
-        email: user.email || prevData.email,
-        phone: user.telefono || prevData.phone,
-      }))
+      setProfileData(prevData => {
+        // Verificar si el teléfono del usuario es el predeterminado "900000000" o similar
+        const isDefaultPhone = user.telefono && 
+          (user.telefono === "900000000" || 
+           user.telefono === "900-000-000" || 
+           user.telefono.replace(/\D/g, '') === "900000000");
+        
+        return {
+          ...prevData,
+          name: user.nombre || prevData.name,
+          email: user.email || prevData.email,
+          // Usar el teléfono predeterminado "987-654-321" si es el número genérico "900000000"
+          phone: (user.telefono && !isDefaultPhone) ? 
+                 formatPhoneNumber(user.telefono) : 
+                 "987-654-321",
+        }
+      })
     }
   }, [user])
 
   // Manejadores de eventos
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setProfileData((prev) => ({ ...prev, [name]: value }))
+    
+    if (name === 'phone') {
+      // Para el campo de teléfono, solo permitir números y máximo 9 dígitos
+      const onlyNums = value.replace(/\D/g, '').substring(0, 9);
+      setProfileData((prev) => ({ 
+        ...prev, 
+        [name]: formatPhoneNumber(onlyNums)
+      }))
+    } else {
+      setProfileData((prev) => ({ ...prev, [name]: value }))
+    }
   }
 
   const handleEditToggle = () => {
@@ -214,10 +249,15 @@ export default function PerfilSuperadminPage() {
                   <Input
                     id="phone"
                     name="phone"
+                    placeholder="Ej: 999-888-777"
                     value={profileData.phone}
                     onChange={handleInputChange}
                     disabled={!isEditing}
+                    className="font-medium"
                   />
+                  {isEditing && (
+                    <p className="text-xs text-muted-foreground">Formato: 999-888-777</p>
+                  )}
                 </div>
               </div>
 
