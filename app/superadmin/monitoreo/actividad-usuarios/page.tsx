@@ -1,35 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
   Search,
   Filter,
   CalendarIcon,
-  Download,
-  AlertTriangle,
   LogIn,
   LogOut,
   User,
   Settings,
-  FileText,
   Database,
   X,
   Activity,
-  AlertCircle,
   ChevronLeft,
-  Bar,
   BarChart,
-  Users,
+  Download
 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
@@ -109,7 +103,7 @@ const accessData = [
     status: "failed",
   },
   {
-    id: 8,
+    id: 7,
     user: "superadmin@munisanmiguel.gob.pe",
     name: "Admin Principal",
     role: "Superadmin",
@@ -122,19 +116,16 @@ const accessData = [
   },
 ]
 
-// Datos de ejemplo para actividad de usuarios específicos
-
-
 export default function ActividadUsuariosPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
     role: "all",
     action: "all",
     status: "all",
-    date: null,
+    date: null as Date | null,
   })
 
-  const getActionIcon = (action) => {
+  const getActionIcon = (action: string) => {
     switch (action) {
       case "login":
         return <LogIn className="h-4 w-4 text-green-500" />
@@ -164,7 +155,7 @@ export default function ActividadUsuariosPage() {
     }
   }
 
-  const getActionLabel = (action) => {
+  const getActionLabel = (action: string) => {
     switch (action) {
       case "login":
         return "Inicio de sesión"
@@ -197,7 +188,7 @@ export default function ActividadUsuariosPage() {
     }
   }
 
-  const getRoleBadge = (role) => {
+  const getRoleBadge = (role: string) => {
     switch (role) {
       case "Superadmin":
         return <Badge className="bg-purple-100 text-purple-800">Superadmin</Badge>
@@ -209,19 +200,6 @@ export default function ActividadUsuariosPage() {
         return <Badge className="bg-gray-100 text-gray-800">Vecino</Badge>
       default:
         return <Badge className="bg-red-100 text-red-800">Desconocido</Badge>
-    }
-  }
-
-  const getActivityLevelBadge = (level) => {
-    switch (level) {
-      case "alto":
-        return <Badge className="bg-green-100 text-green-800">Alto</Badge>
-      case "medio":
-        return <Badge className="bg-yellow-100 text-yellow-800">Medio</Badge>
-      case "bajo":
-        return <Badge className="bg-gray-100 text-gray-800">Bajo</Badge>
-      default:
-        return <Badge className="bg-gray-100 text-gray-800">Desconocido</Badge>
     }
   }
 
@@ -237,7 +215,14 @@ export default function ActividadUsuariosPage() {
     const matchesRole = filters.role === "all" || entry.role === filters.role
     const matchesAction = filters.action === "all" || entry.action === filters.action
     const matchesStatus = filters.status === "all" || entry.status === filters.status
-    const matchesDate = !filters.date || entry.date.includes(format(filters.date, "dd/MM/yyyy"))
+    
+    // Validación mejorada para el filtro de fecha
+    let matchesDate = true
+    if (filters.date) {
+      const selectedDateStr = format(filters.date, "dd/MM/yyyy")
+      const entryDateParts = entry.date.split(',')[0].trim() // Extrae solo la parte de la fecha (sin la hora)
+      matchesDate = entryDateParts === selectedDateStr
+    }
 
     return matchesSearch && matchesRole && matchesAction && matchesStatus && matchesDate
   })
@@ -287,10 +272,7 @@ export default function ActividadUsuariosPage() {
                   <SelectItem value="Vecino">Vecino</SelectItem>
                 </SelectContent>
               </Select>
-              <Select
-                value={filters.action}
-                onValueChange={(value) => setFilters((prev) => ({ ...prev, action: value }))}
-              >
+              <Select value={filters.action} onValueChange={(value) => setFilters((prev) => ({ ...prev, action: value }))}>
                 <SelectTrigger className="w-full md:w-[180px]">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Acción" />
@@ -304,10 +286,7 @@ export default function ActividadUsuariosPage() {
                   <SelectItem value="user_create">Creación de usuario</SelectItem>
                 </SelectContent>
               </Select>
-              <Select
-                value={filters.status}
-                onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
-              >
+              <Select value={filters.status} onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}>
                 <SelectTrigger className="w-full md:w-[150px]">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Estado" />
@@ -328,8 +307,8 @@ export default function ActividadUsuariosPage() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={filters.date}
-                    onSelect={(date) => setFilters((prev) => ({ ...prev, date }))}
+                    selected={filters.date || undefined}
+                    onSelect={(date) => setFilters((prev) => ({ ...prev, date: date || null }))}
                     initialFocus
                   />
                 </PopoverContent>
