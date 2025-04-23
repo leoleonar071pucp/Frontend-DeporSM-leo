@@ -91,10 +91,9 @@ export default function SeguridadPage() {
       </div>
 
       <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="password">Contraseñas</TabsTrigger>
-          <TabsTrigger value="session">Sesiones</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="mt-6">
@@ -304,115 +303,6 @@ export default function SeguridadPage() {
                         Requerir mayúsculas
                       </Label>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              {isSuccess && (
-                <div className="flex items-center text-green-600">
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  <span className="text-sm">Guardado correctamente</span>
-                </div>
-              )}
-              <Button className="bg-gray-900 hover:bg-gray-800 ml-auto" onClick={handleSaveSettings} disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Guardar Cambios
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="session" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gestión de Sesiones</CardTitle>
-              <CardDescription>Configura los parámetros relacionados con las sesiones de usuario</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sessionTimeout">Tiempo de inactividad (minutos)</Label>
-                  <Select
-                    value={securitySettings.sessionTimeout}
-                    onValueChange={(value) => handleSelectChange("sessionTimeout", value)}
-                  >
-                    <SelectTrigger id="sessionTimeout">
-                      <SelectValue placeholder="Selecciona el tiempo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="15">15 minutos</SelectItem>
-                      <SelectItem value="30">30 minutos</SelectItem>
-                      <SelectItem value="60">1 hora</SelectItem>
-                      <SelectItem value="120">2 horas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Tiempo de inactividad antes de cerrar la sesión automáticamente
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <h3 className="text-lg font-medium mb-4">Sesiones Activas</h3>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Usuario</TableHead>
-                          <TableHead>Rol</TableHead>
-                          <TableHead>IP</TableHead>
-                          <TableHead>Inicio</TableHead>
-                          <TableHead>Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell>admin@munisanmiguel.gob.pe</TableCell>
-                          <TableCell>Administrador</TableCell>
-                          <TableCell>192.168.1.1</TableCell>
-                          <TableCell>05/04/2025, 09:15</TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm">
-                              Cerrar Sesión
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>coord@munisanmiguel.gob.pe</TableCell>
-                          <TableCell>Coordinador</TableCell>
-                          <TableCell>192.168.1.2</TableCell>
-                          <TableCell>05/04/2025, 08:30</TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm">
-                              Cerrar Sesión
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>vecino@example.com</TableCell>
-                          <TableCell>Vecino</TableCell>
-                          <TableCell>192.168.1.4</TableCell>
-                          <TableCell>05/04/2025, 07:45</TableCell>
-                          <TableCell>
-                            <Button variant="outline" size="sm">
-                              Cerrar Sesión
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <div className="mt-4">
-                    <Button variant="outline">Cerrar Todas las Sesiones</Button>
                   </div>
                 </div>
               </div>

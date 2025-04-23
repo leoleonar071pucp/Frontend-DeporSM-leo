@@ -96,8 +96,7 @@ export default function SuperAdminLayout({
       href: "/superadmin/monitoreo", 
       icon: <MonitorSmartphone className="h-5 w-5" />,
       subItems: [
-        { name: "Historial", href: "/superadmin/monitoreo/historial", icon: <FileText className="h-4 w-4" /> },
-        { name: "Rendimiento", href: "/superadmin/monitoreo/rendimiento", icon: <Database className="h-4 w-4" /> },
+        { name: "Actividad de Usuarios", href: "/superadmin/monitoreo/actividad-usuarios", icon: <Users className="h-4 w-4" /> },
       ],
     },
   ]
