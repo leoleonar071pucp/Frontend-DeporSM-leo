@@ -6,7 +6,6 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
-import { useNotification } from "@/context/NotificationContext"
 import {
   LayoutDashboard,
   User,
@@ -16,7 +15,6 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
   ChevronDown,
   Shield,
   Loader2,
@@ -47,13 +45,11 @@ export default function SuperAdminLayout({
 }>) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const pathname = usePathname()
   const router = useRouter()
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
-  const { notifications, unreadCount, markAsRead } = useNotification()
 
   // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
@@ -94,11 +90,6 @@ export default function SuperAdminLayout({
         { name: "General", href: "/superadmin/sistema/configuracion", icon: <Settings className="h-4 w-4" /> },
         { name: "Seguridad", href: "/superadmin/sistema/seguridad", icon: <Lock className="h-4 w-4" /> },
       ],
-    },
-    { 
-      name: "Sitio", 
-      href: "/superadmin/sitio", 
-      icon: <Globe className="h-5 w-5" />,
     },
     { 
       name: "Monitoreo", 
@@ -245,49 +236,6 @@ export default function SuperAdminLayout({
               </div>
 
               <div className="flex items-center space-x-4">
-                <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
-                      <Bell className="h-5 w-5" />
-                      {unreadCount > 0 && (
-                        <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500">
-                          {unreadCount}
-                        </Badge>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel className="flex justify-between items-center">
-                      <span>Notificaciones</span>
-                      <Link
-                        href="/superadmin/notificaciones"
-                        className="text-xs text-[#0cb7f2] hover:underline"
-                        onClick={() => setIsNotificationsOpen(false)}
-                      >
-                        Ver todas
-                      </Link>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <ScrollArea className="h-[300px]">
-                      {notifications.length > 0 ? (
-                        notifications.map((notification) => (
-                          <DropdownMenuItem key={notification.id} className="p-0" onSelect={() => !notification.read && markAsRead(notification.id)}>
-                            <div className={`w-full p-3 ${notification.read ? "opacity-70" : "bg-[#e6f9ff]"}`}>
-                              <div className="flex justify-between items-start">
-                                <h4 className="font-medium text-sm">{notification.title}</h4>
-                                <span className="text-xs text-gray-500">{notification.date}</span>
-                              </div>
-                              <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                            </div>
-                          </DropdownMenuItem>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-gray-500">No tienes notificaciones</div>
-                      )}
-                    </ScrollArea>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
                 <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative rounded-full">

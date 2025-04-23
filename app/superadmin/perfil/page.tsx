@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, Mail, Phone, Shield, Lock, Save, Upload, Bell, Clock, CheckCircle, Loader2 } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
+import { User, Mail, Phone, Shield, Lock, Save, Upload, CheckCircle, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/context/AuthContext" // Importar el contexto de autenticación
 import { useToast } from "@/hooks/use-toast" // Importar el hook para toast
@@ -23,14 +22,6 @@ interface ProfileData {
   department: string;
   lastLogin: string;
   ipAddress: string;
-}
-
-interface NotificationSettings {
-  emailAlerts: boolean;
-  systemAlerts: boolean;
-  securityAlerts: boolean;
-  maintenanceAlerts: boolean;
-  emailFrequency: string;
 }
 
 export default function PerfilSuperadminPage() {
@@ -47,15 +38,6 @@ export default function PerfilSuperadminPage() {
     department: "Tecnología",
     lastLogin: "05/04/2025, 08:00",
     ipAddress: "192.168.1.3",
-  })
-
-  // Estado para configuración de notificaciones
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    emailAlerts: true,
-    systemAlerts: true,
-    securityAlerts: true,
-    maintenanceAlerts: false,
-    emailFrequency: "immediate",
   })
 
   // Actualizar los datos del perfil cuando cambia el usuario
@@ -76,14 +58,6 @@ export default function PerfilSuperadminPage() {
     setProfileData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleNotificationToggle = (setting: keyof Omit<NotificationSettings, 'emailFrequency'>) => {
-    setNotificationSettings((prev) => ({ ...prev, [setting]: !prev[setting] }))
-  }
-
-  const handleFrequencyChange = (value: string) => {
-    setNotificationSettings((prev) => ({ ...prev, emailFrequency: value }))
-  }
-
   const handleSaveProfile = () => {
     setIsSaving(true)
     
@@ -99,25 +73,6 @@ export default function PerfilSuperadminPage() {
       })
       
       // Ocultar mensaje de éxito después de 3 segundos
-      setTimeout(() => {
-        setIsSuccess(false)
-      }, 3000)
-    }, 1500)
-  }
-
-  const handleSaveNotifications = () => {
-    setIsSaving(true)
-    
-    // Simulación de guardado
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
-      
-      toast({
-        title: "Preferencias actualizadas",
-        description: "Tus preferencias de notificación han sido actualizadas.",
-      })
-      
       setTimeout(() => {
         setIsSuccess(false)
       }, 3000)
@@ -185,13 +140,6 @@ export default function PerfilSuperadminPage() {
               <TabsTrigger value="personal" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
                 <User className="h-4 w-4 mr-2" />
                 Información Personal
-              </TabsTrigger>
-              <TabsTrigger
-                value="notifications"
-                className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white"
-              >
-                <Bell className="h-4 w-4 mr-2" />
-                Notificaciones
               </TabsTrigger>
               <TabsTrigger value="security" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
                 <Lock className="h-4 w-4 mr-2" />
@@ -285,113 +233,6 @@ export default function PerfilSuperadminPage() {
                         <>
                           <Save className="h-4 w-4 mr-2" />
                           Guardar Cambios
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="notifications">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Preferencias de Notificaciones</CardTitle>
-                  <CardDescription>Configura cómo y cuándo recibir notificaciones</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="emailAlerts">Alertas por Email</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Recibe notificaciones importantes por correo electrónico
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notificationSettings.emailAlerts}
-                        onCheckedChange={() => handleNotificationToggle("emailAlerts")}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="systemAlerts">Alertas del Sistema</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Recibe notificaciones sobre el estado del sistema
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notificationSettings.systemAlerts}
-                        onCheckedChange={() => handleNotificationToggle("systemAlerts")}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="securityAlerts">Alertas de Seguridad</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Recibe notificaciones sobre eventos de seguridad
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notificationSettings.securityAlerts}
-                        onCheckedChange={() => handleNotificationToggle("securityAlerts")}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="maintenanceAlerts">Alertas de Mantenimiento</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Recibe notificaciones sobre mantenimientos programados
-                        </p>
-                      </div>
-                      <Switch
-                        checked={notificationSettings.maintenanceAlerts}
-                        onCheckedChange={() => handleNotificationToggle("maintenanceAlerts")}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-4 border-t">
-                    <Label>Frecuencia de Emails</Label>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                      <Select
-                        value={notificationSettings.emailFrequency}
-                        onValueChange={handleFrequencyChange}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Selecciona la frecuencia" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="immediate">Inmediata</SelectItem>
-                          <SelectItem value="hourly">Cada hora</SelectItem>
-                          <SelectItem value="daily">Diaria</SelectItem>
-                          <SelectItem value="weekly">Semanal</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end items-center gap-2">
-                    {isSuccess && (
-                      <div className="flex items-center text-green-600">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        <span className="text-sm">Guardado correctamente</span>
-                      </div>
-                    )}
-                    <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveNotifications} disabled={isSaving}>
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Guardando...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Guardar Preferencias
                         </>
                       )}
                     </Button>
