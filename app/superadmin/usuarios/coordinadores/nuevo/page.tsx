@@ -48,7 +48,7 @@ export default function NuevoCoordinadorPage() {
     if (formErrors[name]) {
       setFormErrors((prev) => ({
         ...prev,
-        [name]: null
+        [name]: undefined
       }))
     }
   }

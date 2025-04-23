@@ -19,8 +19,20 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+// Definición de tipos
+interface Coordinador {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  facilities: string[];
+  status: string;
+  lastLogin: string;
+  role: string;
+}
+
 // Datos de ejemplo para los coordinadores
-const coordinadoresData = [
+const coordinadoresData: Coordinador[] = [
   {
     id: 1,
     name: "Roberto Gómez",
@@ -70,8 +82,8 @@ export default function CoordinadoresPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false)
-  const [selectedCoordinador, setSelectedCoordinador] = useState(null)
-  const [coordinadores, setCoordinadores] = useState(coordinadoresData)
+  const [selectedCoordinador, setSelectedCoordinador] = useState<Coordinador | null>(null)
+  const [coordinadores, setCoordinadores] = useState<Coordinador[]>(coordinadoresData)
 
   const filteredCoordinadores = coordinadores.filter((coordinador) => {
     // Filtro de búsqueda
@@ -86,49 +98,53 @@ export default function CoordinadoresPage() {
     return searchMatch && statusMatch
   })
 
-  const handleViewDetails = (coordinador) => {
+  const handleViewDetails = (coordinador: Coordinador) => {
     setSelectedCoordinador(coordinador)
     setIsDetailsDialogOpen(true)
   }
 
-  const handleDeleteClick = (coordinador) => {
+  const handleDeleteClick = (coordinador: Coordinador) => {
     setSelectedCoordinador(coordinador)
     setIsDeleteDialogOpen(true)
   }
   
-  const handleRestoreClick = (coordinador) => {
+  const handleRestoreClick = (coordinador: Coordinador) => {
     setSelectedCoordinador(coordinador)
     setIsRestoreDialogOpen(true)
   }
 
   const handleDeleteConfirm = () => {
     // Implementar soft delete: cambiar estado a inactivo
-    setCoordinadores(
-      coordinadores.map((coordinador) =>
-        coordinador.id === selectedCoordinador.id ? { ...coordinador, status: "inactivo" } : coordinador
+    if (selectedCoordinador) {
+      setCoordinadores(
+        coordinadores.map((coordinador) =>
+          coordinador.id === selectedCoordinador.id ? { ...coordinador, status: "inactivo" } : coordinador
+        )
       )
-    )
-    
-    toast({
-      title: "Coordinador desactivado",
-      description: `El coordinador ${selectedCoordinador.name} ha sido desactivado con éxito.`,
-    })
+      
+      toast({
+        title: "Coordinador desactivado",
+        description: `El coordinador ${selectedCoordinador.name} ha sido desactivado con éxito.`,
+      })
+    }
     
     setIsDeleteDialogOpen(false)
   }
   
   const handleRestoreConfirm = () => {
     // Restaurar coordinador: cambiar estado a activo
-    setCoordinadores(
-      coordinadores.map((coordinador) =>
-        coordinador.id === selectedCoordinador.id ? { ...coordinador, status: "activo" } : coordinador
+    if (selectedCoordinador) {
+      setCoordinadores(
+        coordinadores.map((coordinador) =>
+          coordinador.id === selectedCoordinador.id ? { ...coordinador, status: "activo" } : coordinador
+        )
       )
-    )
-    
-    toast({
-      title: "Coordinador activado",
-      description: `El coordinador ${selectedCoordinador.name} ha sido activado nuevamente.`,
-    })
+      
+      toast({
+        title: "Coordinador activado",
+        description: `El coordinador ${selectedCoordinador.name} ha sido activado nuevamente.`,
+      })
+    }
     
     setIsRestoreDialogOpen(false)
   }

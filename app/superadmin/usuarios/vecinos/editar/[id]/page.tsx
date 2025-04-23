@@ -130,7 +130,7 @@ export default function EditarVecinoPage({ params }: { params: { id: string } })
     fetchData()
   }, [id, router, toast])
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -193,7 +193,7 @@ export default function EditarVecinoPage({ params }: { params: { id: string } })
     return errors
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     const errors = validateForm()

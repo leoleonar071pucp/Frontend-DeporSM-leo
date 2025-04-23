@@ -109,32 +109,36 @@ export default function AdministradoresPage() {
 
   const handleDeleteConfirm = () => {
     // Implementar soft delete: cambiar estado a inactivo
-    setAdmins(
-      admins.map((admin) =>
-        admin.id === selectedAdmin.id ? { ...admin, status: "inactivo" } : admin
+    if (selectedAdmin) {
+      setAdmins(
+        admins.map((admin) =>
+          admin.id === selectedAdmin.id ? { ...admin, status: "inactivo" } : admin
+        )
       )
-    )
-    
-    toast({
-      title: "Administrador desactivado",
-      description: `El administrador ${selectedAdmin.name} ha sido desactivado con éxito.`,
-    })
+      
+      toast({
+        title: "Administrador desactivado",
+        description: `El administrador ${selectedAdmin.name} ha sido desactivado con éxito.`,
+      })
+    }
     
     setIsDeleteDialogOpen(false)
   }
   
   const handleRestoreConfirm = () => {
     // Restaurar administrador: cambiar estado a activo
-    setAdmins(
-      admins.map((admin) =>
-        admin.id === selectedAdmin.id ? { ...admin, status: "activo" } : admin
+    if (selectedAdmin) {
+      setAdmins(
+        admins.map((admin) =>
+          admin.id === selectedAdmin.id ? { ...admin, status: "activo" } : admin
+        )
       )
-    )
-    
-    toast({
-      title: "Administrador activado",
-      description: `El administrador ${selectedAdmin.name} ha sido activado nuevamente.`,
-    })
+      
+      toast({
+        title: "Administrador activado",
+        description: `El administrador ${selectedAdmin.name} ha sido activado nuevamente.`,
+      })
+    }
     
     setIsRestoreDialogOpen(false)
   }

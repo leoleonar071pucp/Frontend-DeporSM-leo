@@ -19,8 +19,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
+// Definición de tipos
+interface Vecino {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  dni: string;
+  status: string;
+  lastLogin: string;
+  reservations: number;
+  address: string;
+}
+
 // Datos de ejemplo para los vecinos
-const vecinosData = [
+const vecinosData: Vecino[] = [
   {
     id: 1,
     name: "Juan Pérez García",
@@ -85,8 +98,8 @@ export default function VecinosPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false)
-  const [selectedVecino, setSelectedVecino] = useState(null)
-  const [vecinos, setVecinos] = useState(vecinosData)
+  const [selectedVecino, setSelectedVecino] = useState<Vecino | null>(null)
+  const [vecinos, setVecinos] = useState<Vecino[]>(vecinosData)
 
   const filteredVecinos = vecinos.filter((vecino) => {
     // Filtro de búsqueda
@@ -101,49 +114,53 @@ export default function VecinosPage() {
     return searchMatch && statusMatch
   })
 
-  const handleDeleteClick = (vecino) => {
+  const handleDeleteClick = (vecino: Vecino) => {
     setSelectedVecino(vecino)
     setIsDeleteDialogOpen(true)
   }
 
-  const handleRestoreClick = (vecino) => {
+  const handleRestoreClick = (vecino: Vecino) => {
     setSelectedVecino(vecino)
     setIsRestoreDialogOpen(true)
   }
 
-  const handleViewDetails = (vecino) => {
+  const handleViewDetails = (vecino: Vecino) => {
     setSelectedVecino(vecino)
     setIsDetailsDialogOpen(true)
   }
 
   const handleDeleteConfirm = () => {
     // Implementar soft delete: cambiar estado a inactivo
-    setVecinos(
-      vecinos.map((vecino) =>
-        vecino.id === selectedVecino.id ? { ...vecino, status: "inactivo", reservations: 0 } : vecino
+    if (selectedVecino) {
+      setVecinos(
+        vecinos.map((vecino) =>
+          vecino.id === selectedVecino.id ? { ...vecino, status: "inactivo", reservations: 0 } : vecino
+        )
       )
-    )
-    
-    toast({
-      title: "Usuario desactivado",
-      description: `El vecino ${selectedVecino.name} ha sido desactivado y sus reservas canceladas.`,
-    })
+      
+      toast({
+        title: "Usuario desactivado",
+        description: `El vecino ${selectedVecino.name} ha sido desactivado y sus reservas canceladas.`,
+      })
+    }
     
     setIsDeleteDialogOpen(false)
   }
 
   const handleRestoreConfirm = () => {
     // Restaurar usuario: cambiar estado a activo
-    setVecinos(
-      vecinos.map((vecino) =>
-        vecino.id === selectedVecino.id ? { ...vecino, status: "activo" } : vecino
+    if (selectedVecino) {
+      setVecinos(
+        vecinos.map((vecino) =>
+          vecino.id === selectedVecino.id ? { ...vecino, status: "activo" } : vecino
+        )
       )
-    )
-    
-    toast({
-      title: "Usuario activado",
-      description: `El vecino ${selectedVecino.name} ha sido activado nuevamente.`,
-    })
+      
+      toast({
+        title: "Usuario activado",
+        description: `El vecino ${selectedVecino.name} ha sido activado nuevamente.`,
+      })
+    }
     
     setIsRestoreDialogOpen(false)
   }
