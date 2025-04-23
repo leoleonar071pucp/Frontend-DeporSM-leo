@@ -1,6 +1,7 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
 
 import { useState, useEffect, ChangeEvent } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,17 +10,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, Mail, Phone, Shield, Lock, Save, Upload, CheckCircle, Loader2 } from "lucide-react"
+import { User, Mail, Phone, Shield, Lock, Save, Upload, CheckCircle, Loader2, Monitor, Smartphone, LogOut, MapPin } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/context/AuthContext" // Importar el contexto de autenticación
 import { useToast } from "@/hooks/use-toast" // Importar el hook para toast
+import { Separator } from "@/components/ui/separator"
 
 // Definición de tipos para mejorar la seguridad de tipos
 interface ProfileData {
   name: string;
   email: string;
   phone: string;
-  department: string;
   lastLogin: string;
   ipAddress: string;
 }
@@ -29,13 +30,13 @@ export default function PerfilSuperadminPage() {
   const { toast } = useToast() // Obtener toast para notificaciones
   const [isSaving, setIsSaving] = useState(false) // Estado para botón de guardado
   const [isSuccess, setIsSuccess] = useState(false) // Estado para mensaje de éxito
+  const [isEditing, setIsEditing] = useState(false) // Estado para modo de edición
 
   // Inicializar datos del perfil con la información de usuario del contexto
   const [profileData, setProfileData] = useState<ProfileData>({
     name: "Administrador Principal",
     email: "superadmin@munisanmiguel.gob.pe",
-    phone: "(01) 987-6543",
-    department: "Tecnología",
+    phone: "987-654-321",
     lastLogin: "05/04/2025, 08:00",
     ipAddress: "192.168.1.3",
   })
@@ -58,6 +59,14 @@ export default function PerfilSuperadminPage() {
     setProfileData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setIsEditing(false)
+    } else {
+      setIsEditing(true)
+    }
+  }
+
   const handleSaveProfile = () => {
     setIsSaving(true)
     
@@ -65,6 +74,7 @@ export default function PerfilSuperadminPage() {
     setTimeout(() => {
       setIsSaving(false)
       setIsSuccess(true)
+      setIsEditing(false)
       
       // Mostrar toast de éxito
       toast({
@@ -92,205 +102,204 @@ export default function PerfilSuperadminPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Mi Perfil</h1>
-        <p className="text-muted-foreground">Gestiona tu información personal y preferencias</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <Card className="md:w-1/3">
-          <CardHeader>
-            <CardTitle>Información de Perfil</CardTitle>
-            <CardDescription>Tu información personal</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center text-center">
-            <div className="relative mb-4">
-              <Avatar className="h-32 w-32">
-                <AvatarImage src={user?.avatarUrl || "/placeholder.svg?height=128&width=128"} alt="@superadmin" />
-                <AvatarFallback className="bg-[#0cb7f2] text-white text-2xl">{userInitials}</AvatarFallback>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1">
+          <Card>
+            <CardContent className="pt-6 flex flex-col items-center text-center">
+              <Avatar className="h-32 w-32 mb-4">
+                <AvatarImage src={user?.avatarUrl || "/placeholder-user.jpg"} alt="@superadmin" />
+                <AvatarFallback className="text-4xl bg-primary text-white">{userInitials}</AvatarFallback>
               </Avatar>
-              <Button variant="outline" size="icon" className="absolute bottom-0 right-0 rounded-full bg-white">
-                <Upload className="h-4 w-4" />
-                <span className="sr-only">Cambiar imagen</span>
-              </Button>
-            </div>
-            <h3 className="text-xl font-bold">{user?.nombre || profileData.name}</h3>
-            <p className="text-sm text-muted-foreground">Superadministrador</p>
-            <div className="mt-4 w-full">
-              <div className="flex items-center justify-between py-2 border-b">
-                <span className="text-sm text-muted-foreground">Último acceso</span>
-                <span className="text-sm font-medium">{profileData.lastLogin}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <span className="text-sm text-muted-foreground">Dirección IP</span>
-                <span className="text-sm font-medium">{profileData.ipAddress}</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-muted-foreground">Rol</span>
-                <span className="text-sm font-medium flex items-center">
-                  <Shield className="h-4 w-4 mr-1 text-[#0cb7f2]" />
-                  Superadministrador
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <h2 className="text-xl font-bold">{user?.nombre || profileData.name}</h2>
+              <p className="text-gray-500">Administrador Principal del Sistema</p>
+              <p className="text-gray-500">Superadministrador</p>
 
-        <div className="flex-1">
-          <Tabs defaultValue="personal" className="space-y-4">
-            <TabsList className="bg-[#bceeff]">
-              <TabsTrigger value="personal" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
-                <User className="h-4 w-4 mr-2" />
-                Información Personal
-              </TabsTrigger>
-              <TabsTrigger value="security" className="data-[state=active]:bg-[#0cb7f2] data-[state=active]:text-white">
-                <Lock className="h-4 w-4 mr-2" />
-                Seguridad
-              </TabsTrigger>
-            </TabsList>
+              <Separator className="my-4" />
 
-            <TabsContent value="personal">
-              <Card>
-                <CardHeader>
+              <div className="w-full space-y-3">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  <span className="text-sm">{profileData.email}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" />
+                  <span className="text-sm">{profileData.phone}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <span className="text-sm">Sistema</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
                   <CardTitle>Información Personal</CardTitle>
-                  <CardDescription>Actualiza tu información personal</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nombre Completo</Label>
-                    <div className="relative">
-                      <User className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                      <Input
-                        id="name"
-                        name="name"
-                        className="pl-8"
-                        value={profileData.name}
-                        onChange={handleInputChange}
-                      />
+                  <CardDescription>Gestiona tu información personal</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {isSuccess && (
+                    <div className="flex items-center text-green-600">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      <span className="text-sm">Guardado correctamente</span>
                     </div>
-                  </div>
+                  )}
+                  <Button
+                    variant={isEditing ? "outline" : "default"}
+                    onClick={handleEditToggle}
+                    className={isEditing ? "" : "bg-primary hover:bg-primary-light"}
+                  >
+                    {isEditing ? "Cancelar" : "Editar perfil"}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    Nombre
+                  </Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={profileData.name.split(' ')[0] || ""}
+                    onChange={handleInputChange}
+                    disabled={true}
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Correo Electrónico</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        className="pl-8"
-                        value={profileData.email}
-                        onChange={handleInputChange}
-                        disabled={true}
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="apellidos" className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    Apellidos
+                  </Label>
+                  <Input
+                    id="apellidos"
+                    name="apellidos"
+                    value={profileData.name.split(' ').slice(1).join(' ') || ""}
+                    onChange={handleInputChange}
+                    disabled={true}
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                      <Input
-                        id="phone"
-                        name="phone"
-                        className="pl-8"
-                        value={profileData.phone}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-primary" />
+                    Correo electrónico
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={profileData.email}
+                    onChange={handleInputChange}
+                    disabled={true}
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Departamento</Label>
-                    <Select
-                      value={profileData.department}
-                      onValueChange={(value) => setProfileData((prev) => ({ ...prev, department: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un departamento" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Tecnología">Tecnología</SelectItem>
-                        <SelectItem value="Administración">Administración</SelectItem>
-                        <SelectItem value="Deportes">Deportes</SelectItem>
-                        <SelectItem value="Cultura">Cultura</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-primary" />
+                    Teléfono
+                  </Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    value={profileData.phone}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
 
-                  <div className="flex justify-end items-center gap-2">
-                    {isSuccess && (
-                      <div className="flex items-center text-green-600">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        <span className="text-sm">Guardado correctamente</span>
-                      </div>
+              {isEditing && (
+                <div className="mt-6 flex justify-end">
+                  <Button onClick={handleSaveProfile} className="bg-primary hover:bg-primary-light" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Guardar cambios
+                      </>
                     )}
-                    <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" onClick={handleSaveProfile} disabled={isSaving}>
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Guardando...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Guardar Cambios
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            <TabsContent value="security">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Seguridad de la Cuenta</CardTitle>
-                  <CardDescription>Gestiona la seguridad de tu cuenta</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-medium">Cambiar Contraseña</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Para cambiar tu contraseña, haz clic en el botón de abajo
-                    </p>
-                    <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" asChild>
-                      <a href="/superadmin/cambiar-contrasena">
-                        <Lock className="h-4 w-4 mr-2" />
-                        Cambiar Contraseña
-                      </a>
-                    </Button>
-                  </div>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Seguridad de la Cuenta</CardTitle>
+              <CardDescription>Gestiona la seguridad de tu cuenta</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium">Cambiar Contraseña</h3>
+                <p className="text-sm text-muted-foreground">
+                  Para cambiar tu contraseña, haz clic en el botón de abajo
+                </p>
+                <Button className="bg-primary hover:bg-primary-light" asChild>
+                  <Link href="/superadmin/cambiar-contrasena">
+                    <Lock className="h-4 w-4 mr-2" />
+                    Cambiar Contraseña
+                  </Link>
+                </Button>
+              </div>
 
-                  <div className="pt-4 border-t">
-                    <h3 className="text-lg font-medium">Sesiones Activas</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Estas son tus sesiones activas actualmente</p>
+              <div className="pt-4 border-t">
+                <h3 className="text-lg font-medium">Sesiones Activas</h3>
+                <p className="text-sm text-muted-foreground mb-4">Gestiona los dispositivos donde has iniciado sesión</p>
 
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between p-3 bg-gray-50 rounded-md">
-                        <div>
-                          <p className="font-medium">Sesión Actual</p>
-                          <p className="text-sm text-gray-500">Navegador: Chrome en Windows</p>
-                          <p className="text-sm text-gray-500">IP: {profileData.ipAddress}</p>
-                        </div>
-                        <Badge className="bg-[#def7ff] text-[#0cb7f2]">Activa</Badge>
-                      </div>
-
-                      <div className="flex items-start justify-between p-3 bg-gray-50 rounded-md">
-                        <div>
-                          <p className="font-medium">Sesión Móvil</p>
-                          <p className="text-sm text-gray-500">Aplicación: Android</p>
-                          <p className="text-sm text-gray-500">IP: 192.168.1.5</p>
-                        </div>
-                        <Button variant="outline" size="sm" className="text-red-500">
-                          Cerrar Sesión
-                        </Button>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 border rounded-md">
+                    <div className="flex items-center gap-3">
+                      <Monitor className="h-5 w-5 text-gray-500" />
+                      <div>
+                        <p className="font-medium">Windows PC - Chrome</p>
+                        <p className="text-sm text-gray-500">Lima, Perú • Última actividad: Ahora</p>
                       </div>
                     </div>
+                    <Badge className="bg-blue-100 text-blue-800">Actual</Badge>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+
+                  <div className="flex items-center justify-between p-3 border rounded-md">
+                    <div className="flex items-center gap-3">
+                      <Smartphone className="h-5 w-5 text-gray-500" />
+                      <div>
+                        <p className="font-medium">iPhone - Safari</p>
+                        <p className="text-sm text-gray-500">Lima, Perú • Última actividad: Hace 2 días</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="text-gray-600 gap-1">
+                      <LogOut className="h-3.5 w-3.5" />
+                      Cerrar
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <Button variant="outline" className="text-gray-600 gap-1">
+                    <LogOut className="h-4 w-4 mr-1" />
+                    Cerrar todas las otras sesiones
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

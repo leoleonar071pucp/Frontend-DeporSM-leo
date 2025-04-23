@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CheckCircle, Loader2, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 
 export default function CambiarContrasenaPage() {
   const { toast } = useToast()
+  const router = useRouter()
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -82,9 +84,11 @@ export default function CambiarContrasenaPage() {
         confirmPassword: "",
       })
 
+      // Redireccionar a la página de perfil después de 2 segundos
       setTimeout(() => {
         setIsSuccess(false)
-      }, 3000)
+        router.push('/superadmin/perfil')
+      }, 2000)
     }, 1500)
   }
 
