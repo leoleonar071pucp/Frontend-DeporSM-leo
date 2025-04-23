@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Eye, Trash2, Shield } from "lucide-react"
+import { Search, Plus, Eye, Trash2, Shield, UserCheck, Pencil } from "lucide-react"
 import Link from "next/link"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -16,6 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Datos de ejemplo para los administradores
 const administradoresData = [
@@ -24,51 +26,117 @@ const administradoresData = [
     name: "Carlos Mendoza",
     email: "carlos.mendoza@munisanmiguel.gob.pe",
     phone: "987-654-321",
-    department: "Deportes",
     status: "activo",
     lastLogin: "05/04/2025, 09:15",
+    role: "Administrador",
   },
   {
     id: 2,
     name: "Ana Rodríguez",
     email: "ana.rodriguez@munisanmiguel.gob.pe",
     phone: "987-654-322",
-    department: "Cultura",
     status: "activo",
     lastLogin: "04/04/2025, 14:30",
+    role: "Administrador",
   },
   {
     id: 3,
     name: "Luis Torres",
     email: "luis.torres@munisanmiguel.gob.pe",
     phone: "987-654-323",
-    department: "Administración",
     status: "inactivo",
     lastLogin: "01/04/2025, 10:45",
+    role: "Administrador",
+  },
+  {
+    id: 4,
+    name: "Sofía Cárdenas",
+    email: "sofia.cardenas@munisanmiguel.gob.pe",
+    phone: "987-654-324",
+    status: "activo",
+    lastLogin: "03/04/2025, 16:20",
+    role: "Administrador",
   },
 ]
 
+// Definición de tipos
+interface Admin {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+  lastLogin: string;
+  role: string;
+}
+
 export default function AdministradoresPage() {
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedAdmin, setSelectedAdmin] = useState(null)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false)
+  const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null)
+  const [admins, setAdmins] = useState<Admin[]>(administradoresData)
 
-  const filteredAdmins = administradoresData.filter(
-    (admin) =>
+  const filteredAdmins = admins.filter((admin) => {
+    // Filtro de búsqueda
+    const searchMatch =
       admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.department.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      admin.email.toLowerCase().includes(searchTerm.toLowerCase())
 
-  const handleDeleteClick = (admin) => {
+    // Filtro de estado
+    const statusMatch = statusFilter === "all" || admin.status === statusFilter
+
+    return searchMatch && statusMatch
+  })
+
+  const handleViewDetails = (admin: Admin) => {
+    setSelectedAdmin(admin)
+    setIsDetailsDialogOpen(true)
+  }
+
+  const handleDeleteClick = (admin: Admin) => {
     setSelectedAdmin(admin)
     setIsDeleteDialogOpen(true)
   }
+  
+  const handleRestoreClick = (admin: Admin) => {
+    setSelectedAdmin(admin)
+    setIsRestoreDialogOpen(true)
+  }
 
   const handleDeleteConfirm = () => {
-    // Aquí iría la lógica para eliminar el administrador
-    console.log("Eliminando administrador:", selectedAdmin.id)
+    // Implementar soft delete: cambiar estado a inactivo
+    setAdmins(
+      admins.map((admin) =>
+        admin.id === selectedAdmin.id ? { ...admin, status: "inactivo" } : admin
+      )
+    )
+    
+    toast({
+      title: "Administrador desactivado",
+      description: `El administrador ${selectedAdmin.name} ha sido desactivado con éxito.`,
+    })
+    
     setIsDeleteDialogOpen(false)
+  }
+  
+  const handleRestoreConfirm = () => {
+    // Restaurar administrador: cambiar estado a activo
+    setAdmins(
+      admins.map((admin) =>
+        admin.id === selectedAdmin.id ? { ...admin, status: "activo" } : admin
+      )
+    )
+    
+    toast({
+      title: "Administrador activado",
+      description: `El administrador ${selectedAdmin.name} ha sido activado nuevamente.`,
+    })
+    
+    setIsRestoreDialogOpen(false)
   }
 
   return (
@@ -103,6 +171,18 @@ export default function AdministradoresPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="activo">Activos</SelectItem>
+                  <SelectItem value="inactivo">Inactivos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="rounded-md border">
@@ -112,7 +192,6 @@ export default function AdministradoresPage() {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Teléfono</TableHead>
-                  <TableHead>Departamento</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Último Acceso</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -126,12 +205,6 @@ export default function AdministradoresPage() {
                       <TableCell>{admin.email}</TableCell>
                       <TableCell>{admin.phone}</TableCell>
                       <TableCell>
-                        <div className="flex items-center">
-                          <Shield className="h-4 w-4 mr-1 text-[#0cb7f2]" />
-                          {admin.department}
-                        </div>
-                      </TableCell>
-                      <TableCell>
                         {admin.status === "activo" ? (
                           <Badge className="bg-[#def7ff] text-[#0cb7f2]">Activo</Badge>
                         ) : (
@@ -141,28 +214,53 @@ export default function AdministradoresPage() {
                       <TableCell>{admin.lastLogin}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="icon" asChild>
-                            <Link href={`/superadmin/usuarios/administradores/${admin.id}`}>
-                              <Eye className="h-4 w-4" />
-                              <span className="sr-only">Ver detalles</span>
-                            </Link>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => handleViewDetails(admin)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">Ver detalles</span>
                           </Button>
                           <Button
                             variant="outline"
                             size="icon"
-                            className="text-red-500"
-                            onClick={() => handleDeleteClick(admin)}
+                            className="text-blue-500"
+                            asChild
                           >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar</span>
+                            <Link href={`/superadmin/usuarios/administradores/editar/${admin.id}`}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Editar</span>
+                            </Link>
                           </Button>
+                          {admin.status === "activo" ? (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-red-500"
+                              onClick={() => handleDeleteClick(admin)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Desactivar</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-green-500"
+                              onClick={() => handleRestoreClick(admin)}
+                            >
+                              <UserCheck className="h-4 w-4" />
+                              <span className="sr-only">Activar</span>
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-6 text-gray-500">
+                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                       No se encontraron administradores
                     </TableCell>
                   </TableRow>
@@ -172,14 +270,101 @@ export default function AdministradoresPage() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Diálogo de detalles */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalles del Administrador</DialogTitle>
+          </DialogHeader>
+          {selectedAdmin && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Nombre</p>
+                  <p className="mt-1">{selectedAdmin.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Rol</p>
+                  <div className="flex items-center mt-1">
+                    <Shield className="h-4 w-4 mr-1 text-[#0cb7f2]" />
+                    {selectedAdmin.role}
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-gray-500">Email</p>
+                  <p className="mt-1">{selectedAdmin.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Teléfono</p>
+                  <p className="mt-1">{selectedAdmin.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Estado</p>
+                  <div className="mt-1">
+                    {selectedAdmin.status === "activo" ? (
+                      <Badge className="bg-[#def7ff] text-[#0cb7f2]">Activo</Badge>
+                    ) : (
+                      <Badge className="bg-gray-100 text-gray-800">Inactivo</Badge>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Último acceso</p>
+                  <p className="mt-1">{selectedAdmin.lastLogin}</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="text-blue-500"
+                  asChild
+                >
+                  <Link href={`/superadmin/usuarios/administradores/editar/${selectedAdmin.id}`}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar
+                  </Link>
+                </Button>
+                {selectedAdmin.status === "activo" ? (
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false)
+                      setIsDeleteDialogOpen(true)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Desactivar
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="default" 
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false)
+                      setIsRestoreDialogOpen(true)
+                    }}
+                  >
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Activar
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
+      {/* Diálogo de desactivación (soft delete) */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogTitle>Confirmar desactivación</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas eliminar al administrador{" "}
-              <span className="font-medium">{selectedAdmin?.name}</span>? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas desactivar al administrador{" "}
+              <span className="font-medium">{selectedAdmin?.name}</span>?
+              Esta acción le impedirá acceder al sistema y gestionar instalaciones.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -187,7 +372,33 @@ export default function AdministradoresPage() {
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Eliminar
+              Desactivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de reactivación */}
+      <Dialog open={isRestoreDialogOpen} onOpenChange={setIsRestoreDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar activación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas activar nuevamente al administrador{" "}
+              <span className="font-medium">{selectedAdmin?.name}</span>?
+              Esto le permitirá acceder al sistema y gestionar instalaciones.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRestoreDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="default" 
+              className="bg-green-600 hover:bg-green-700" 
+              onClick={handleRestoreConfirm}
+            >
+              Activar
             </Button>
           </DialogFooter>
         </DialogContent>

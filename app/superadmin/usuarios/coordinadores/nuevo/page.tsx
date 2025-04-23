@@ -10,7 +10,19 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
-export default function NuevoAdministradorPage() {
+// Definición del tipo para los errores del formulario
+interface FormErrors {
+  nombre?: string;
+  apellidos?: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  password?: string;
+  confirmPassword?: string;
+  [key: string]: string | undefined;
+}
+
+export default function NuevoCoordinadorPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -23,9 +35,9 @@ export default function NuevoAdministradorPage() {
     password: "",
     confirmPassword: ""
   })
-  const [formErrors, setFormErrors] = useState({})
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -42,7 +54,7 @@ export default function NuevoAdministradorPage() {
   }
 
   const validateForm = () => {
-    const errors = {}
+    const errors: FormErrors = {}
     
     if (!formData.nombre.trim()) {
       errors.nombre = "El nombre es obligatorio"
@@ -79,7 +91,7 @@ export default function NuevoAdministradorPage() {
     return errors
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     const errors = validateForm()
@@ -95,11 +107,11 @@ export default function NuevoAdministradorPage() {
       setIsSubmitting(false)
       
       toast({
-        title: "Administrador creado",
-        description: `${formData.nombre} ${formData.apellidos} ha sido añadido como administrador.`,
+        title: "Coordinador creado",
+        description: `${formData.nombre} ${formData.apellidos} ha sido añadido como coordinador.`,
       })
       
-      router.push("/superadmin/usuarios/administradores")
+      router.push("/superadmin/usuarios/coordinadores")
     }, 1500)
   }
 
@@ -107,11 +119,11 @@ export default function NuevoAdministradorPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Nuevo Administrador</h1>
-          <p className="text-muted-foreground">Crea un nuevo usuario con rol de administrador</p>
+          <h1 className="text-2xl font-bold tracking-tight">Nuevo Coordinador</h1>
+          <p className="text-muted-foreground">Crea un nuevo usuario con rol de coordinador de instalaciones</p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/superadmin/usuarios/administradores">
+          <Link href="/superadmin/usuarios/coordinadores">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver
           </Link>
@@ -239,4 +251,3 @@ export default function NuevoAdministradorPage() {
     </div>
   )
 }
-

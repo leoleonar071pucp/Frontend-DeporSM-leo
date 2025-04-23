@@ -10,7 +10,7 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
-export default function NuevoAdministradorPage() {
+export default function NuevoVecinoPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -20,6 +20,7 @@ export default function NuevoAdministradorPage() {
     email: "",
     telefono: "",
     direccion: "",
+    dni: "",
     password: "",
     confirmPassword: ""
   })
@@ -66,6 +67,12 @@ export default function NuevoAdministradorPage() {
       errors.direccion = "La dirección es obligatoria"
     }
     
+    if (!formData.dni.trim()) {
+      errors.dni = "El DNI es obligatorio"
+    } else if (formData.dni.trim().length !== 8) {
+      errors.dni = "El DNI debe tener 8 dígitos"
+    }
+    
     if (!formData.password) {
       errors.password = "La contraseña es obligatoria"
     } else if (formData.password.length < 6) {
@@ -95,11 +102,11 @@ export default function NuevoAdministradorPage() {
       setIsSubmitting(false)
       
       toast({
-        title: "Administrador creado",
-        description: `${formData.nombre} ${formData.apellidos} ha sido añadido como administrador.`,
+        title: "Vecino creado",
+        description: `${formData.nombre} ${formData.apellidos} ha sido añadido como vecino.`,
       })
       
-      router.push("/superadmin/usuarios/administradores")
+      router.push("/superadmin/usuarios/vecinos")
     }, 1500)
   }
 
@@ -107,11 +114,11 @@ export default function NuevoAdministradorPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Nuevo Administrador</h1>
-          <p className="text-muted-foreground">Crea un nuevo usuario con rol de administrador</p>
+          <h1 className="text-2xl font-bold tracking-tight">Nuevo Vecino</h1>
+          <p className="text-muted-foreground">Crea un nuevo usuario con rol de vecino</p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/superadmin/usuarios/administradores">
+          <Link href="/superadmin/usuarios/vecinos">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver
           </Link>
@@ -157,7 +164,7 @@ export default function NuevoAdministradorPage() {
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="correo@munisanmiguel.gob.pe"
+                  placeholder="correo@ejemplo.com"
                   value={formData.email}
                   onChange={handleChange}
                 />
@@ -174,6 +181,19 @@ export default function NuevoAdministradorPage() {
                   onChange={handleChange}
                 />
                 {formErrors.telefono && <p className="text-sm text-red-500">{formErrors.telefono}</p>}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="dni">DNI</Label>
+                <Input
+                  id="dni"
+                  name="dni"
+                  placeholder="12345678"
+                  value={formData.dni}
+                  onChange={handleChange}
+                  maxLength={8}
+                />
+                {formErrors.dni && <p className="text-sm text-red-500">{formErrors.dni}</p>}
               </div>
               
               <div className="space-y-2 md:col-span-2">
@@ -239,4 +259,3 @@ export default function NuevoAdministradorPage() {
     </div>
   )
 }
-

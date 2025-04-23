@@ -21,7 +21,7 @@ export default function ConfiguracionSistemaPage() {
   // Estado para la configuración general
   const [generalConfig, setGeneralConfig] = useState({
     siteName: "DeporSM - Sistema de Reservas Deportivas",
-    siteDescription: "Plataforma de reserva de canchas y servicios deportivos para vecinos de San Miguel",
+    siteDescription: "Sistema de reserva de canchas y servicios deportivos para la Municipalidad de San Miguel.",
     contactEmail: "deportes@munisanmiguel.gob.pe",
     contactPhone: "987-654-321",
     maintenanceMode: false,

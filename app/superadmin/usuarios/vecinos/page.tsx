@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Eye, Trash2 } from "lucide-react"
+import { Search, Eye, Trash2, Plus, UserCheck, Pencil } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Dialog,
@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 // Datos de ejemplo para los vecinos
 const vecinosData = [
@@ -28,6 +30,7 @@ const vecinosData = [
     status: "activo",
     lastLogin: "05/04/2025, 09:15",
     reservations: 3,
+    address: "Av. Costanera 2345, San Miguel",
   },
   {
     id: 2,
@@ -38,6 +41,7 @@ const vecinosData = [
     status: "activo",
     lastLogin: "04/04/2025, 14:30",
     reservations: 1,
+    address: "Jr. Los Pinos 456, San Miguel",
   },
   {
     id: 3,
@@ -48,6 +52,7 @@ const vecinosData = [
     status: "inactivo",
     lastLogin: "01/04/2025, 10:45",
     reservations: 0,
+    address: "Calle Las Flores 789, San Miguel",
   },
   {
     id: 4,
@@ -58,6 +63,7 @@ const vecinosData = [
     status: "activo",
     lastLogin: "03/04/2025, 16:20",
     reservations: 2,
+    address: "Av. La Marina 1234, San Miguel",
   },
   {
     id: 5,
@@ -68,17 +74,21 @@ const vecinosData = [
     status: "activo",
     lastLogin: "02/04/2025, 11:10",
     reservations: 5,
+    address: "Jr. Libertad 567, San Miguel",
   },
 ]
 
 export default function VecinosPage() {
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false)
   const [selectedVecino, setSelectedVecino] = useState(null)
+  const [vecinos, setVecinos] = useState(vecinosData)
 
-  const filteredVecinos = vecinosData.filter((vecino) => {
+  const filteredVecinos = vecinos.filter((vecino) => {
     // Filtro de búsqueda
     const searchMatch =
       vecino.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -96,17 +106,48 @@ export default function VecinosPage() {
     setIsDeleteDialogOpen(true)
   }
 
+  const handleRestoreClick = (vecino) => {
+    setSelectedVecino(vecino)
+    setIsRestoreDialogOpen(true)
+  }
+
   const handleViewDetails = (vecino) => {
     setSelectedVecino(vecino)
     setIsDetailsDialogOpen(true)
   }
 
   const handleDeleteConfirm = () => {
-    // Aquí iría la lógica para eliminar el vecino
-    console.log("Eliminando vecino:", selectedVecino.id)
+    // Implementar soft delete: cambiar estado a inactivo
+    setVecinos(
+      vecinos.map((vecino) =>
+        vecino.id === selectedVecino.id ? { ...vecino, status: "inactivo", reservations: 0 } : vecino
+      )
+    )
+    
+    toast({
+      title: "Usuario desactivado",
+      description: `El vecino ${selectedVecino.name} ha sido desactivado y sus reservas canceladas.`,
+    })
+    
     setIsDeleteDialogOpen(false)
   }
 
+  const handleRestoreConfirm = () => {
+    // Restaurar usuario: cambiar estado a activo
+    setVecinos(
+      vecinos.map((vecino) =>
+        vecino.id === selectedVecino.id ? { ...vecino, status: "activo" } : vecino
+      )
+    )
+    
+    toast({
+      title: "Usuario activado",
+      description: `El vecino ${selectedVecino.name} ha sido activado nuevamente.`,
+    })
+    
+    setIsRestoreDialogOpen(false)
+  }
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -114,6 +155,12 @@ export default function VecinosPage() {
           <h1 className="text-2xl font-bold tracking-tight">Vecinos</h1>
           <p className="text-muted-foreground">Gestiona los usuarios vecinos registrados en el sistema</p>
         </div>
+        <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" asChild>
+          <Link href="/superadmin/usuarios/vecinos/nuevo">
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar Vecino
+          </Link>
+        </Button>
       </div>
 
       <Card>
@@ -183,12 +230,35 @@ export default function VecinosPage() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="text-red-500"
-                            onClick={() => handleDeleteClick(vecino)}
+                            className="text-blue-500"
+                            asChild
                           >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar</span>
+                            <Link href={`/superadmin/usuarios/vecinos/editar/${vecino.id}`}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Editar</span>
+                            </Link>
                           </Button>
+                          {vecino.status === "activo" ? (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-red-500"
+                              onClick={() => handleDeleteClick(vecino)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Desactivar</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-green-500"
+                              onClick={() => handleRestoreClick(vecino)}
+                            >
+                              <UserCheck className="h-4 w-4" />
+                              <span className="sr-only">Activar</span>
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -249,25 +319,61 @@ export default function VecinosPage() {
                   <p className="text-sm font-medium text-gray-500">Reservas</p>
                   <p className="mt-1">{selectedVecino.reservations}</p>
                 </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-gray-500">Dirección</p>
+                  <p className="mt-1">{selectedVecino.address}</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  className="text-blue-500"
+                  asChild
+                >
+                  <Link href={`/superadmin/usuarios/vecinos/editar/${selectedVecino.id}`}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar
+                  </Link>
+                </Button>
+                {selectedVecino.status === "activo" ? (
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false)
+                      setIsDeleteDialogOpen(true)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Desactivar
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="default" 
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false)
+                      setIsRestoreDialogOpen(true)
+                    }}
+                  >
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Activar
+                  </Button>
+                )}
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
-              Cerrar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de eliminación */}
+      {/* Diálogo de desactivación (soft delete) */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogTitle>Confirmar desactivación</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas eliminar al vecino <span className="font-medium">{selectedVecino?.name}</span>
-              ? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas desactivar al vecino <span className="font-medium">{selectedVecino?.name}</span>?
+              Esta acción cancelará todas sus reservas activas y no podrá realizar nuevas reservas.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -275,7 +381,32 @@ export default function VecinosPage() {
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Eliminar
+              Desactivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de reactivación */}
+      <Dialog open={isRestoreDialogOpen} onOpenChange={setIsRestoreDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar activación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas activar nuevamente al vecino <span className="font-medium">{selectedVecino?.name}</span>?
+              Esto le permitirá acceder al sistema y realizar reservas.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRestoreDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="default" 
+              className="bg-green-600 hover:bg-green-700" 
+              onClick={handleRestoreConfirm}
+            >
+              Activar
             </Button>
           </DialogFooter>
         </DialogContent>
