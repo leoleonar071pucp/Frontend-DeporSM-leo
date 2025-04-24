@@ -58,9 +58,9 @@ export default function CoordinadorLayout({
     if (!isAuthLoading) {
       if (!isAuthenticated) {
         router.push('/login?redirect=/coordinador');
-      } else if (user?.role !== 'coordinador') {
+      } else if (user?.rol?.nombre !== 'coordinador') {
         console.warn("Acceso denegado: Usuario no es coordinador.");
-        switch (user?.role) {
+        switch (user?.rol?.nombre) {
           case 'admin':
             router.push('/admin');
             break;
@@ -116,7 +116,7 @@ export default function CoordinadorLayout({
   }
 
   // Loading state
-  if (isAuthLoading || (isAuthenticated && user?.role && user.role !== 'coordinador')) {
+  if (isAuthLoading || (isAuthenticated && user?.rol?.nombre && user?.rol?.nombre !== 'coordinador')) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

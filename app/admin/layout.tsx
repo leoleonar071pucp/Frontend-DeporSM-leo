@@ -95,7 +95,7 @@ export default function AdminLayout({
     if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
       if (!isAuthenticated) {
         router.push('/login?redirect=/admin'); // Redirigir a login si no está autenticado
-      } else if (user?.role !== 'admin') {
+      } else if (user?.rol?.nombre !== 'admin') {
         console.warn("Acceso denegado: Usuario no es administrador.");
         // Redirigir a una página de 'no autorizado' o a la página principal del usuario
         // Por ahora, redirigimos a la página principal como ejemplo
@@ -106,7 +106,7 @@ export default function AdminLayout({
 
   // --- Renderizado Condicional por Carga/Autenticación/Rol ---
   // Muestra un loader mientras carga o si el usuario no es admin (antes de redirigir)
-  if (isAuthLoading || !isAuthenticated || user?.role !== 'admin') {
+  if (isAuthLoading || !isAuthenticated || user?.rol?.nombre !== 'admin') {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

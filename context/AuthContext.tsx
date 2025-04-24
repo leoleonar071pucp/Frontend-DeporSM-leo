@@ -8,12 +8,16 @@ interface User {
   id: string;
   nombre: string;
   email: string;
-  avatarUrl?: string; // Añadir avatarUrl opcional
-  dni?: string; // Añadir dni opcional
-  telefono?: string; // Añadir telefono opcional
-  direccion?: string; // Añadir direccion opcional
-  role?: 'vecino' | 'admin' | 'coordinador' | 'superadmin'; // Añadir rol opcional con tipos definidos
+  avatarUrl?: string;
+  dni?: string;
+  telefono?: string;
+  direccion?: string;
+  rol?: {
+    nombre: 'vecino' | 'admin' | 'coordinador' | 'superadmin';
+    descripcion?: string;
+  };
 }
+
 
 // Define la forma del contexto
 interface AuthContextType {
@@ -42,21 +46,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // En una app real, aquí llamarías a una API para validar un token existente
   const checkAuthStatus = async () => {
     setIsLoading(true);
-    console.log("Verificando estado de autenticación...");
     try {
-      // Simulación: Supongamos que no hay sesión activa inicialmente
-      // await api.get('/api/auth/status'); -> Llamada real
-      // setUser(userData);
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simular delay
-      setUser(null); // O setUser(datosRecuperados) si se encuentra sesión
-      console.log("Verificación completada. No hay sesión activa.");
+      const response = await fetch("http://localhost:8080/api/auth/me", {
+        credentials: "include", // 👈 MUY IMPORTANTE para enviar cookie
+      });
+  
+      if (response.ok) {
+        const user = await response.json();
+        setUser(user);
+        console.log("Usuario autenticado:", user);
+      } else {
+        setUser(null);
+      }
     } catch (error) {
-      console.error("Error verificando estado de autenticación:", error);
+      console.error("Error al verificar sesión:", error);
       setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
+  
 
   useEffect(() => {
     checkAuthStatus();

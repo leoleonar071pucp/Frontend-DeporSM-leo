@@ -20,11 +20,11 @@ export default function VecinoLayout({
         // Podríamos añadir una redirección aquí también por seguridad extra,
         // pero podría causar un doble redirect si la página hija ya lo hace.
         // Por ahora, confiamos en la protección de cada página hija.
-      } else if (user?.role && user.role !== 'vecino') {
+      } else if (user?.rol?.nombre && user?.rol?.nombre !== 'vecino') {
         // Si está autenticado pero NO es vecino (es admin, coordinador, etc.)
-        console.warn(`Acceso denegado a ruta de vecino para rol: ${user.role}. Redirigiendo...`);
+        console.warn(`Acceso denegado a ruta de vecino para rol: ${user?.rol?.nombre}. Redirigiendo...`);
         // Redirigir a su dashboard correspondiente o a la página principal
-        switch (user.role) {
+        switch (user?.rol?.nombre) {
             case 'admin':
                 router.push('/admin');
                 break;
@@ -42,7 +42,7 @@ export default function VecinoLayout({
   }, [isAuthenticated, isAuthLoading, user, router]);
 
   // Mostrar loader mientras carga Auth o si el rol no es 'vecino' (antes de redirigir)
-  if (isAuthLoading || (isAuthenticated && user?.role && user.role !== 'vecino')) {
+  if (isAuthLoading || (isAuthenticated && user?.rol?.nombre && user?.rol?.nombre !== 'vecino')) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -106,7 +106,7 @@ export default function SuperAdminLayout({
     if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
       if (!isAuthenticated) {
         router.push('/login?redirect=/superadmin'); // Redirigir a login si no está autenticado
-      } else if (user?.role !== 'superadmin') {
+      } else if (user?.rol?.nombre !== 'superadmin') {
         console.warn("Acceso denegado: Usuario no es superadministrador.");
         // Redirigir a una página de 'no autorizado' o a la página principal del usuario
         router.push('/');
@@ -115,7 +115,7 @@ export default function SuperAdminLayout({
   }, [isAuthenticated, isAuthLoading, user, router]);
 
   // --- Renderizado Condicional por Carga/Autenticación/Rol ---
-  if (isAuthLoading || !isAuthenticated || user?.role !== 'superadmin') {
+  if (isAuthLoading || !isAuthenticated || user?.rol?.nombre !== 'superadmin') {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Loader2 className="h-8 w-8 animate-spin text-[#0cb7f2]" />

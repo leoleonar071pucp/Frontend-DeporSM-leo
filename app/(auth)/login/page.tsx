@@ -1,99 +1,74 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { useRouter } from "next/navigation" // Importar useRouter
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2 } from "lucide-react"
-import { useAuth } from "@/context/AuthContext" // Importar useAuth
+import { useAuth } from "@/context/AuthContext"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null) // Estado para mensajes de error
+  const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter() // Inicializar useRouter
-  const { login } = useAuth() // Obtener la función login del contexto
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
+  const router = useRouter()
+  const { login } = useAuth()
 
-    setError(null) // Limpiar errores previos
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
     setIsLoading(true)
 
-    // --- Simulación de llamada a API ---
-    // En una implementación real, aquí harías fetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
-    console.log("Intentando iniciar sesión con:", { email, password })
-    setTimeout(() => {
-      // Simular éxito o fracaso
-      // Simular superadmin si el correo es superadmin@example.com
-      if (email === "superadmin@example.com" && password === "password") {
-        console.log("Inicio de sesión simulado exitoso (SUPERADMIN)")
-        const simulatedUser = {
-          id: "superadmin-001",
-          nombre: "Administrador Principal del Sistema",
-          email: email,
-          dni: "00000000",
-          telefono: "900000000",
-          direccion: "Oficina de Sistemas",
-          role: 'superadmin' as const // Asignar rol superadmin
-        };
-        login(simulatedUser);
-        router.push("/superadmin"); // Redirigir al dashboard de superadmin
-      }
-      // Simular admin si el correo es admin@example.com
-      else if (email === "admin@example.com" && password === "password") {
-        console.log("Inicio de sesión simulado exitoso (ADMIN)")
-        const simulatedUser = {
-          id: "admin-001",
-          nombre: "Administrador Principal",
-          email: email,
-          dni: "00000001",
-          telefono: "911222333",
-          direccion: "Oficina Central",
-          role: 'admin' as const // Asignar rol admin
-        };
-        login(simulatedUser);
-        router.push("/admin"); // Redirigir al dashboard de admin
-      } else if (email === "coordinador@example.com" && password === "password") {
-        console.log("Inicio de sesión simulado exitoso (COORDINADOR)")
-        const simulatedUser = {
-          id: "coord-001",
-          nombre: "Coordinador Principal",
-          email: email,
-          dni: "00000002",
-          telefono: "922333444",
-          direccion: "Oficina de Coordinación",
-          role: 'coordinador' as const
-        };
-        login(simulatedUser);
-        router.push("/coordinador");
-      } else if (email === "test@example.com" && password === "password") { // Mantener usuario vecino de prueba
-        console.log("Inicio de sesión simulado exitoso")
-        // Crear datos de usuario simulados (añadir DNI y teléfono)
-        const simulatedUser = {
-          id: "user-123",
-          nombre: "Usuario Test Logueado",
-          email: email,
-          dni: "12345678", // DNI simulado para login
-          telefono: "999888777",
-          direccion: "Av. Ejemplo 123, San Miguel",
-          role: 'vecino' as const // Asignar rol vecino por defecto
-          // avatarUrl: "url-del-avatar.jpg"
-        };
-        login(simulatedUser); // Llamar a la función login del contexto
-        router.push("/"); // Redirigir usando router
-      } else {
-        console.log("Inicio de sesión simulado fallido")
-        setError("Credenciales inválidas. Inténtalo de nuevo.")
+    try {
+      const response = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email: email, // ← ¡CORREGIDO!
+          password: password,
+        }),
+      })
+
+      if (!response.ok) {
+        const msg = await response.text()
+        setError(msg || "Credenciales inválidas")
         setIsLoading(false)
+        return
       }
-      // setIsLoading(false) // Esto se maneja dentro del if/else ahora
-    }, 2000)
+
+      const user = await response.json()
+      console.log("Rol recibido:", user.rol?.nombre)
+      login(user) // Guardar usuario en contexto
+
+      // Redirigir según el rol
+      switch (user.rol?.nombre) {
+        case "superadmin":
+          router.push("/superadmin")
+          break
+        case "admin":
+          router.push("/admin")
+          break
+        case "coordinador":
+          router.push("/coordinador")
+          break
+        default:
+          router.push("/")
+          break
+      }
+    } catch (err) {
+      console.error(err)
+      setError("Error de red o servidor.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -145,7 +120,7 @@ export default function Login() {
                 </div>
 
                 {error && (
-                  <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md">{error}</p> // Mostrar mensaje de error
+                  <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md">{error}</p>
                 )}
                 <Button type="submit" className="w-full bg-primary hover:bg-primary-light" disabled={isLoading}>
                   {isLoading ? (
@@ -173,4 +148,5 @@ export default function Login() {
     </div>
   )
 }
+
 
