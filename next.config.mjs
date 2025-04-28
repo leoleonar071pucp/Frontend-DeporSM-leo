@@ -27,6 +27,26 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/instalaciones/:path*',
+        destination: 'http://localhost:8080/api/instalaciones/:path*',
+      },
+      {
+        source: '/api/instalaciones',
+        destination: 'http://localhost:8080/api/instalaciones',
+      },
+      {
+        source: '/api/mantenimientos/:path*',
+        destination: 'http://localhost:8080/api/mantenimientos/:path*',
+      },
+      {
+        source: '/api/mantenimientos',
+        destination: 'http://localhost:8080/api/mantenimientos',
+      },
+    ]
+  },
 }
 
 if (userConfig) {

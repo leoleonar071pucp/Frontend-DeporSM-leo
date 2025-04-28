@@ -15,147 +15,71 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast"
 import MantenimientoDetails from "./components/MantenimientoDetails"
 
-// Datos de ejemplo para los mantenimientos
-const maintenanceDB = [
-  {
-    id: 2,
-    facilityId: 2,
-    facilityName: "Cancha de Fútbol (Grass)",
-    facilityLocation: "Parque Juan Pablo II",
-    type: "correctivo",
-    description: "Reparación del sistema de riego automático",
-    startDate: "10/04/2025",
-    startTime: "09:00",
-    endDate: "12/04/2025",
-    endTime: "18:00",
-    status: "scheduled",
-    affectsAvailability: false,
-    createdBy: "Admin Principal",
-    createdAt: "02/04/2025",
-  },
-  {
-    id: 3,
-    facilityId: 4,
-    facilityName: "Cancha de Fútbol (Loza)",
-    facilityLocation: "Parque Simón Bolívar",
-    type: "correctivo",
-    description: "Reparación de grietas en la superficie",
-    startDate: "01/04/2025",
-    startTime: "07:00",
-    endDate: "08/04/2025",
-    endTime: "16:00",
-    status: "in-progress",
-    affectsAvailability: true,
-    createdBy: "Admin Principal",
-    createdAt: "25/03/2025",
-  },
-  {
-    id: 6,
-    facilityId: 1,
-    facilityName: "Piscina Municipal",
-    facilityLocation: "Complejo Deportivo Municipal",
-    type: "correctivo",
-    description: "Reparación del sistema de filtración",
-    startDate: "01/03/2025",
-    startTime: "08:00",
-    endDate: "05/03/2025",
-    endTime: "17:00",
-    status: "completed",
-    affectsAvailability: true,
-    createdBy: "Admin Principal",
-    createdAt: "25/02/2025",
-  },
-]
-
-// Datos de ejemplo para las instalaciones
-const facilitiesDB = [
-  {
-    id: 1,
-    name: "Piscina Municipal",
-    type: "piscina",
-    location: "Complejo Deportivo Municipal",
-  },
-  {
-    id: 2,
-    name: "Cancha de Fútbol (Grass)",
-    type: "cancha-futbol-grass",
-    location: "Parque Juan Pablo II",
-  },
-  {
-    id: 3,
-    name: "Gimnasio Municipal",
-    type: "gimnasio",
-    location: "Complejo Deportivo Municipal",
-  },
-  {
-    id: 4,
-    name: "Cancha de Fútbol (Loza)",
-    type: "cancha-futbol-loza",
-    location: "Parque Simón Bolívar",
-  },
-  {
-    id: 5,
-    name: "Pista de Atletismo",
-    type: "pista-atletismo",
-    location: "Complejo Deportivo Municipal",
-  },
-]
-
 export default function MantenimientoPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [maintenances, setMaintenances] = useState([])
+  const [facilities, setFacilities] = useState([])
+
   const [filteredMaintenances, setFilteredMaintenances] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [typeFilter, setTypeFilter] = useState("all")
   const [facilityFilter, setFacilityFilter] = useState("all")
   const [selectedMaintenance, setSelectedMaintenance] = useState(null)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const { toast } = useToast()
 
-  useEffect(() => {
-    // Simulación de carga de datos
-    const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setMaintenances(maintenanceDB)
-      setFilteredMaintenances(maintenanceDB)
-      setIsLoading(false)
-    }
+  const getMaintenanceStatus = (maintenance) => {
+    const now = new Date()
+    const start = new Date(maintenance.fechaInicio)
+    const end = new Date(maintenance.fechaFin)
+    if (now < start) return "scheduled"
+    if (now >= start && now <= end) return "in-progress"
+    if (now > end) return "completed"
+    return "unknown"
+  }
 
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const resMaintenances = await fetch("http://localhost:8080/api/mantenimientos/filtrar")
+        const maintenanceData = await resMaintenances.json()
+        setMaintenances(maintenanceData)
+        setFilteredMaintenances(maintenanceData)
+
+        const resFacilities = await fetch("http://localhost:8080/api/instalaciones")
+        const facilitiesData = await resFacilities.json()
+        setFacilities(facilitiesData)
+      } catch (error) {
+        console.error("Error loading data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
     loadData()
   }, [])
 
   useEffect(() => {
-    // Aplicar filtros
     let result = maintenances
 
-    // Filtro por término de búsqueda
     if (searchTerm) {
       result = result.filter(
-        (maintenance) =>
-          maintenance.facilityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          maintenance.description.toLowerCase().includes(searchTerm.toLowerCase()),
+        (m) =>
+          m.instalacionNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          m.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
-    // Filtro por estado
     if (statusFilter !== "all") {
-      result = result.filter((maintenance) => maintenance.status === statusFilter)
+      result = result.filter((m) => getMaintenanceStatus(m) === statusFilter)
     }
 
-    // Filtro por tipo
-    if (typeFilter !== "all") {
-      result = result.filter((maintenance) => maintenance.type === typeFilter)
-    }
-
-    // Filtro por instalación
     if (facilityFilter !== "all") {
-      result = result.filter((maintenance) => maintenance.facilityId === Number.parseInt(facilityFilter))
+      result = result.filter((m) => m.facilityId === Number.parseInt(facilityFilter))
     }
 
     setFilteredMaintenances(result)
-  }, [searchTerm, statusFilter, typeFilter, facilityFilter, maintenances])
+  }, [searchTerm, statusFilter, facilityFilter, maintenances])
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -172,42 +96,27 @@ export default function MantenimientoPage() {
     }
   }
 
-  const getTypeBadge = (type) => {
-    switch (type) {
-      case "preventivo":
-        return <Badge className="bg-green-100 text-green-800">Preventivo</Badge>
-      case "correctivo":
-        return <Badge className="bg-red-100 text-red-800">Correctivo</Badge>
-      case "mejora":
-        return <Badge className="bg-blue-100 text-blue-800">Mejora</Badge>
-      default:
-        return null
-    }
-  }
-
   const handleCancelMaintenance = (maintenance) => {
     setSelectedMaintenance(maintenance)
     setShowCancelDialog(true)
   }
 
-  const handleViewDetails = (maintenance) => {
-    setSelectedMaintenance(maintenance)
-    setShowDetailsDialog(true)
-  }
-
   const confirmCancelMaintenance = () => {
-    // Actualizar el estado del mantenimiento a 'cancelled'
-    const updatedMaintenances = maintenances.map((m) =>
+    const updated = maintenances.map((m) =>
       m.id === selectedMaintenance.id ? { ...m, status: "cancelled" } : m
     )
-    setMaintenances(updatedMaintenances)
-    setFilteredMaintenances(updatedMaintenances)
+    setMaintenances(updated)
+    setFilteredMaintenances(updated)
     setShowCancelDialog(false)
-    
     toast({
       title: "Mantenimiento cancelado",
       description: "El mantenimiento ha sido cancelado exitosamente.",
     })
+  }
+
+  const handleViewDetails = (maintenance) => {
+    setSelectedMaintenance(maintenance)
+    setShowDetailsDialog(true)
   }
 
   if (isLoading) {
@@ -220,6 +129,7 @@ export default function MantenimientoPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center">
           <Button variant="ghost" className="mr-2" asChild>
@@ -238,39 +148,7 @@ export default function MantenimientoPage() {
         </Button>
       </div>
 
-      {/* Diálogo de confirmación para cancelar mantenimiento */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancelar mantenimiento</DialogTitle>
-            <DialogDescription>
-              ¿Estás seguro de que deseas cancelar este mantenimiento? Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={confirmCancelMaintenance}>
-              Sí, cancelar mantenimiento
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Diálogo de detalles de mantenimiento */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Detalles del Mantenimiento</DialogTitle>
-            <DialogDescription>
-              Información detallada del mantenimiento
-            </DialogDescription>
-          </DialogHeader>
-          {selectedMaintenance && <MantenimientoDetails maintenance={selectedMaintenance} />}
-        </DialogContent>
-      </Dialog>
-
+      {/* Filtros */}
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
@@ -278,6 +156,7 @@ export default function MantenimientoPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Buscar */}
             <div className="space-y-2">
               <Label htmlFor="search">Buscar</Label>
               <div className="relative">
@@ -292,6 +171,7 @@ export default function MantenimientoPage() {
               </div>
             </div>
 
+            {/* Estado */}
             <div className="space-y-2">
               <Label htmlFor="status">Estado</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -300,27 +180,14 @@ export default function MantenimientoPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="scheduled">Programado</SelectItem>
+                  <SelectItem value="in-progress">En progreso</SelectItem>
                   <SelectItem value="completed">Completado</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="type">Tipo</Label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger id="type">
-                  <SelectValue placeholder="Filtrar por tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los tipos</SelectItem>
-                  <SelectItem value="preventivo">Preventivo</SelectItem>
-                  <SelectItem value="correctivo">Correctivo</SelectItem>
-                  <SelectItem value="mejora">Mejora</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+            {/* Instalación */}
             <div className="space-y-2">
               <Label htmlFor="facility">Instalación</Label>
               <Select value={facilityFilter} onValueChange={setFacilityFilter}>
@@ -328,10 +195,10 @@ export default function MantenimientoPage() {
                   <SelectValue placeholder="Filtrar por instalación" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas las instalaciones</SelectItem>
-                  {facilitiesDB.map((facility) => (
+                  <SelectItem value="all">Todas</SelectItem>
+                  {facilities.map((facility) => (
                     <SelectItem key={facility.id} value={facility.id.toString()}>
-                      {facility.name}
+                      {facility.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -341,261 +208,98 @@ export default function MantenimientoPage() {
         </CardContent>
       </Card>
 
+      {/* Tabs */}
       <Tabs defaultValue="activos" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="activos">Mantenimientos Activos</TabsTrigger>
+          <TabsTrigger value="activos">Activos</TabsTrigger>
           <TabsTrigger value="programados">Programados</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
 
+        {/* Tab - Activos */}
         <TabsContent value="activos" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mantenimientos Activos</CardTitle>
-              <CardDescription>Mantenimientos que están actualmente en progreso</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredMaintenances.filter((m) => m.status === "in-progress").length === 0 ? (
-                <div className="text-center py-8">
-                  <CheckCircle className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-lg font-medium">No hay mantenimientos en progreso</h3>
-                  <p className="mt-1 text-gray-500">Todos los mantenimientos están programados o completados.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium">Instalación</th>
-                        <th className="text-left py-3 px-4 font-medium">Tipo</th>
-                        <th className="text-left py-3 px-4 font-medium">Descripción</th>
-                        <th className="text-left py-3 px-4 font-medium">Fechas</th>
-                        <th className="text-left py-3 px-4 font-medium">Estado</th>
-                        <th className="text-left py-3 px-4 font-medium">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMaintenances
-                        .filter((m) => m.status === "in-progress")
-                        .map((maintenance) => (
-                          <tr key={maintenance.id} className="border-b">
-                            <td className="py-3 px-4">
-                              <div>
-                                <p className="font-medium">{maintenance.facilityName}</p>
-                                <p className="text-sm text-gray-500">{maintenance.facilityLocation}</p>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">{getTypeBadge(maintenance.type)}</td>
-                            <td className="py-3 px-4">
-                              <p className="line-clamp-2">{maintenance.description}</p>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center">
-                                <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">
-                                    {format(new Date(maintenance.startDate), 'dd/MM/yyyy')} ({maintenance.startTime}) - 
-                                  </span>
-                                  <span className="text-sm font-medium">
-                                    {format(new Date(maintenance.endDate), 'dd/MM/yyyy')} ({maintenance.endTime})
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">{getStatusBadge(maintenance.status)}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex space-x-2">
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={`/admin/instalaciones/${maintenance.facilityId}`}>Ver instalación</Link>
-                                </Button>
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={`/admin/instalaciones/${maintenance.facilityId}/mantenimiento?id=${maintenance.id}`}>Editar</Link>
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-500 hover:text-red-700"
-                                  onClick={() => handleCancelMaintenance(maintenance)}
-                                >
-                                  Cancelar
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <MaintenanceTable
+            maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "in-progress")}
+            getMaintenanceStatus={getMaintenanceStatus}
+            getStatusBadge={getStatusBadge}
+            handleViewDetails={handleViewDetails}
+            handleCancelMaintenance={handleCancelMaintenance}
+          />
         </TabsContent>
 
+        {/* Tab - Programados */}
         <TabsContent value="programados" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mantenimientos Programados</CardTitle>
-              <CardDescription>Mantenimientos que están programados para fechas futuras</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredMaintenances.filter((m) => m.status === "scheduled").length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-lg font-medium">No hay mantenimientos programados</h3>
-                  <p className="mt-1 text-gray-500">No hay mantenimientos programados para fechas futuras.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium">Instalación</th>
-                        <th className="text-left py-3 px-4 font-medium">Tipo</th>
-                        <th className="text-left py-3 px-4 font-medium">Descripción</th>
-                        <th className="text-left py-3 px-4 font-medium">Fechas</th>
-                        <th className="text-left py-3 px-4 font-medium">Afecta Disponibilidad</th>
-                        <th className="text-left py-3 px-4 font-medium">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMaintenances
-                        .filter((m) => m.status === "scheduled")
-                        .map((maintenance) => (
-                          <tr key={maintenance.id} className="border-b">
-                            <td className="py-3 px-4">
-                              <div>
-                                <p className="font-medium">{maintenance.facilityName}</p>
-                                <p className="text-sm text-gray-500">{maintenance.facilityLocation}</p>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">{getTypeBadge(maintenance.type)}</td>
-                            <td className="py-3 px-4">
-                              <p className="line-clamp-2">{maintenance.description}</p>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center">
-                                <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">
-                                    {format(new Date(maintenance.startDate), 'dd/MM/yyyy')} ({maintenance.startTime}) - 
-                                  </span>
-                                  <span className="text-sm font-medium">
-                                    {format(new Date(maintenance.endDate), 'dd/MM/yyyy')} ({maintenance.endTime})
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              {maintenance.affectsAvailability ? (
-                                <Badge className="bg-red-100 text-red-800">Sí</Badge>
-                              ) : (
-                                <Badge className="bg-green-100 text-green-800">No</Badge>
-                              )}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex space-x-2">
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={`/admin/instalaciones/${maintenance.facilityId}`}>Ver instalación</Link>
-                                </Button>
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={`/admin/instalaciones/${maintenance.facilityId}/mantenimiento?id=${maintenance.id}`}>Editar</Link>
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-500 hover:text-red-700"
-                                  onClick={() => handleCancelMaintenance(maintenance)}
-                                >
-                                  Cancelar
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <MaintenanceTable
+            maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "scheduled")}
+            getMaintenanceStatus={getMaintenanceStatus}
+            getStatusBadge={getStatusBadge}
+            handleViewDetails={handleViewDetails}
+            handleCancelMaintenance={handleCancelMaintenance}
+          />
         </TabsContent>
 
+        {/* Tab - Historial */}
         <TabsContent value="historial" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Historial de Mantenimientos</CardTitle>
-              <CardDescription>Mantenimientos completados o cancelados</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredMaintenances.filter((m) => m.status === "completed" || m.status === "cancelled").length === 0 ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-lg font-medium">No hay historial de mantenimientos</h3>
-                  <p className="mt-1 text-gray-500">No hay mantenimientos completados o cancelados.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium">Instalación</th>
-                        <th className="text-left py-3 px-4 font-medium">Tipo</th>
-                        <th className="text-left py-3 px-4 font-medium">Descripción</th>
-                        <th className="text-left py-3 px-4 font-medium">Fechas</th>
-                        <th className="text-left py-3 px-4 font-medium">Estado</th>
-                        <th className="text-left py-3 px-4 font-medium">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMaintenances
-                        .filter((m) => m.status === "completed" || m.status === "cancelled")
-                        .map((maintenance) => (
-                          <tr key={maintenance.id} className="border-b">
-                            <td className="py-3 px-4">
-                              <div>
-                                <p className="font-medium">{maintenance.facilityName}</p>
-                                <p className="text-sm text-gray-500">{maintenance.facilityLocation}</p>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">{getTypeBadge(maintenance.type)}</td>
-                            <td className="py-3 px-4">
-                              <p className="line-clamp-2">{maintenance.description}</p>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center">
-                                <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">
-                                    {format(new Date(maintenance.startDate), 'dd/MM/yyyy')} ({maintenance.startTime}) - 
-                                  </span>
-                                  <span className="text-sm font-medium">
-                                    {format(new Date(maintenance.endDate), 'dd/MM/yyyy')} ({maintenance.endTime})
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">{getStatusBadge(maintenance.status)}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex space-x-2">
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={`/admin/instalaciones/${maintenance.facilityId}`}>Ver instalación</Link>
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => handleViewDetails(maintenance)}>
-                                  Ver detalles
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <MaintenanceTable
+            maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "completed")}
+            getMaintenanceStatus={getMaintenanceStatus}
+            getStatusBadge={getStatusBadge}
+            handleViewDetails={handleViewDetails}
+            handleCancelMaintenance={handleCancelMaintenance}
+          />
         </TabsContent>
       </Tabs>
     </div>
   )
 }
 
+// Componente de Tabla de Mantenimientos
+function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, handleViewDetails, handleCancelMaintenance }) {
+  if (maintenances.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-lg font-medium">No hay mantenimientos</h3>
+        <p className="mt-1 text-gray-500">No hay datos disponibles.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-3 px-4 font-medium">Instalación</th>
+            <th className="text-left py-3 px-4 font-medium">Descripción</th>
+            <th className="text-left py-3 px-4 font-medium">Fechas</th>
+            <th className="text-left py-3 px-4 font-medium">Estado</th>
+            <th className="text-left py-3 px-4 font-medium">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {maintenances.map((m) => (
+            <tr key={m.id} className="border-b">
+              <td className="py-3 px-4">{m.instalacionNombre}</td>
+              <td className="py-3 px-4">{m.descripcion}</td>
+              <td className="py-3 px-4">
+                {format(new Date(m.fechaInicio), "dd/MM/yyyy")} - {format(new Date(m.fechaFin), "dd/MM/yyyy")}
+              </td>
+              <td className="py-3 px-4">{getStatusBadge(getMaintenanceStatus(m))}</td>
+              <td className="py-3 px-4">
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => handleViewDetails(m)}>
+                    Ver detalles
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleCancelMaintenance(m)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
