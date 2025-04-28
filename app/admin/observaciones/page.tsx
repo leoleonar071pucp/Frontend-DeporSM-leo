@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,23 +23,12 @@ import { useNotification } from "@/context/NotificationContext"
 
 interface Observation {
   id: number
-  facilityId: number
   facilityName: string
-  facilityLocation: string
   description: string
-  status: 'pendiente' | 'aprobada' | 'rechazada' | 'completada'
-  date: string
-  createdAt: string
-  photos: string[]
-  priority: 'alta' | 'media' | 'baja'
-  coordinatorId: number
   coordinatorName: string
-  approvedAt?: string
-  approvedBy?: string
-  rejectedAt?: string
-  rejectedBy?: string
-  feedback?: string
-  completedAt?: string
+  date: string
+  status: 'pendiente' | 'aprobada' | 'rechazada' | 'completada'
+  priority: 'alta' | 'media' | 'baja'
 }
 
 export default function ObservacionesPage() {
@@ -51,103 +40,43 @@ export default function ObservacionesPage() {
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false)
   const [actionType, setActionType] = useState<"aprobar" | "rechazar">()
   const [feedback, setFeedback] = useState("")
-  const [observationsData, setObservationsData] = useState<Observation[]>([
-    {
-      id: 1,
-      facilityId: 1,
-      facilityName: "Cancha de Fútbol (Grass)",
-      facilityLocation: "Parque Juan Pablo II",
-      description: "Daños en la red de la portería norte",
-      status: "pendiente",
-      date: "05/04/2025",
-      createdAt: "05/04/2025",
-      photos: ["/placeholder.svg?height=100&width=100"],
-      priority: "media",
-      coordinatorId: 1,
-      coordinatorName: "Carlos Rodríguez",
-    },
-    {
-      id: 2,
-      facilityId: 2,
-      facilityName: "Piscina Municipal",
-      facilityLocation: "Complejo Deportivo Municipal",
-      description: "Filtro de agua requiere mantenimiento",
-      status: "aprobada",
-      date: "02/04/2025",
-      createdAt: "02/04/2025",
-      photos: ["/placeholder.svg?height=100&width=100"],
-      priority: "alta",
-      coordinatorId: 1,
-      coordinatorName: "Carlos Rodríguez",
-      approvedAt: "03/04/2025",
-      approvedBy: "Admin",
-    },
-    {
-      id: 3,
-      facilityId: 3,
-      facilityName: "Gimnasio Municipal",
-      facilityLocation: "Complejo Deportivo Municipal",
-      description: "Máquina de cardio #3 fuera de servicio",
-      status: "rechazada",
-      date: "01/04/2025",
-      createdAt: "01/04/2025",
-      photos: ["/placeholder.svg?height=100&width=100"],
-      priority: "baja",
-      coordinatorId: 2,
-      coordinatorName: "María López",
-      feedback: "Ya se ha reportado anteriormente y está en proceso de reparación.",
-      rejectedAt: "02/04/2025",
-      rejectedBy: "Admin",
-    },
-    {
-      id: 4,
-      facilityId: 4,
-      facilityName: "Pista de Atletismo",
-      facilityLocation: "Complejo Deportivo Municipal",
-      description: "Marcas de carril borrosas en la curva sur",
-      status: "aprobada",
-      date: "30/03/2025",
-      createdAt: "30/03/2025",
-      photos: ["/placeholder.svg?height=100&width=100"],
-      priority: "media",
-      coordinatorId: 2,
-      coordinatorName: "María López",
-      approvedAt: "31/03/2025",
-      approvedBy: "Admin",
-    },
-    {
-      id: 5,
-      facilityId: 2,
-      facilityName: "Piscina Municipal",
-      facilityLocation: "Complejo Deportivo Municipal",
-      description: "Azulejos rotos en el borde sur de la piscina",
-      status: "completada",
-      date: "20/03/2025",
-      createdAt: "20/03/2025",
-      completedAt: "25/03/2025",
-      photos: ["/placeholder.svg?height=100&width=100"],
-      priority: "alta",
-      coordinatorId: 1,
-      coordinatorName: "Carlos Rodríguez",
-      approvedAt: "21/03/2025",
-      approvedBy: "Admin",
-    },
-  ])
+  const [observationsData, setObservationsData] = useState<Observation[]>([])
 
   const { addNotification } = useNotification()
   const { toast } = useToast()
 
+  useEffect(() => {
+    const fetchObservations = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/observaciones/all")
+        const data = await response.json()
+
+        const mappedData: Observation[] = data.map((obs: any) => ({
+          id: obs.idObservacion,
+          facilityName: obs.instalacion,
+          description: obs.descripcion,
+          coordinatorName: obs.coordinador,
+          date: obs.fecha,
+          status: obs.estado,
+          priority: obs.prioridad,
+        }))
+
+        setObservationsData(mappedData)
+      } catch (error) {
+        console.error("Error al cargar observaciones:", error)
+      }
+    }
+
+    fetchObservations()
+  }, [])
+
   const filteredObservations = observationsData.filter((observation) => {
-    // Filtro de búsqueda
     const searchMatch =
       observation.facilityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       observation.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       observation.coordinatorName.toLowerCase().includes(searchTerm.toLowerCase())
 
-    // Filtro de estado
     const statusMatch = statusFilter === "todas" || observation.status === statusFilter
-
-    // Filtro de prioridad
     const priorityMatch = priorityFilter === "todas" || observation.priority === priorityFilter
 
     return searchMatch && statusMatch && priorityMatch
@@ -170,22 +99,9 @@ export default function ObservacionesPage() {
 
     const updatedObservations = observationsData.map(obs => {
       if (obs.id === selectedObservation.id) {
-        const currentDate = new Date().toLocaleDateString()
-        if (actionType === 'aprobar') {
-          return {
-            ...obs,
-            status: 'aprobada' as const,
-            approvedAt: currentDate,
-            approvedBy: 'Admin'
-          }
-        } else {
-          return {
-            ...obs,
-            status: 'rechazada' as const,
-            rejectedAt: currentDate,
-            rejectedBy: 'Admin',
-            feedback
-          }
+        return {
+          ...obs,
+          status: actionType === "aprobar" ? "aprobada" : "rechazada"
         }
       }
       return obs
@@ -304,15 +220,8 @@ export default function ObservacionesPage() {
                 {filteredObservations.length > 0 ? (
                   filteredObservations.map((observation) => (
                     <TableRow key={observation.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{observation.facilityName}</span>
-                          <span className="text-xs text-gray-500">{observation.facilityLocation}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-xs truncate">{observation.description}</div>
-                      </TableCell>
+                      <TableCell className="font-medium">{observation.facilityName}</TableCell>
+                      <TableCell>{observation.description}</TableCell>
                       <TableCell>{observation.coordinatorName}</TableCell>
                       <TableCell>{observation.date}</TableCell>
                       <TableCell>{getStatusBadge(observation.status)}</TableCell>
@@ -361,134 +270,6 @@ export default function ObservacionesPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Diálogo de detalles */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Detalles de la Observación</DialogTitle>
-          </DialogHeader>
-          {selectedObservation && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Instalación</h3>
-                  <p className="mt-1">{selectedObservation.facilityName}</p>
-                  <p className="text-sm text-gray-500">{selectedObservation.facilityLocation}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Coordinador</h3>
-                  <p className="mt-1">{selectedObservation.coordinatorName}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Fecha de Reporte</h3>
-                  <p className="mt-1">{selectedObservation.date}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Estado</h3>
-                  <div className="mt-1">{getStatusBadge(selectedObservation.status)}</div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Prioridad</h3>
-                  <div className="mt-1">{getPriorityBadge(selectedObservation.priority)}</div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Descripción</h3>
-                <p className="mt-1">{selectedObservation.description}</p>
-              </div>
-
-              {selectedObservation.photos && selectedObservation.photos.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Fotos</h3>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedObservation.photos.map((photo, index) => (
-                      <img
-                        key={index}
-                        src={photo || "/placeholder.svg"}
-                        alt={`Foto ${index + 1}`}
-                        className="w-24 h-24 object-cover rounded-md"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedObservation.feedback && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Comentarios</h3>
-                  <p className="mt-1">{selectedObservation.feedback}</p>
-                </div>
-              )}
-
-              {selectedObservation.status === "pendiente" && (
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    className="text-red-500"
-                    onClick={() => {
-                      setIsDetailDialogOpen(false)
-                      handleAction(selectedObservation, "rechazar")
-                    }}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Rechazar
-                  </Button>
-                  <Button
-                    className="bg-primary hover:bg-primary-light"
-                    onClick={() => {
-                      setIsDetailDialogOpen(false)
-                      handleAction(selectedObservation, "aprobar")
-                    }}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Aprobar
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Diálogo de acción (aprobar/rechazar) */}
-      <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{actionType === "aprobar" ? "Aprobar Observación" : "Rechazar Observación"}</DialogTitle>
-            <DialogDescription>
-              {actionType === "aprobar"
-                ? "La observación será aprobada y se programará su mantenimiento."
-                : "La observación será rechazada y no se tomará ninguna acción al respecto."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="feedback">Comentarios (opcional)</Label>
-              <Textarea
-                id="feedback"
-                placeholder="Añade comentarios sobre esta decisión..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsActionDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              className={actionType === "aprobar" ? "bg-primary hover:bg-primary-light" : "bg-red-500 hover:bg-red-600"}
-              onClick={handleActionConfirm}
-            >
-              {actionType === "aprobar" ? "Aprobar" : "Rechazar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
-
