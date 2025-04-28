@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,72 +18,44 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 
-// Datos de ejemplo para los coordinadores
-const coordinatorsData = [
-  {
-    id: 1,
-    name: "Carlos Rodríguez",
-    email: "carlos.rodriguez@example.com",
-    phone: "987-654-321",
-    assignedFacilities: [
-      { id: 1, name: "Cancha de Fútbol (Grass)" },
-      { id: 2, name: "Piscina Municipal" },
-    ],
-    status: "activo",
-    lastLogin: "05/04/2025, 09:15",
-  },
-  {
-    id: 2,
-    name: "María López",
-    email: "maria.lopez@example.com",
-    phone: "987-654-322",
-    assignedFacilities: [
-      { id: 3, name: "Gimnasio Municipal" },
-      { id: 4, name: "Pista de Atletismo" },
-    ],
-    status: "activo",
-    lastLogin: "04/04/2025, 14:30",
-  },
-  {
-    id: 3,
-    name: "Juan Pérez",
-    email: "juan.perez@example.com",
-    phone: "987-654-323",
-    assignedFacilities: [],
-    status: "inactivo",
-    lastLogin: "01/04/2025, 10:45",
-  },
-  {
-    id: 4,
-    name: "Ana Martínez",
-    email: "ana.martinez@example.com",
-    phone: "987-654-324",
-    assignedFacilities: [],
-    status: "activo",
-    lastLogin: "06/04/2025, 11:30",
-  },
-  {
-    id: 5,
-    name: "Pedro Sánchez",
-    email: "pedro.sanchez@example.com",
-    phone: "987-654-325",
-    assignedFacilities: [],
-    status: "activo",
-    lastLogin: "06/04/2025, 12:45",
-  },
-]
-
 export default function CoordinadoresPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedCoordinator, setSelectedCoordinator] = useState(null)
-  const [coordinators, setCoordinators] = useState(coordinatorsData)
+  const [coordinators, setCoordinators] = useState([])
   const { toast } = useToast()
+
+  useEffect(() => {
+    const fetchCoordinators = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/usuarios/allCoordinadores")
+        const data = await response.json()
+
+        // Procesar instalacionesAsignadas separadas por comas
+        const processedData = data.map((coordinator) => ({
+          ...coordinator,
+          assignedFacilities: coordinator.instalacionesAsignadas
+            ? coordinator.instalacionesAsignadas.split(",").map((name, index) => ({
+                id: index,
+                name: name.trim(),
+              }))
+            : [],
+          status: "activo", // Asumimos que todos están activos inicialmente
+          lastLogin: "-",   // Puedes reemplazar esto cuando tengas lastLogin real
+        }))
+        setCoordinators(processedData)
+      } catch (error) {
+        console.error("Error fetching coordinators:", error)
+      }
+    }
+
+    fetchCoordinators()
+  }, [])
 
   const filteredCoordinators = coordinators.filter(
     (coordinator) =>
-      coordinator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      coordinator.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      coordinator.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      coordinator.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const handleDeactivateClick = (coordinator) => {
@@ -92,23 +64,22 @@ export default function CoordinadoresPage() {
   }
 
   const handleDeactivateConfirm = () => {
-    // Cambiar el estado del coordinador a inactivo
     setCoordinators(prev => prev.map(c => {
       if (c.id === selectedCoordinator.id) {
         return {
           ...c,
           status: "inactivo",
-          assignedFacilities: [] // Eliminar las instalaciones asignadas
+          assignedFacilities: [] // Vaciar instalaciones
         }
       }
       return c
     }))
-    
+
     toast({
       title: "Coordinador desactivado",
-      description: `El coordinador ${selectedCoordinator.name} ha sido desactivado exitosamente.`,
+      description: `El coordinador ${selectedCoordinator.nombre} ha sido desactivado exitosamente.`,
     })
-    
+
     setIsDeleteDialogOpen(false)
   }
 
@@ -160,9 +131,9 @@ export default function CoordinadoresPage() {
                 {filteredCoordinators.length > 0 ? (
                   filteredCoordinators.map((coordinator) => (
                     <TableRow key={coordinator.id}>
-                      <TableCell className="font-medium">{coordinator.name}</TableCell>
+                      <TableCell className="font-medium">{coordinator.nombre}</TableCell>
                       <TableCell>{coordinator.email}</TableCell>
-                      <TableCell>{coordinator.phone}</TableCell>
+                      <TableCell>{coordinator.telefono}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {coordinator.assignedFacilities.map((facility) => (
@@ -185,14 +156,12 @@ export default function CoordinadoresPage() {
                         <div className="flex justify-end gap-2">
                           {coordinator.status === "activo" && (
                             <>
-                              {coordinator.assignedFacilities.length > 0 && (
-                                <Button variant="outline" size="icon" asChild>
-                                  <Link href={`/admin/coordinadores/${coordinator.id}`}>
-                                    <Edit className="h-4 w-4" />
-                                    <span className="sr-only">Editar</span>
-                                  </Link>
-                                </Button>
-                              )}
+                              <Button variant="outline" size="icon" asChild>
+                                <Link href={`/admin/coordinadores/${coordinator.id}`}>
+                                  <Edit className="h-4 w-4" />
+                                  <span className="sr-only">Editar</span>
+                                </Link>
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="icon"
@@ -227,7 +196,7 @@ export default function CoordinadoresPage() {
             <DialogTitle>Confirmar desactivación</DialogTitle>
             <DialogDescription>
               ¿Estás seguro de que deseas desactivar al coordinador{" "}
-              <span className="font-medium">{selectedCoordinator?.name}</span>? Al desactivarlo, se eliminarán todas sus instalaciones asignadas.
+              <span className="font-medium">{selectedCoordinator?.nombre}</span>? Al desactivarlo, se eliminarán todas sus instalaciones asignadas.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -243,4 +212,3 @@ export default function CoordinadoresPage() {
     </div>
   )
 }
-
