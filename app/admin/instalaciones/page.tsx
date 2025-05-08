@@ -236,7 +236,7 @@ export default function InstalacionesAdmin() {
                   <div className="relative">
                     <img
                       src={facility.imagenUrl || "/placeholder.svg"}
-                      alt={facility.nombre}
+                      alt={facility.imagenUrl}
                       className="w-full h-48 object-cover"
                     />
                     <div className="absolute top-2 right-2">

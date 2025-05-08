@@ -13,6 +13,16 @@ import Link from "next/link"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 
+import { createClient } from '@supabase/supabase-js'
+
+
+// Create a single supabase client for interacting with your database
+const supabase = createClient('https://goajrdpkfhunnfuqtoub.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYWpyZHBrZmh1bm5mdXF0b3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MTU1NTQsImV4cCI6MjA2MjI5MTU1NH0.-_GxSWv-1UZNsXcSwIcFUKlprJ5LMX_0iz5VbesGgPQ')
+
+  
+  
+
+
 // --- Interfaz para los datos del formulario ---
 interface FacilityFormData {
   name: string;
@@ -144,38 +154,86 @@ export default function NuevaInstalacion() {
     return Object.keys(newErrors).length === 0
   }
 
+  const uploadImageToSupabase = async (file: File): Promise<string | null> => {
+    const filePath = `instalaciones/${Date.now()}_${file.name}`
+  
+    const { data, error } = await supabase
+      .storage
+      .from('instalaciones') // nombre de tu bucket
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type
+      })
+  
+    if (error) {
+      console.error("Error al subir imagen:", error.message)
+      return null
+    }
+  
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('instalaciones')
+      .getPublicUrl(filePath)
+  
+    return publicUrlData.publicUrl
+  }
+  
+
   // Tipar evento
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-
+  
     if (!validateForm()) {
-      setFormError("Por favor, corrige los errores en el formulario antes de continuar.")
+      setFormError("Por favor, corrige los errores antes de continuar.")
       return
     }
-
+  
     setIsSubmitting(true)
     setFormError("")
-
+  
     try {
-      // Simulación de envío de datos
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // En un caso real, aquí se haría la llamada a la API para crear la instalación
-      console.log("Simulando creación de instalación con datos:", formData, "e imagen:", imageFile?.name);
-
+      let imagenUrl = null
+  
+      if (imageFile) {
+        imagenUrl = await uploadImageToSupabase(imageFile)
+        if (!imagenUrl) throw new Error("Fallo la subida de imagen")
+      }
+  
+      const response = await fetch("http://localhost:8080/api/instalaciones", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: formData.name,
+          descripcion: formData.description,
+          ubicacion: formData.location,
+          tipo: formData.type,
+          capacidad: Number(formData.capacity),
+          horarioApertura: "08:00:00",
+          horarioCierre: "20:00:00",
+          imagenUrl: imagenUrl,
+          activo: true
+        }),
+      })
+  
+      if (!response.ok) {
+        throw new Error("Error al crear instalación")
+      }
+  
       setIsSuccess(true)
-
-      // Redireccionar después de 2 segundos
-      setTimeout(() => {
-        router.push("/admin/instalaciones")
-      }, 2000)
+      setTimeout(() => router.push("/admin/instalaciones"), 2000)
+  
     } catch (error) {
-      console.error("Error al crear la instalación:", error)
-      setFormError("Ocurrió un error al crear la instalación. Por favor, intenta nuevamente.")
+      console.error(error)
+      setFormError("Ocurrió un error al guardar la instalación.")
     } finally {
       setIsSubmitting(false)
     }
   }
+  
 
   return (
     <div className="space-y-6">
@@ -387,12 +445,16 @@ export default function NuevaInstalacion() {
                 className={`border-2 border-dashed rounded-md p-6 text-center ${errors.image ? "border-red-500" : "border-gray-300"}`}
               >
                 {imageFile ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">Archivo seleccionado:</p>
-                    <p className="font-medium">{imageFile.name}</p>
-                    <Button variant="outline" size="sm" onClick={() => setImageFile(null)}>
-                      Cambiar archivo
-                    </Button>
+                  <div className="space-y-2 flex flex-col items-center">
+                  <img
+                    src={URL.createObjectURL(imageFile)}
+                    alt="Previsualización"
+                    className="w-full max-w-xs rounded border"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">{imageFile.name}</p>
+                  <Button variant="outline" size="sm" onClick={() => setImageFile(null)}>
+                    Cambiar archivo
+                  </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
