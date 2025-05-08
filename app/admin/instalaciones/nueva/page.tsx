@@ -215,6 +215,7 @@ export default function NuevaInstalacion() {
           horarioApertura: "08:00:00",
           horarioCierre: "20:00:00",
           imagenUrl: imagenUrl,
+          precio: parseFloat(formData.price),
           activo: true
         }),
       })

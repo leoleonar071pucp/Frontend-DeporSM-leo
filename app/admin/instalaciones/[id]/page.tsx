@@ -8,9 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Loader2, CheckCircle, AlertCircle, Calendar, Clock, MapPin, Users, Info, Phone } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { Edit } from "lucide-react";
+
 
 import { facilitiesDB, Facility } from "@/data/facilities"
-import EditFacility from "./edit-facility"
+import EditFacility from "./edit-facility/page"
 
 export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -21,16 +23,65 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const { id: facilityId } = React.use(params)
 
   useEffect(() => {
-    // Simulación de carga de datos
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(facilityId))
-      setFacility(foundFacility || null)
-      setIsLoading(false)
+      try {
+        const response = await fetch(`http://localhost:8080/api/instalaciones/${facilityId}`)
+        if (!response.ok) throw new Error("Error al cargar instalación")
+        const data = await response.json()
+  
+        // Set default/fallback values for properties not in the API
+        const enrichedData = {
+          ...data,
+          name: data.nombre,
+          description: data.descripcion,
+          location: data.ubicacion,
+          image: data.imagenUrl,
+          schedule: `Lunes a Viernes: ${data.horarioApertura} - ${data.horarioCierre}`,
+          price: `S/. ${parseFloat(data.precio).toFixed(2)} por hora`,
+          capacity: `${data.capacidad} personas`,
+          contactNumber: "987-654-321",
+          features: ["Dimensiones: 25m x 12.5m"],
+          amenities: ["Vestuarios con casilleros"],
+          rules: ["Uso obligatorio de gorro de baño"],
+          lastMaintenance: "15/03/2025",
+          nextMaintenance: null,
+          status: "disponible",
+          maintenanceStatus: "required"
+        }
+  
+        setFacility(enrichedData)
+      } catch (error) {
+        console.error(error)
+        setFacility(null)
+      } finally {
+        setIsLoading(false)
+      }
     }
-
+  
     loadData()
   }, [facilityId])
+
+
+  interface Facility {
+    id: number
+    name: string
+    description: string
+    location: string
+    image: string
+    schedule: string
+    price: number
+    capacity: string
+    contactNumber: string
+    features: string[]
+    amenities: string[]
+    rules: string[]
+    lastMaintenance: string
+    nextMaintenance?: string | null
+    status: "disponible" | "en mantenimiento"
+    maintenanceStatus: "none" | "required" | "scheduled" | "in-progress"
+  }
+  
+  
 
   const handleSave = (updatedFacility: Facility) => {
     setFacility(updatedFacility)
@@ -106,13 +157,15 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
               <span className="text-sm">Guardado correctamente</span>
             </div>
           )}
-          <Button
-            variant={isEditing ? "outline" : "default"}
-            onClick={() => setIsEditing(!isEditing)}
-            className={isEditing ? "" : "bg-primary hover:bg-primary-light"}
-          >
-            {isEditing ? "Cancelar" : "Editar instalación"}
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/instalaciones/${facility.id}/edit-facility`}>
+
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </Link>
           </Button>
+
+
         </div>
       </div>
 
