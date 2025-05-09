@@ -69,73 +69,98 @@ export default function AdminDashboard() {
   })
 
   useEffect(() => {
-    // Simulación de carga de datos
-    const loadData = async () => {
-      // En un caso real, aquí se harían las llamadas a la API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+  const loadData = async () => {
+    try {
+      // Llamada al endpoint de estadísticas
+      const resStats = await fetch("http://localhost:8080/api/reservas/stats")
+      const dataStats = await resStats.json()
 
-      // Datos simulados (asegúrate que coincidan con las interfaces)
-      setStats({
-        totalReservations: 248,
-        activeReservations: 42,
-        totalFacilities: 5,
-        maintenanceAlerts: 3,
-        totalIncome: 12560,
-        averageUsageTime: 1.5,
-      })
+      setStats((prev) => ({
+        ...prev,
+        totalReservations: dataStats.totalReservas ?? 0,
+        activeReservations: dataStats.reservasActivas ?? 0,
+        totalFacilities: dataStats.totalInstalaciones ?? 0,
+        maintenanceAlerts: dataStats.totalObservaciones ?? 0,
+      }))
 
-      setRecentReservations([
-        { id: 1, userName: "Juan Pérez", facilityName: "Cancha de Fútbol (Grass)", status: "confirmada", date: "05/04/2025", time: "18:00 - 19:00" },
-        { id: 2, userName: "María López", facilityName: "Piscina Municipal", status: "pendiente", date: "06/04/2025", time: "10:00 - 11:00" },
-        { id: 3, userName: "Carlos Rodríguez", facilityName: "Gimnasio Municipal", status: "confirmada", date: "06/04/2025", time: "16:00 - 17:00" },
-        { id: 4, userName: "Ana Martínez", facilityName: "Pista de Atletismo", status: "cancelada", date: "04/04/2025", time: "09:00 - 10:00" },
-        { id: 5, userName: "Pedro Sánchez", facilityName: "Cancha de Fútbol (Loza)", status: "confirmada", date: "07/04/2025", time: "17:00 - 18:00" },
-      ])
+      // Llamada al endpoint de reservas recientes
+      const resRecents = await fetch("http://localhost:8080/api/reservas/recientes")
+      const dataRecents = await resRecents.json()
 
-      setMaintenanceAlerts([
-        { id: 1, facilityName: "Piscina Municipal", description: "Filtro de agua requiere reemplazo", priority: "alta", date: "05/04/2025" },
-        { id: 2, facilityName: "Cancha de Fútbol (Grass)", description: "Mantenimiento programado del césped", priority: "media", date: "10/04/2025" },
-        { id: 3, facilityName: "Gimnasio Municipal", description: "Revisión de equipos de cardio", priority: "baja", date: "15/04/2025" },
-        { id: 4, facilityName: "Pista de Atletismo", description: "Reparación de superficie completada", priority: "completada", date: "02/04/2025" },
-      ])
+      setRecentReservations(
+        dataRecents.map((r: any) => ({
+          id: r.idReserva,
+          userName: r.nombreUsuario,
+          facilityName: r.nombreInstalacion,
+          status: r.estado,
+          date: r.fecha,
+          time: `${r.horaInicio} - ${r.horaFin}`,
+        }))
+      )
 
-      setFacilityStatus([
-        { id: 1, name: "Piscina Municipal", status: "disponible", reservations: 12, maintenance: false },
-        { id: 2, name: "Cancha de Fútbol (Grass)", status: "disponible", reservations: 18, maintenance: false },
-        { id: 3, name: "Gimnasio Municipal", status: "disponible", reservations: 8, maintenance: false },
-        { id: 4, name: "Cancha de Fútbol (Loza)", status: "mantenimiento", reservations: 0, maintenance: true },
-        { id: 5, name: "Pista de Atletismo", status: "disponible", reservations: 4, maintenance: false },
-      ])
+      // Llamada al endpoint de observaciones recientes
+      const resAlerts = await fetch("http://localhost:8080/api/observaciones/recientes")
+      const dataAlerts = await resAlerts.json()
 
-      setChartData({
-        reservationsByFacility: [
-          { name: "Piscina Municipal", value: 65 },
-          { name: "Cancha de Fútbol (Grass)", value: 85 },
-          { name: "Gimnasio Municipal", value: 45 },
-          { name: "Cancha de Fútbol (Loza)", value: 35 },
-          { name: "Pista de Atletismo", value: 18 },
-        ],
-        incomeByMonth: [
-          { name: "Ene", value: 1200 }, { name: "Feb", value: 1350 }, { name: "Mar", value: 1500 },
-          { name: "Abr", value: 1650 }, { name: "May", value: 1800 }, { name: "Jun", value: 1950 },
-        ],
-        reservationsByDay: [
-          { name: "Lun", value: 35 }, { name: "Mar", value: 28 }, { name: "Mié", value: 32 },
-          { name: "Jue", value: 30 }, { name: "Vie", value: 42 }, { name: "Sáb", value: 50 }, { name: "Dom", value: 45 },
-        ],
-        usageByHour: [
-          { name: "8:00", value: 15 }, { name: "9:00", value: 20 }, { name: "10:00", value: 25 },
-          { name: "11:00", value: 30 }, { name: "12:00", value: 20 }, { name: "13:00", value: 15 },
-          { name: "14:00", value: 10 }, { name: "15:00", value: 15 }, { name: "16:00", value: 25 },
-          { name: "17:00", value: 35 }, { name: "18:00", value: 45 }, { name: "19:00", value: 40 }, { name: "20:00", value: 30 },
-        ],
-      })
+      setMaintenanceAlerts(
+        dataAlerts.map((o: any) => ({
+          id: o.idObservacion,
+          facilityName: o.nombreInstalacion,
+          description: o.descripcion,
+          priority: o.prioridad,
+          date: o.fecha,
+        }))
+      )
 
-      setIsLoading(false)
+      // Llamada al endpoint de estado actual de instalaciones
+      const resFacilities = await fetch("http://localhost:8080/api/instalaciones/estado-instalaciones")
+      const dataFacilities = await resFacilities.json()
+
+      setFacilityStatus(
+        dataFacilities.map((f: any) => ({
+          id: f.idInstalacion,
+          name: f.nombreInstalacion,
+          status: f.estado,
+          reservations: f.reservasHoy,
+          maintenance: f.estado === "mantenimiento",
+        }))
+      )
+    } catch (error) {
+      console.error("Error al cargar datos del dashboard:", error)
     }
 
-    loadData()
-  }, [])
+    setChartData({
+      reservationsByFacility: [
+        { name: "Piscina Municipal", value: 65 },
+        { name: "Cancha de Fútbol (Grass)", value: 85 },
+        { name: "Gimnasio Municipal", value: 45 },
+        { name: "Cancha de Fútbol (Loza)", value: 35 },
+        { name: "Pista de Atletismo", value: 18 },
+      ],
+      incomeByMonth: [
+        { name: "Ene", value: 1200 }, { name: "Feb", value: 1350 }, { name: "Mar", value: 1500 },
+        { name: "Abr", value: 1650 }, { name: "May", value: 1800 }, { name: "Jun", value: 1950 },
+      ],
+      reservationsByDay: [
+        { name: "Lun", value: 35 }, { name: "Mar", value: 28 }, { name: "Mié", value: 32 },
+        { name: "Jue", value: 30 }, { name: "Vie", value: 42 }, { name: "Sáb", value: 50 }, { name: "Dom", value: 45 },
+      ],
+      usageByHour: [
+        { name: "8:00", value: 15 }, { name: "9:00", value: 20 }, { name: "10:00", value: 25 },
+        { name: "11:00", value: 30 }, { name: "12:00", value: 20 }, { name: "13:00", value: 15 },
+        { name: "14:00", value: 10 }, { name: "15:00", value: 15 }, { name: "16:00", value: 25 },
+        { name: "17:00", value: 35 }, { name: "18:00", value: 45 }, { name: "19:00", value: 40 }, { name: "20:00", value: 30 },
+      ],
+    })
+
+    setIsLoading(false)
+  }
+
+  loadData()
+}, [])
+
+
+
 
   const handleTabChange = (value: string) => { // Tipar 'value'
     setActiveTab(value)
