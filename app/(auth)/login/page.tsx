@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -18,6 +19,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { login } = useAuth()
+  const { toast } = useToast()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,28 +27,40 @@ export default function Login() {
     setIsLoading(true)
 
     try {
+      console.log("Intentando iniciar sesión con:", email);
       const response = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
+        credentials: "include", // Importante para recibir y enviar cookies
         body: JSON.stringify({
-          email: email, // ← ¡CORREGIDO!
+          email: email,
           password: password,
         }),
       })
 
       if (!response.ok) {
-        const msg = await response.text()
-        setError(msg || "Credenciales inválidas")
+        const errorText = await response.text()
+        console.error("Error en inicio de sesión:", response.status, errorText)
+        
+        if (response.status === 401) {
+          setError("Correo electrónico o contraseña incorrectos")
+        } else {
+          setError(errorText || "Error al iniciar sesión. Intente nuevamente.")
+        }
         setIsLoading(false)
         return
       }
 
       const user = await response.json()
-      console.log("Rol recibido:", user.rol?.nombre)
+      console.log("Inicio de sesión exitoso. Rol:", user.rol?.nombre)
       login(user) // Guardar usuario en contexto
+
+      toast({
+        title: "¡Bienvenido/a!",
+        description: `Has iniciado sesión como ${user.nombre}`,
+      })
 
       // Redirigir según el rol
       switch (user.rol?.nombre) {
@@ -64,8 +78,13 @@ export default function Login() {
           break
       }
     } catch (err) {
-      console.error(err)
-      setError("Error de red o servidor.")
+      console.error("Error de red:", err)
+      setError("Error de conexión. Por favor, verifica tu conexión a internet.")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo conectar con el servidor",
+      })
     } finally {
       setIsLoading(false)
     }
