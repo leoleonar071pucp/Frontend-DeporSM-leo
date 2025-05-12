@@ -10,162 +10,170 @@ import Link from "next/link"
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isMonday, isTuesday, isWednesday, isThursday, isFriday } from "date-fns"
 import { es } from "date-fns/locale"
 import { ScheduledVisit } from "../types"
+import { toast } from "@/components/ui/use-toast"
 
-// Estructura de horarios asignados (igual que en admin/coordinadores)
-const assignedSchedules = {
-  "1": {
-    facilityId: 1,
-    schedules: [
-      { id: 101, day: "lunes", startTime: "08:00", endTime: "12:00" },
-      { id: 102, day: "miercoles", startTime: "08:00", endTime: "12:00" },
-      { id: 103, day: "viernes", startTime: "08:00", endTime: "12:00" }
-    ]
-  },
-  "2": {
-    facilityId: 2,
-    schedules: [
-      { id: 201, day: "martes", startTime: "14:00", endTime: "18:00" },
-      { id: 202, day: "jueves", startTime: "14:00", endTime: "18:00" }
-    ]
-  }
-}
+// Función para simular obtener las visitas programadas desde el backend
+const mockFetchProgrammedVisits = async () => {
+  // Simulamos un delay como si fuera una llamada real a un API
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Estructura de horarios asignados
+  const assignedSchedules = {
+    "1": {
+      facilityId: 1,
+      schedules: [
+        { id: 101, day: "lunes", startTime: "08:00", endTime: "12:00" },
+        { id: 102, day: "miercoles", startTime: "08:00", endTime: "12:00" },
+        { id: 103, day: "viernes", startTime: "08:00", endTime: "12:00" }
+      ]
+    },
+    "2": {
+      facilityId: 2,
+      schedules: [
+        { id: 201, day: "martes", startTime: "14:00", endTime: "18:00" },
+        { id: 202, day: "jueves", startTime: "14:00", endTime: "18:00" }
+      ]
+    }
+  };
 
-// Datos de las instalaciones
-const facilities = [
-  {
-    id: 1,
-    name: "Cancha de Fútbol (Grass)",
-    location: "Parque Juan Pablo II",
-    image: "/placeholder.svg"
-  },
-  {
-    id: 2,
-    name: "Piscina Municipal",
-    location: "Complejo Deportivo Municipal",
-    image: "/placeholder.svg"
-  }
-]
+  // Datos de las instalaciones
+  const facilities = [
+    {
+      id: 1,
+      name: "Cancha de Fútbol (Grass)",
+      location: "Parque Juan Pablo II",
+      image: "/placeholder.svg"
+    },
+    {
+      id: 2,
+      name: "Piscina Municipal",
+      location: "Complejo Deportivo Municipal",
+      image: "/placeholder.svg"
+    }
+  ];
 
-// Función auxiliar para verificar si una fecha corresponde al horario de una instalación
-const isScheduledDay = (date: Date, facilityId: number): boolean => {
-  if (facilityId === 1) { // Cancha de Fútbol (Grass)
-    return isMonday(date) || isWednesday(date) || isFriday(date)
-  } else if (facilityId === 2) { // Piscina Municipal
-    return isTuesday(date) || isThursday(date)
-  }
-  return false
-}
+  // Función auxiliar para verificar si una fecha corresponde al horario de una instalación
+  const isScheduledDay = (date: Date, facilityId: number): boolean => {
+    if (facilityId === 1) { // Cancha de Fútbol (Grass)
+      return isMonday(date) || isWednesday(date) || isFriday(date)
+    } else if (facilityId === 2) { // Piscina Municipal
+      return isTuesday(date) || isThursday(date)
+    }
+    return false
+  };
+  
+  // Configurar para mostrar la semana actual (mayo 2025)
+  const today = new Date(2025, 4, 12); // 12 de mayo de 2025
+  const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Comenzar semana en lunes
+  const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+  
+  // Obtener todos los días de la semana
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  
+  // Generar visitas programadas para la semana basadas en los horarios asignados
+  const visits: ScheduledVisit[] = [];
+  
+  weekDays.forEach(date => {
+    // Revisar cada instalación y sus horarios
+    Object.entries(assignedSchedules).forEach(([facilityId, facilityData]) => {
+      const facility = facilities.find(f => f.id === parseInt(facilityId));
+      if (!facility) return;
+
+      if (isScheduledDay(date, facility.id)) {
+        // Buscar el horario correspondiente al día de la semana
+        const dayName = format(date, 'EEEE', { locale: es }).toLowerCase();
+        const schedule = facilityData.schedules.find(s => s.day === dayName);
+
+        if (schedule) {
+          // Crear un ID único usando una combinación de fecha, facilityId y día
+          const uniqueId = parseInt(`${date.getFullYear()}${date.getMonth()}${date.getDate()}${facilityId}${schedule.id}`);
+          
+          visits.push({
+            id: uniqueId,
+            facilityId: parseInt(facilityId),
+            facilityName: facility.name,
+            location: facility.location,
+            date: format(date, 'yyyy-MM-dd'),
+            scheduledTime: schedule.startTime,
+            scheduledEndTime: schedule.endTime,
+            image: facility.image
+          });
+        }
+      }
+    });
+  });
+
+  // Ordenar las visitas por fecha y hora
+  visits.sort((a, b) => {
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+    
+    const dateComparison = dateA.getTime() - dateB.getTime();
+    if (dateComparison !== 0) return dateComparison;
+    return a.scheduledTime.localeCompare(b.scheduledTime);
+  });
+  
+  return visits;
+};
 
 export default function ProgramadasPage() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([])
-  const [filteredVisits, setFilteredVisits] = useState<ScheduledVisit[]>([])
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
+  const [filteredVisits, setFilteredVisits] = useState<ScheduledVisit[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
-      // Configurar para mostrar la semana del 15 al 19 de abril de 2025
-      const targetDate = new Date(2025, 3, 16) // 16 de abril de 2025 (miércoles)
-      const weekStart = startOfWeek(targetDate, { weekStartsOn: 1 }) // Comenzar semana en lunes
-      const weekEnd = endOfWeek(targetDate, { weekStartsOn: 1 })
-      
-      // Obtener todos los días de la semana
-      const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
-      
-      // Generar visitas programadas para la semana basadas en los horarios asignados
-      const visits: ScheduledVisit[] = []
-      
-      // Asegurar que se muestre específicamente la visita del miércoles 16/04/2025 para la Cancha de Fútbol (Grass)
-      const specificDate = new Date(2025, 3, 16) // 16 de abril de 2025 (miércoles)
-      
-      weekDays.forEach(date => {
-        // Revisar cada instalación y sus horarios
-        Object.entries(assignedSchedules).forEach(([facilityId, facilityData]) => {
-          const facility = facilities.find(f => f.id === parseInt(facilityId))
-          if (!facility) return
-
-          // Verificar si es la fecha específica del 16/04/2025 para la Cancha de Fútbol (Grass)
-          const isSpecificDate = date.getDate() === 16 && date.getMonth() === 3 && date.getFullYear() === 2025
-          const isGrassCourt = facility.id === 1 && isSpecificDate
-          
-          // Forzar la inclusión de la visita del miércoles para la Cancha de Fútbol (Grass)
-          if (isGrassCourt || isScheduledDay(date, facility.id)) {
-            // Para la fecha específica del miércoles 16/04/2025 para Cancha de Fútbol (Grass), usar el horario de miércoles
-            let schedules;
-            if (isGrassCourt) {
-              // Forzar el uso del horario de miércoles para esta fecha específica
-              schedules = facilityData.schedules.find(s => s.day === "miercoles")
-            } else {
-              // Para el resto de fechas, usar la lógica normal
-              schedules = facilityData.schedules.find(s => {
-                const dayName = format(date, 'EEEE', { locale: es }).toLowerCase()
-                return s.day === dayName
-              })
-            }
-
-            if (schedules) {
-              // Crear un ID verdaderamente único usando una combinación de fecha, facilityId y día
-              const uniqueId = parseInt(`${date.getFullYear()}${date.getMonth()}${date.getDate()}${facilityId}${schedules.id}`)
-              
-              visits.push({
-                id: uniqueId, // ID único basado en fecha y facilityId
-                facilityId: parseInt(facilityId),
-                facilityName: facility.name,
-                location: facility.location,
-                date: format(date, 'dd/MM/yyyy'),
-                scheduledTime: schedules.startTime,
-                scheduledEndTime: schedules.endTime,
-                image: facility.image
-              })
-            }
-          }
-        })
-      })
-
-      // Ordenar las visitas por fecha y hora
-      visits.sort((a, b) => {
-        const [dayA, monthA, yearA] = a.date.split('/').map(Number)
-        const [dayB, monthB, yearB] = b.date.split('/').map(Number)
-        const dateA = new Date(yearA, monthA - 1, dayA)
-        const dateB = new Date(yearB, monthB - 1, dayB)
+      try {
+        setIsLoading(true);
         
-        const dateComparison = dateA.getTime() - dateB.getTime()
-        if (dateComparison !== 0) return dateComparison
-        return a.scheduledTime.localeCompare(b.scheduledTime)
-      })
+        // En una implementación real, esto sería:
+        // const response = await fetch("http://localhost:8080/api/visitas-programadas");
+        // const data = await response.json();
+        
+        const data = await mockFetchProgrammedVisits();
+        
+        setScheduledVisits(data);
+        setFilteredVisits(data);
+      } catch (error) {
+        console.error("Error al cargar visitas programadas:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las visitas programadas",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-      setScheduledVisits(visits)
-      setFilteredVisits(visits)
-      setIsLoading(false)
-    }
-
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   useEffect(() => {
-    let filtered = scheduledVisits
+    let filtered = scheduledVisits;
 
     if (searchQuery) {
       filtered = filtered.filter(
         (visit) =>
           visit.facilityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           visit.location.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
+      );
     }
 
-    setFilteredVisits(filtered)
-  }, [searchQuery, scheduledVisits])
+    setFilteredVisits(filtered);
+  }, [searchQuery, scheduledVisits]);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-  }
+    e.preventDefault();
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -221,7 +229,7 @@ export default function ProgramadasPage() {
                     <Calendar className="h-4 w-4 text-primary" />
                     <div>
                       <p className="text-sm text-gray-500">Fecha</p>
-                      <p className="font-medium">{visit.date}</p>
+                      <p className="font-medium">{format(new Date(visit.date), 'dd/MM/yyyy')}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mb-4">
@@ -254,5 +262,5 @@ export default function ProgramadasPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

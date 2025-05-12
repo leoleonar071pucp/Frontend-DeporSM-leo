@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+// Eliminamos la importación de axios
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,91 +18,207 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-// Datos de ejemplo para las instalaciones
-const facilitiesData: Facility[] = [
-  {
-    id: 1,
-    name: "Cancha de Fútbol (Grass)",
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Parque Juan Pablo II",
-    status: "disponible",
-    maintenanceStatus: "none",
-    lastVisit: "01/04/2025",
-    nextVisit: "05/04/2025, 14:00",
-    isToday: true,
-    observations: 2,
-    pendingObservations: 1,
-  },
-  {
-    id: 2,
-    name: "Piscina Municipal",
-    image: "/placeholder.svg?height=200&width=300",
-    location: "Complejo Deportivo Municipal",
-    status: "mantenimiento",
-    maintenanceStatus: "required",
-    lastVisit: "02/04/2025",
-    nextVisit: "05/04/2025, 16:30",
-    isToday: true,
-    observations: 3,
-    pendingObservations: 0,
-  },
-]
-
-interface Facility {
+// Actualizamos la interfaz para que coincida con los datos del backend
+interface Instalacion {
   id: number;
-  name: string;
-  location: string;
-  image: string;
-  status: 'disponible' | 'mantenimiento';
-  maintenanceStatus: 'none' | 'required' | 'scheduled' | 'in-progress';
-  lastVisit: string;
-  nextVisit: string;
-  isToday: boolean;
-  observations: number;
-  pendingObservations: number;
+  nombre: string;
+  descripcion: string;
+  ubicacion: string;
+  tipo: string;
+  capacidad: number;
+  horarioApertura: string;
+  horarioCierre: string;
+  imagenUrl: string;
+  precio: number;
+  activo: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  
+  // Propiedades adicionales para el frontend
+  status?: 'disponible' | 'mantenimiento';
+  maintenanceStatus?: 'none' | 'required' | 'scheduled' | 'in-progress';
+  lastVisit?: string;
+  nextVisit?: string;
+  isToday?: boolean;
+  observations?: number;
+  pendingObservations?: number;
 }
 
 export default function InstalacionesCoordinador() {
   const [isLoading, setIsLoading] = useState(true)
-  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [facilities, setFacilities] = useState<Instalacion[]>([])
+  const [originalFacilities, setOriginalFacilities] = useState<Instalacion[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("todas")
+  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null)
 
   useEffect(() => {
-    // Simulación de carga de datos
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setFacilities(facilitiesData)
-      setIsLoading(false)
-    }
+      try {
+        // Reemplazamos axios por fetch
+        const response = await fetch("http://localhost:8080/api/instalaciones");
+        
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Procesamos los datos para agregarles propiedades adicionales para el frontend
+        const processedData = data.map((instalacion: Instalacion) => {
+          // Valores simulados para propiedades adicionales del frontend
+          // Normalmente estos valores vendrían de endpoints adicionales
+          return {
+            ...instalacion,
+            status: instalacion.activo ? 'disponible' : 'mantenimiento',
+            maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
+            lastVisit: "15/04/2023",
+            nextVisit: "15/05/2023",
+            isToday: Math.random() > 0.7, // Simulación para demo
+            observations: Math.floor(Math.random() * 10),
+            pendingObservations: Math.floor(Math.random() * 5),
+          };
+        });
+        
+        setFacilities(processedData);
+        setOriginalFacilities(processedData);
+      } catch (error) {
+        console.error("Error al cargar instalaciones:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    loadData()
+    loadData();
   }, [])
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Filtrar instalaciones por nombre o ubicación
-    const filtered = facilitiesData.filter(
-      (facility) =>
-        facility.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        facility.location.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    setFacilities(filtered)
+    
+    if (searchQuery.trim() === "") {
+      // Si la búsqueda está vacía, restaurar datos originales
+      setFacilities(originalFacilities);
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Usar el endpoint de búsqueda del backend
+      const response = await fetch(`http://localhost:8080/api/instalaciones/buscar?nombre=${encodeURIComponent(searchQuery)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Procesar los datos igual que en loadData
+      const processedData = data.map((instalacion: Instalacion) => {
+        return {
+          ...instalacion,
+          status: instalacion.activo ? 'disponible' : 'mantenimiento',
+          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
+          lastVisit: "15/04/2023",
+          nextVisit: "15/05/2023",
+          isToday: Math.random() > 0.7,
+          observations: Math.floor(Math.random() * 10),
+          pendingObservations: Math.floor(Math.random() * 5),
+        };
+      });
+      
+      setFacilities(processedData);
+    } catch (error) {
+      console.error("Error al buscar instalaciones:", error);
+      // Si hay un error, mostrar un mensaje y mantener los datos actuales
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
 
     if (value === "todas") {
-      setFacilities(facilitiesData) // Resetear a todos los datos originales
+      setFacilities(originalFacilities) // Resetear a todos los datos originales
     } else if (value === "hoy") {
-      setFacilities(facilitiesData.filter((f) => f.isToday))
+      setFacilities(originalFacilities.filter((f) => f.isToday))
     } else if (value === "pendientes") {
-      setFacilities(facilitiesData.filter((f) => f.pendingObservations > 0))
+      setFacilities(originalFacilities.filter((f) => f.pendingObservations && f.pendingObservations > 0))
+    }
+  }
+  
+  const handleFilterByType = async (tipo: string) => {
+    setIsLoading(true);
+    
+    try {
+      // Usar el endpoint de filtrado por tipo
+      const response = await fetch(`http://localhost:8080/api/instalaciones/tipo?tipo=${encodeURIComponent(tipo)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Procesar los datos igual que en loadData
+      const processedData = data.map((instalacion: Instalacion) => {
+        return {
+          ...instalacion,
+          status: instalacion.activo ? 'disponible' : 'mantenimiento',
+          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
+          lastVisit: "15/04/2023",
+          nextVisit: "15/05/2023",
+          isToday: Math.random() > 0.7,
+          observations: Math.floor(Math.random() * 10),
+          pendingObservations: Math.floor(Math.random() * 5),
+        };
+      });
+      
+      setFacilities(processedData);
+    } catch (error) {
+      console.error("Error al filtrar instalaciones por tipo:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  
+  const handleFilterByStatus = async (activo: boolean) => {
+    setIsLoading(true);
+    
+    try {
+      // Usar el endpoint de filtrado por estado activo
+      const response = await fetch(`http://localhost:8080/api/instalaciones/activo?activo=${activo}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Procesar los datos igual que en loadData
+      const processedData = data.map((instalacion: Instalacion) => {
+        return {
+          ...instalacion,
+          status: instalacion.activo ? 'disponible' : 'mantenimiento',
+          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
+          lastVisit: "15/04/2023",
+          nextVisit: "15/05/2023",
+          isToday: Math.random() > 0.7,
+          observations: Math.floor(Math.random() * 10),
+          pendingObservations: Math.floor(Math.random() * 5),
+        };
+      });
+      
+      setFacilities(processedData);
+    } catch (error) {
+      console.error("Error al filtrar instalaciones por estado:", error);
+    } finally {
+      setIsLoading(false);
     }
   }
 
-  const getStatusBadge = (status: Facility['status'], maintenanceStatus: Facility['maintenanceStatus']) => {
+  const getStatusBadge = (status: Instalacion['status'], maintenanceStatus: Instalacion['maintenanceStatus']) => {
     // Mostrar En Mantenimiento solo cuando está in-progress
     if (maintenanceStatus === "in-progress") {
       return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
@@ -111,7 +228,7 @@ export default function InstalacionesCoordinador() {
     return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
   }
 
-  const getMaintenanceStatusBadge = (status: Facility['maintenanceStatus']) => {
+  const getMaintenanceStatusBadge = (status: Instalacion['maintenanceStatus']) => {
     switch (status) {
       case "none":
         return null;
@@ -142,7 +259,7 @@ export default function InstalacionesCoordinador() {
           <p className="text-muted-foreground">Gestiona las instalaciones deportivas a tu cargo</p>
         </div>
         <Button className="bg-primary hover:bg-primary-light" asChild>
-          <Link href="/coordinador/instalaciones/mapa">
+          <Link href={selectedFacilityId ? `/coordinador/instalaciones/mapa?id=${selectedFacilityId}` : "/coordinador/instalaciones/mapa"}>
             <MapPin className="h-4 w-4 mr-2" />
             Ver en Mapa
           </Link>
@@ -175,25 +292,28 @@ export default function InstalacionesCoordinador() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filtrar por estado de mantenimiento</DropdownMenuLabel>
+                <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFacilities(facilitiesData)}>
+                <DropdownMenuItem onClick={() => loadData()}>
                   Todos
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setFacilities(facilitiesData.filter((f) => f.maintenanceStatus === "required"))}
-                >
-                  Requiere mantenimiento
+                <DropdownMenuItem onClick={() => handleFilterByStatus(true)}>
+                  Disponibles
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setFacilities(facilitiesData.filter((f) => f.maintenanceStatus === "scheduled"))}
-                >
-                  Mantenimiento programado
+                <DropdownMenuItem onClick={() => handleFilterByStatus(false)}>
+                  En mantenimiento
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setFacilities(facilitiesData.filter((f) => f.maintenanceStatus === "in-progress"))}
-                >
-                  En progreso
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleFilterByType("Cancha")}>
+                  Canchas
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByType("Piscina")}>
+                  Piscinas
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByType("Gimnasio")}>
+                  Gimnasios
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -213,11 +333,15 @@ export default function InstalacionesCoordinador() {
           {facilities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {facilities.map((facility) => (
-                <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card 
+                  key={facility.id} 
+                  className={`overflow-hidden hover:shadow-lg transition-shadow ${selectedFacilityId === facility.id ? 'ring-2 ring-primary' : ''}`}
+                  onClick={() => setSelectedFacilityId(facility.id)}
+                >
                   <div className="relative">
                     <img
-                      src={facility.image || "/placeholder.svg"}
-                      alt={facility.name}
+                      src={facility.imagenUrl || "/placeholder.svg"}
+                      alt={facility.nombre}
                       className="w-full h-48 object-cover"
                     />
                     <div className="absolute top-2 right-2">
@@ -225,10 +349,10 @@ export default function InstalacionesCoordinador() {
                     </div>
                   </div>
                   <CardContent className="p-4">
-                    <h3 className="font-bold text-lg mb-2">{facility.name}</h3>
+                    <h3 className="font-bold text-lg mb-2">{facility.nombre}</h3>
                     <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
                       <MapPin className="h-4 w-4" />
-                      <span>{facility.location}</span>
+                      <span>{facility.ubicacion}</span>
                     </div>
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between">
@@ -257,7 +381,7 @@ export default function InstalacionesCoordinador() {
                           <span className="text-sm">Observaciones:</span>
                         </div>
                         <span className="text-sm font-medium">
-                          {facility.pendingObservations > 0 ? (
+                          {facility.pendingObservations && facility.pendingObservations > 0 ? (
                             <Badge className="bg-yellow-100 text-yellow-800">
                               {facility.pendingObservations} pendientes
                             </Badge>
@@ -294,7 +418,41 @@ export default function InstalacionesCoordinador() {
                 className="mt-4"
                 onClick={() => {
                   setSearchQuery("")
-                  setFacilities(facilitiesData)
+                  const loadAllData = async () => {
+                    try {
+                      setIsLoading(true);
+                      const response = await fetch("http://localhost:8080/api/instalaciones");
+                      
+                      if (!response.ok) {
+                        throw new Error(`Error HTTP: ${response.status}`);
+                      }
+                      
+                      const data = await response.json();
+                      
+                      // Procesar los datos
+                      const processedData = data.map((instalacion: Instalacion) => {
+                        return {
+                          ...instalacion,
+                          status: instalacion.activo ? 'disponible' : 'mantenimiento',
+                          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
+                          lastVisit: "15/04/2023",
+                          nextVisit: "15/05/2023",
+                          isToday: Math.random() > 0.7,
+                          observations: Math.floor(Math.random() * 10),
+                          pendingObservations: Math.floor(Math.random() * 5),
+                        };
+                      });
+                      
+                      setFacilities(processedData);
+                      setOriginalFacilities(processedData);
+                    } catch (error) {
+                      console.error("Error al recargar instalaciones:", error);
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  };
+                  
+                  loadAllData();
                 }}
               >
                 Limpiar filtros
