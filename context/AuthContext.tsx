@@ -23,6 +23,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isLoggingOut: boolean;
   login: (userData: User) => void;
   logout: () => void;
   checkAuthStatus: () => Promise<void>;
@@ -39,6 +40,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // Estado para control de logout
   const router = useRouter();
 
   // Verificar sesión al cargar
@@ -46,6 +48,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     try {
       console.log("Verificando estado de autenticación...");
+      
+      // Verificar si hay un cierre de sesión reciente
+      const logoutTimestamp = localStorage.getItem('logoutTimestamp');
+      const currentTime = Date.now();
+      
+      // Si se cerró sesión hace menos de 3 segundos, no verificar la autenticación
+      if (logoutTimestamp && (currentTime - parseInt(logoutTimestamp)) < 3000) {
+        console.log("Cierre de sesión reciente detectado, omitiendo verificación de autenticación");
+        setUser(null);
+        setIsLoading(false);
+        return null;
+      }
+      
       const response = await fetch("http://localhost:8080/api/auth/me", {
         method: "GET",
         credentials: "include", // Importante para enviar las cookies
@@ -88,22 +103,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       console.log("Cerrando sesión...");
-      // Hacer la petición al backend para cerrar sesión
-      await fetch("http://localhost:8080/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json"
-        }
+      setIsLoggingOut(true); // Iniciar estado de carga
+      
+      // Intentar hacer la petición al backend para cerrar sesión
+      try {
+        const response = await fetch("http://localhost:8080/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          // Establecer un timeout para evitar bloqueos prolongados
+          signal: AbortSignal.timeout(3000)
+        });
+        
+        console.log("Respuesta del servidor al cerrar sesión:", response.status);
+      } catch (error) {
+        // Si hay un error CORS o de red, lo manejamos silenciosamente
+        console.warn("No se pudo completar la petición al servidor:", error);
+      }
+      
+      // Sin importar la respuesta del servidor, siempre limpiamos el estado local
+      setUser(null);
+      
+      // Guardar timestamp del logout para evitar reconexiones inmediatas
+      localStorage.setItem('logoutTimestamp', Date.now().toString());
+      
+      // Limpiar todas las cookies del navegador (enfoque radical pero efectivo)
+      document.cookie.split(";").forEach(function(c) {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
       
-      // Actualizar estado en el frontend
-      setUser(null);
-      router.push('/');
+      // Redirigir a página principal con una recarga completa
+      window.location.href = '/';
       
-      console.log("Sesión cerrada correctamente");
     } catch (error) {
-      console.error("Error al cerrar sesión:", error);
+      console.error("Error general al cerrar sesión:", error);
+      // Aún así, limpiar estado local y redirigir
+      setUser(null);
+      localStorage.setItem('logoutTimestamp', Date.now().toString());
+      window.location.href = '/';
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -111,6 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated: !!user,
     isLoading,
+    isLoggingOut, // Exponer el estado de cierre
     login,
     logout,
     checkAuthStatus
