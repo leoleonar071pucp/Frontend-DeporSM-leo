@@ -29,9 +29,10 @@ interface Reservation {
   date: string; // Formateado desde el campo fecha del backend
   time: string; // Generado a partir de horaInicio y horaFin
   dateTime: Date; // Convertido a partir del campo fecha para cálculos
-  location: string; // Se obtiene de los datos de la instalación
+  location: string; // Se obtiene de los datos de la instalación (ubicación)
   status: "confirmada" | "pendiente" | "completada" | "cancelada"; // Mapeado desde estado
   estadoPago: string; // Estado del pago de la reserva
+  metodoPago?: string; // Método de pago (online, deposito)
   canCancel: boolean; // Calculado basado en reglas de negocio
 }
 
@@ -103,9 +104,10 @@ export default function MisReservas() {
           date: formatDate(reserva.fecha),
           time: hora,
           dateTime: dateTime,
-          location: "Instalación Deportiva Municipal", // Por defecto
+          location: reserva.instalacionUbicacion, // Usar la ubicación real de la instalación
           status: reserva.estado as "confirmada" | "pendiente" | "completada" | "cancelada",
           estadoPago: reserva.estadoPago,
+          metodoPago: reserva.metodoPago, // Incluir método de pago para mostrar comprobante si es necesario
           canCancel: false // Se calculará después
         };
       });
