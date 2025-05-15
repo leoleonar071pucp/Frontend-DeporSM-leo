@@ -56,10 +56,13 @@ export default function Instalaciones() {
 
     fetchFacilities()
   }, [])
-
   // Función para filtrar instalaciones según la búsqueda y la pestaña activa
   const filterFacilities = () => {
     let filtered = [...allFacilities]
+    
+    console.log("Filtrando instalaciones. Total inicial:", filtered.length);
+    console.log("Tab activa:", activeTab);
+    console.log("Query de búsqueda:", searchQuery);
 
     // Filtrar por búsqueda si hay una consulta
     if (searchQuery.trim() !== "") {
@@ -70,25 +73,73 @@ export default function Instalaciones() {
           facility.descripcion.toLowerCase().includes(query) ||
           facility.ubicacion.toLowerCase().includes(query)
       )
-    }
-
-    // Filtrar por tipo si no es la pestaña "todos"
+      console.log("Después de filtrar por búsqueda:", filtered.length);
+    }    // Filtrar por tipo si no es la pestaña "todos"
     if (activeTab !== "todos") {
-      filtered = filtered.filter((facility) => facility.tipo.toLowerCase().includes(activeTab.toLowerCase()))
+      // Mapeo entre los valores de las pestañas y los valores exactos de tipo en el backend
+      // Ampliamos la lista para incluir más variaciones y asegurarnos de capturar todos los casos
+      const tipoMappings: Record<string, string[]> = {
+        "piscina": ["PISCINA", "piscina", "Piscina"],
+        "cancha": [
+          "CANCHA", "cancha", "Cancha", 
+          "CANCHA_FUTBOL", "cancha_futbol", "Cancha Futbol", "Cancha de Futbol",
+          "CANCHA_BASQUET", "cancha_basquet", "Cancha Basquet", "Cancha de Basquet",
+          "CANCHA_VOLEY", "cancha_voley", "Cancha Voley", "Cancha de Voley",
+          "CANCHA_TENIS", "cancha_tenis", "Cancha Tenis", "Cancha de Tenis"
+        ],
+        "gimnasio": ["GIMNASIO", "gimnasio", "Gimnasio"],
+        "pista": ["PISTA", "pista", "Pista", "PISTA_ATLETISMO", "pista_atletismo", "Pista Atletismo", "Pista de Atletismo"],
+        "otros": ["OTROS", "otros", "Otros"]
+      };
+      
+      // Antes de filtrar, vamos a registrar qué tipos existen para facilitar la depuración
+      const tiposUnicos = new Set(filtered.map(f => f.tipo));
+      console.log("Tipos únicos encontrados:", [...tiposUnicos]);
+      console.log("Filtrando por tipo:", activeTab);
+      
+      // Usamos una función más robusta para comparar tipos
+      filtered = filtered.filter(facility => {
+        if (!facility.tipo) return false;
+        
+        // Normalizar el tipo de la instalación (quitar espacios extras, pasar a minúsculas)
+        const normalizedFacilityType = facility.tipo.trim().toLowerCase();
+        
+        // Verificar si el tipo normalizado coincide con alguno de los valores mapeados
+        return tipoMappings[activeTab].some(tipo => {
+          const normalizedTipo = tipo.trim().toLowerCase();
+          return normalizedFacilityType === normalizedTipo || 
+                 normalizedFacilityType.includes(normalizedTipo) ||
+                 normalizedTipo.includes(normalizedFacilityType);
+        });
+      });
+      
+      console.log("Después de filtrar por tipo:", filtered.length);
+      if (filtered.length > 0) {
+        console.log("Primeras instalaciones filtradas:", 
+          filtered.slice(0, Math.min(3, filtered.length))
+            .map(f => `${f.nombre} (${f.tipo})`)
+        );
+      } else {
+        console.log("No se encontraron instalaciones para este tipo");
+      }
     }
 
     setFacilities(filtered)
   }
-
-  // Actualizar los resultados cuando cambia la pestaña
+  // Actualizar los resultados cuando cambia la pestaña, la búsqueda o las instalaciones disponibles
   useEffect(() => {
-    filterFacilities()
-  }, [activeTab, allFacilities]) // Añadimos allFacilities como dependencia para reaccionar a la carga inicial
-
+    // Asegurarnos de que allFacilities tiene datos antes de filtrar
+    if (allFacilities.length > 0) {
+      console.log("Re-aplicando filtros debido a cambios en tab, búsqueda o datos");
+      filterFacilities();
+    }
+  }, [activeTab, searchQuery, allFacilities]);
   // Manejar la búsqueda
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    filterFacilities()
+    // La filtración ya ocurre automáticamente gracias al useEffect
+    // Solo prevenimos el comportamiento del formulario
+    console.log("Búsqueda manual activada con query:", searchQuery);
   }
 
   // Función para formatear el precio
@@ -177,24 +228,56 @@ export default function Instalaciones() {
                   <p className="text-gray-500">No se encontraron instalaciones con los criterios especificados.</p>
                 </div>
               )}
-            </TabsContent>
-
-            {/* Las demás pestañas usan el mismo contenido */}
-            <TabsContent value="piscina" className="mt-0">
-              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
-            </TabsContent>
-            <TabsContent value="cancha" className="mt-0">
-              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
-            </TabsContent>
-            <TabsContent value="gimnasio" className="mt-0">
-              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
-            </TabsContent>
-            <TabsContent value="pista" className="mt-0">
-              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
-            </TabsContent>
-            <TabsContent value="otros" className="mt-0">
-              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
-            </TabsContent>
+            </TabsContent>            {/* Las demás pestañas muestran el mismo contenido filtrado */}
+            {["piscina", "cancha", "gimnasio", "pista", "otros"].map(tab => (
+              <TabsContent key={tab} value={tab} className="mt-0">
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  </div>
+                ) : error ? (
+                  <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
+                    <p>{error}</p>
+                    <Button 
+                      onClick={() => window.location.reload()} 
+                      variant="outline" 
+                      className="mt-4"
+                    >
+                      Reintentar
+                    </Button>
+                  </div>
+                ) : facilities.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {facilities.map((facility) => (
+                      <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                        <img
+                          src={facility.imagenUrl || "/placeholder.svg?height=200&width=300"}
+                          alt={facility.nombre}
+                          className="w-full h-48 object-cover"
+                        />
+                        <CardContent className="p-4">
+                          <h3 className="font-bold text-lg mb-2">{facility.nombre}</h3>
+                          <p className="text-gray-600 text-sm mb-2">{facility.descripcion}</p>
+                          <p className="text-gray-700 text-sm mb-1">
+                            <strong>Ubicación:</strong> {facility.ubicacion}
+                          </p>
+                          <p className="text-gray-700 text-sm mb-4">
+                            <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
+                          </p>
+                          <Button asChild className="w-full bg-primary hover:bg-primary-light">
+                            <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center p-8 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">No se encontraron instalaciones con los criterios especificados.</p>
+                  </div>
+                )}
+              </TabsContent>
+            ))}
           </Tabs>
         </div>
       </div>

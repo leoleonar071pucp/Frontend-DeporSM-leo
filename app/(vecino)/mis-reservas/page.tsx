@@ -17,21 +17,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertTriangle, Calendar, Clock, MapPin, Loader2 } from "lucide-react" // Add Loader2
+import { AlertTriangle, Calendar, Clock, MapPin, Loader2, RefreshCw } from "lucide-react" // Add Loader2 and RefreshCw
 import Link from "next/link"
 import { differenceInHours } from 'date-fns' // Importar date-fns
 
-// Define la interfaz para una reserva (buena práctica)
+// Define la interfaz para una reserva adaptada al formato del backend
 interface Reservation {
   id: number;
-  facilityName: string;
-  facilityImage: string;
-  date: string;
-  time: string;
-  dateTime: Date;
-  location: string;
-  status: "confirmada" | "pendiente" | "completada" | "cancelada";
-  canCancel: boolean;
+  facilityName: string; // Mapeado desde instalacionNombre del backend
+  facilityImage: string; // Se obtiene de otro endpoint o usa un placeholder
+  date: string; // Formateado desde el campo fecha del backend
+  time: string; // Generado a partir de horaInicio y horaFin
+  dateTime: Date; // Convertido a partir del campo fecha para cálculos
+  location: string; // Se obtiene de los datos de la instalación
+  status: "confirmada" | "pendiente" | "completada" | "cancelada"; // Mapeado desde estado
+  estadoPago: string; // Estado del pago de la reserva
+  canCancel: boolean; // Calculado basado en reglas de negocio
 }
 
 export default function MisReservas() {
@@ -40,54 +41,106 @@ export default function MisReservas() {
   const { addNotification } = useNotification() // Obtener función del contexto
   const [reservationToCancel, setReservationToCancel] = useState<number | null>(null)
   const [isCancelling, setIsCancelling] = useState(false) // Estado para la carga de cancelación
-
-  // --- Datos de ejemplo movidos a useState ---
-  const [reservations, setReservations] = useState<Reservation[]>([
-     {
-      id: 1,
-      facilityName: "Cancha de Fútbol (Grass)",
-      facilityImage: "/placeholder.svg?height=100&width=150",
-      date: "Lunes 5 de abril de 2025",
-      time: "18:00 - 19:00",
-      dateTime: new Date(2025, 3, 5, 18, 0, 0), // Mes es 0-indexado (Abril=3)
-      location: "Parque Juan Pablo II",
-      status: "confirmada",
-      canCancel: true,
-    },
-    {
-      id: 2,
-      facilityName: "Piscina Municipal",
-      facilityImage: "/placeholder.svg?height=100&width=150",
-      date: "Miércoles 7 de abril de 2025",
-      time: "10:00 - 11:00",
-      dateTime: new Date(2025, 3, 7, 10, 0, 0),
-      location: "Complejo Deportivo Municipal",
-      status: "pendiente",
-      canCancel: true,
-    },
-    {
-      id: 3,
-      facilityName: "Gimnasio Municipal",
-      facilityImage: "/placeholder.svg?height=100&width=150",
-      date: "Viernes 2 de abril de 2025",
-      time: "16:00 - 17:00",
-      dateTime: new Date(2025, 3, 2, 16, 0, 0),
-      location: "Complejo Deportivo Municipal",
-      status: "completada",
-      canCancel: false,
-    },
-     {
-      id: 4, // Reserva cancelada de ejemplo
-      facilityName: "Pista de Atletismo",
-      facilityImage: "/placeholder.svg?height=100&width=150",
-      date: "Domingo 4 de abril de 2025",
-      time: "08:00 - 09:00",
-      dateTime: new Date(2025, 3, 4, 8, 0, 0),
-      location: "Complejo Deportivo Municipal",
-      status: "cancelada",
-      canCancel: false,
-    },
-  ])
+  const [isLoadingReservations, setIsLoadingReservations] = useState(false) // Estado para la carga de reservas
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  
+  // Función para formatear la fecha de la base de datos a un formato más amigable
+  const formatDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  }
+  
+  // Función para cargar las reservas del usuario desde el backend
+  const fetchReservations = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoadingReservations(true);
+    try {
+      console.log("Obteniendo reservas del usuario...");
+      
+      // Llamada al endpoint del backend para obtener las reservas
+      const response = await fetch('http://localhost:8080/api/reservas/historial', {
+        method: 'GET',
+        credentials: 'include', // Importante para enviar cookies de sesión
+        headers: {
+          'Accept': 'application/json',
+          'Origin': 'http://localhost:3000' // Asegurar que se envíe el origen correcto
+        }
+      });
+      
+      if (!response.ok) {
+        console.error(`Error al obtener las reservas. Código: ${response.status}, Mensaje: ${await response.text()}`);
+        throw new Error(`Error al obtener las reservas: ${response.status}`);
+      }
+      
+      // Obtener los datos del backend
+      const reservasFromBackend = await response.json();
+      console.log('Reservas obtenidas del backend:', reservasFromBackend);
+      
+      // Transformar los datos para adaptarlos a nuestra interfaz
+      const formattedReservations = reservasFromBackend.map((reserva: any) => {
+        // Crear un objeto Date para calcular si se puede cancelar
+        const fechaReserva = new Date(reserva.fecha);
+        // Formatear la hora como "HH:MM - HH:MM"
+        const horaInicio = reserva.horaInicio.substring(0, 5); // Tomar solo HH:MM
+        const horaFin = reserva.horaFin.substring(0, 5); // Tomar solo HH:MM
+        const hora = `${horaInicio} - ${horaFin}`;
+        
+        // Crear el objeto dateTime para cálculos de cancelación
+        const [horaI, minI] = horaInicio.split(':').map(Number);
+        const dateTime = new Date(fechaReserva);
+        dateTime.setHours(horaI, minI, 0);
+        
+        return {
+          id: reserva.id,
+          facilityName: reserva.instalacionNombre,
+          facilityImage: "/placeholder.svg?height=100&width=150", // Usamos un placeholder por ahora
+          date: formatDate(reserva.fecha),
+          time: hora,
+          dateTime: dateTime,
+          location: "Instalación Deportiva Municipal", // Por defecto
+          status: reserva.estado as "confirmada" | "pendiente" | "completada" | "cancelada",
+          estadoPago: reserva.estadoPago,
+          canCancel: false // Se calculará después
+        };
+      });
+      
+      // Aplicar reglas de negocio para determinar si se puede cancelar
+      const reservationsWithCancelStatus = formattedReservations.map((res: Reservation) => {
+        // Calcular si se puede cancelar según nuestras reglas de negocio
+        const canCancel = checkCancellationEligibility({
+          ...res,
+          canCancel: false // Valor temporal que será sobrescrito
+        });
+        
+        return {
+          ...res,
+          canCancel
+        };
+      });
+      
+      setReservations(reservationsWithCancelStatus);
+    } catch (error) {
+      console.error('Error al cargar las reservas:', error);
+      
+      // Notificar al usuario sobre el problema
+      addNotification({
+        title: "Error de conexión",
+        message: "No se pudieron cargar tus reservas. Por favor, intenta de nuevo más tarde.",
+        type: "error",
+      });
+      
+      // En caso de error, al menos mostrar un array vacío para no romper la interfaz
+      setReservations([]);
+    } finally {
+      setIsLoadingReservations(false);
+    }
+  };
 
   const getStatusBadge = (status: Reservation['status']) => {
     switch (status) {
@@ -115,10 +168,16 @@ export default function MisReservas() {
       router.push('/login');
     }
   }, [isAuthenticated, isAuthLoading, router]);
+  
+  // --- Cargar Reservas desde el Backend ---
+  useEffect(() => {
+    if (isAuthenticated && !isAuthLoading) {
+      fetchReservations();
+    }
+  }, [isAuthenticated, isAuthLoading]); // El linter puede quejarse, pero esto es suficiente
 
   // --- Lógica de Cancelación ---
-  // --- Lógica de Cancelación ---
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = async () => {
     if (reservationToCancel === null) return;
 
     // 1. Buscar detalles de la reserva ANTES de cualquier operación asíncrona
@@ -132,11 +191,26 @@ export default function MisReservas() {
     }
 
     setIsCancelling(true); // Iniciar estado de carga
-    console.log("Simulando cancelación para reserva ID:", reservationToCancel);
+    console.log("Cancelando reserva ID:", reservationToCancel);
 
-    // 3. Simular llamada a API (setTimeout)
-    setTimeout(() => {
-      // 4. Actualizar el estado de las reservas
+    try {
+      // 3. Llamar al backend para cancelar la reserva
+      const motivo = "Cancelada por el usuario"; // Opcional: podríamos agregar un campo para que el usuario ingrese un motivo
+      const response = await fetch(`http://localhost:8080/api/reservas/${reservationToCancel}/cancelar?motivo=${encodeURIComponent(motivo)}`, {
+        method: 'PUT',
+        credentials: 'include', // Para enviar las cookies de sesión
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': 'http://localhost:3000' // Asegurar que se envíe el origen correcto
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al cancelar la reserva: ${response.status}`);
+      }
+      
+      // 4. Actualizar el estado de las reservas localmente sin tener que hacer otra llamada
       setReservations(prevReservations =>
         prevReservations.map((res: Reservation) => // Añadir tipo explícito a res
           res.id === reservationToCancel
@@ -145,20 +219,21 @@ export default function MisReservas() {
         )
       );
 
-      // 5. Finalizar estado de carga y cerrar diálogo
+      // 5. Añadir notificación
+      addNotification({
+        title: "Reserva Cancelada",
+        message: `Tu reserva para ${reservationDetails.facilityName} (${reservationDetails.time} el ${reservationDetails.date}) ha sido cancelada.`,
+        type: "reserva",
+      });
+      
+    } catch (error) {
+      console.error("Error al cancelar la reserva:", error);
+      // Opcional: Mostrar un mensaje de error al usuario
+    } finally {
+      // 6. Finalizar estado de carga y cerrar diálogo
       setIsCancelling(false);
       setReservationToCancel(null);
-      console.log("Cancelación simulada completada.");
-
-      // 6. Añadir notificación usando los detalles guardados ANTES del setTimeout
-      addNotification({
-          title: "Reserva Cancelada",
-          message: `Tu reserva para ${reservationDetails.facilityName} (${reservationDetails.time} el ${reservationDetails.date}) ha sido cancelada.`,
-          type: "reserva",
-      });
-      // Aquí podrías mostrar un toast de éxito
-
-    }, 1500); // Simular delay de red
+    }
   }; // Fin de handleConfirmCancel
 
   // --- Función para verificar elegibilidad de cancelación (Regla 48h) ---
@@ -204,255 +279,285 @@ export default function MisReservas() {
 
             {/* Tab Activas */}
             <TabsContent value="activas" className="space-y-4">
-              {reservations
-                .filter((r) => r.status === "confirmada")
-                .map((reservation) => (
-                  <Card key={reservation.id}>
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row gap-4">
-                        <img
-                          src={reservation.facilityImage || "/placeholder.svg"}
-                          alt={reservation.facilityName}
-                          className="w-full md:w-32 h-24 object-cover rounded-md"
-                        />
-                        <div className="flex-grow">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-                            <h3 className="font-bold text-lg">{reservation.facilityName}</h3>
-                            {getStatusBadge(reservation.status)}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-primary" />
-                              <span>{reservation.date}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-primary" />
-                              <span>{reservation.time}</span>
-                            </div>
-                            <div className="flex items-center gap-2 md:col-span-2">
-                              <MapPin className="h-4 w-4 text-primary" />
-                              <span>{reservation.location}</span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col md:flex-row gap-2">
-                            <Button asChild variant="outline" size="sm">
-                              {/* El enlace a detalles podría necesitar ajuste si la ruta no existe */}
-                              <Link href={`/reserva/${reservation.id}`}>Ver Detalles</Link>
-                            </Button>
-                            {/* Usar la función de elegibilidad */}
-                            {checkCancellationEligibility(reservation) && (
-                              <Dialog open={reservationToCancel === reservation.id} onOpenChange={(isOpen) => !isOpen && setReservationToCancel(null)}>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => setReservationToCancel(reservation.id)}
-                                  >
-                                    Cancelar Reserva
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Cancelar Reserva</DialogTitle>
-                                    <DialogDescription>
-                                      ¿Estás seguro de que deseas cancelar esta reserva?
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="flex items-center gap-4 py-4">
-                                    <div className="bg-red-100 p-3 rounded-full">
-                                      <AlertTriangle className="h-6 w-6 text-red-600" />
-                                    </div>
-                                    <div>
-                                      <p className="font-medium">Política de cancelación</p>
-                                      <p className="text-sm text-gray-500">
-                                        Recuerda que solo puedes cancelar hasta 48 horas antes de la fecha reservada.
-                                        Pasado este tiempo, no habrá reembolso.
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <DialogFooter>
-                                    <Button variant="outline" onClick={() => setReservationToCancel(null)}>
-                                      Volver
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={handleConfirmCancel}
-                                      disabled={isCancelling}
-                                    >
-                                      {isCancelling ? (
-                                        <>
-                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                          Cancelando...
-                                        </>
-                                      ) : (
-                                        "Confirmar Cancelación"
-                                      )}
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-              {reservations.filter((r) => r.status === "confirmada").length === 0 && (
+              {isLoadingReservations ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No tienes reservas activas en este momento.</p>
-                    <Button asChild className="mt-4 bg-primary hover:bg-primary-light">
-                      <Link href="/instalaciones">Explorar Instalaciones</Link>
-                    </Button>
+                  <CardContent className="p-6 flex justify-center items-center min-h-[100px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </CardContent>
                 </Card>
+              ) : (
+                <>
+                  {reservations
+                    .filter((r) => r.status === "confirmada")
+                    .map((reservation) => (
+                      <Card key={reservation.id}>
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row gap-4">
+                            <img
+                              src={reservation.facilityImage || "/placeholder.svg"}
+                              alt={reservation.facilityName}
+                              className="w-full md:w-32 h-24 object-cover rounded-md"
+                            />
+                            <div className="flex-grow">
+                              <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                                <h3 className="font-bold text-lg">{reservation.facilityName}</h3>
+                                {getStatusBadge(reservation.status)}
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-primary" />
+                                  <span>{reservation.date}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-primary" />
+                                  <span>{reservation.time}</span>
+                                </div>
+                                <div className="flex items-center gap-2 md:col-span-2">
+                                  <MapPin className="h-4 w-4 text-primary" />
+                                  <span>{reservation.location}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col md:flex-row gap-2">
+                                <Button asChild variant="outline" size="sm">
+                                  {/* El enlace a detalles podría necesitar ajuste si la ruta no existe */}
+                                  <Link href={`/reserva/${reservation.id}`}>Ver Detalles</Link>
+                                </Button>
+                                {/* Usar la función de elegibilidad */}
+                                {checkCancellationEligibility(reservation) && (
+                                  <Dialog open={reservationToCancel === reservation.id} onOpenChange={(isOpen: boolean) => !isOpen && setReservationToCancel(null)}>
+                                    <DialogTrigger asChild>
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => setReservationToCancel(reservation.id)}
+                                      >
+                                        Cancelar Reserva
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle>Cancelar Reserva</DialogTitle>
+                                        <DialogDescription>
+                                          ¿Estás seguro de que deseas cancelar esta reserva?
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <div className="flex items-center gap-4 py-4">
+                                        <div className="bg-red-100 p-3 rounded-full">
+                                          <AlertTriangle className="h-6 w-6 text-red-600" />
+                                        </div>
+                                        <div>
+                                          <p className="font-medium">Política de cancelación</p>
+                                          <p className="text-sm text-gray-500">
+                                            Recuerda que solo puedes cancelar hasta 48 horas antes de la fecha reservada.
+                                            Pasado este tiempo, no habrá reembolso.
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <DialogFooter>
+                                        <Button variant="outline" onClick={() => setReservationToCancel(null)}>
+                                          Volver
+                                        </Button>
+                                        <Button
+                                          variant="destructive"
+                                          onClick={handleConfirmCancel}
+                                          disabled={isCancelling}
+                                        >
+                                          {isCancelling ? (
+                                            <>
+                                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                              Cancelando...
+                                            </>
+                                          ) : (
+                                            "Confirmar Cancelación"
+                                          )}
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                  {reservations.filter((r) => r.status === "confirmada").length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="text-gray-500">No tienes reservas activas en este momento.</p>
+                        <Button asChild className="mt-4 bg-primary hover:bg-primary-light">
+                          <Link href="/instalaciones">Explorar Instalaciones</Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
             </TabsContent>
 
             {/* Tab Pendientes */}
             <TabsContent value="pendientes" className="space-y-4">
-              {reservations
-                .filter((r) => r.status === "pendiente")
-                .map((reservation) => (
-                  <Card key={reservation.id}>
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row gap-4">
-                         <img
-                          src={reservation.facilityImage || "/placeholder.svg"}
-                          alt={reservation.facilityName}
-                          className="w-full md:w-32 h-24 object-cover rounded-md"
-                        />
-                        <div className="flex-grow">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-                            <h3 className="font-bold text-lg">{reservation.facilityName}</h3>
-                            {getStatusBadge(reservation.status)}
-                          </div>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-primary" />
-                              <span>{reservation.date}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-primary" />
-                              <span>{reservation.time}</span>
-                            </div>
-                            <div className="flex items-center gap-2 md:col-span-2">
-                              <MapPin className="h-4 w-4 text-primary" />
-                              <span>{reservation.location}</span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col md:flex-row gap-2">
-                            <Button asChild variant="outline" size="sm">
-                               <Link href={`/reserva/${reservation.id}`}>Ver Detalles</Link>
-                            </Button>
-                            {/* Ajuste: Usar el mismo diálogo para cancelar pendientes */}
-                            {/* Usar la función de elegibilidad */}
-                            {checkCancellationEligibility(reservation) && (
-                               <Dialog open={reservationToCancel === reservation.id} onOpenChange={(isOpen) => !isOpen && setReservationToCancel(null)}>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => setReservationToCancel(reservation.id)}
-                                  >
-                                    Cancelar Solicitud
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Cancelar Solicitud de Reserva</DialogTitle>
-                                    <DialogDescription>
-                                      ¿Estás seguro de que deseas cancelar esta solicitud de reserva pendiente?
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  {/* Podrías añadir info relevante aquí si es necesario */}
-                                  <DialogFooter>
-                                    <Button variant="outline" onClick={() => setReservationToCancel(null)}>
-                                      Volver
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={handleConfirmCancel}
-                                      disabled={isCancelling}
-                                    >
-                                      {isCancelling ? (
-                                        <>
-                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                          Cancelando...
-                                        </>
-                                      ) : (
-                                        "Confirmar Cancelación"
-                                      )}
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-              {reservations.filter((r) => r.status === "pendiente").length === 0 && (
+              {isLoadingReservations ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No tienes reservas pendientes en este momento.</p>
+                  <CardContent className="p-6 flex justify-center items-center min-h-[100px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </CardContent>
                 </Card>
+              ) : (
+                <>
+                  {reservations
+                    .filter((r) => r.status === "pendiente")
+                    .map((reservation) => (
+                      <Card key={reservation.id}>
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row gap-4">
+                             <img
+                              src={reservation.facilityImage || "/placeholder.svg"}
+                              alt={reservation.facilityName}
+                              className="w-full md:w-32 h-24 object-cover rounded-md"
+                            />
+                            <div className="flex-grow">
+                              <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                                <h3 className="font-bold text-lg">{reservation.facilityName}</h3>
+                                {getStatusBadge(reservation.status)}
+                              </div>
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-primary" />
+                                  <span>{reservation.date}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-primary" />
+                                  <span>{reservation.time}</span>
+                                </div>
+                                <div className="flex items-center gap-2 md:col-span-2">
+                                  <MapPin className="h-4 w-4 text-primary" />
+                                  <span>{reservation.location}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col md:flex-row gap-2">
+                                <Button asChild variant="outline" size="sm">
+                                   <Link href={`/reserva/${reservation.id}`}>Ver Detalles</Link>
+                                </Button>
+                                {/* Ajuste: Usar el mismo diálogo para cancelar pendientes */}
+                                {/* Usar la función de elegibilidad */}
+                                {checkCancellationEligibility(reservation) && (
+                                   <Dialog open={reservationToCancel === reservation.id} onOpenChange={(isOpen: boolean) => !isOpen && setReservationToCancel(null)}>
+                                    <DialogTrigger asChild>
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => setReservationToCancel(reservation.id)}
+                                      >
+                                        Cancelar Solicitud
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle>Cancelar Solicitud de Reserva</DialogTitle>
+                                        <DialogDescription>
+                                          ¿Estás seguro de que deseas cancelar esta solicitud de reserva pendiente?
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      {/* Podrías añadir info relevante aquí si es necesario */}
+                                      <DialogFooter>
+                                        <Button variant="outline" onClick={() => setReservationToCancel(null)}>
+                                          Volver
+                                        </Button>
+                                        <Button
+                                          variant="destructive"
+                                          onClick={handleConfirmCancel}
+                                          disabled={isCancelling}
+                                        >
+                                          {isCancelling ? (
+                                            <>
+                                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                              Cancelando...
+                                            </>
+                                          ) : (
+                                            "Confirmar Cancelación"
+                                          )}
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                  {reservations.filter((r) => r.status === "pendiente").length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="text-gray-500">No tienes reservas pendientes en este momento.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
             </TabsContent>
 
              {/* Tab Historial */}
             <TabsContent value="historial" className="space-y-4">
-              {reservations
-                .filter((r) => r.status === "completada" || r.status === "cancelada")
-                .map((reservation) => (
-                  <Card key={reservation.id}>
-                    <CardContent className="p-6">
-                       <div className="flex flex-col md:flex-row gap-4">
-                         <img
-                          src={reservation.facilityImage || "/placeholder.svg"}
-                          alt={reservation.facilityName}
-                          className="w-full md:w-32 h-24 object-cover rounded-md"
-                        />
-                        <div className="flex-grow">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-                            <h3 className="font-bold text-lg">{reservation.facilityName}</h3>
-                            {getStatusBadge(reservation.status)}
-                          </div>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-primary" />
-                              <span>{reservation.date}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-primary" />
-                              <span>{reservation.time}</span>
-                            </div>
-                            <div className="flex items-center gap-2 md:col-span-2">
-                              <MapPin className="h-4 w-4 text-primary" />
-                              <span>{reservation.location}</span>
-                            </div>
-                          </div>
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/reserva/${reservation.id}`}>Ver Detalles</Link>
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-              {reservations.filter((r) => r.status === "completada" || r.status === "cancelada").length === 0 && (
+              {isLoadingReservations ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No tienes historial de reservas.</p>
+                  <CardContent className="p-6 flex justify-center items-center min-h-[100px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </CardContent>
                 </Card>
+              ) : (
+                <>
+                  {reservations
+                    .filter((r) => r.status === "completada" || r.status === "cancelada")
+                    .map((reservation) => (
+                      <Card key={reservation.id}>
+                        <CardContent className="p-6">
+                           <div className="flex flex-col md:flex-row gap-4">
+                             <img
+                              src={reservation.facilityImage || "/placeholder.svg"}
+                              alt={reservation.facilityName}
+                              className="w-full md:w-32 h-24 object-cover rounded-md"
+                            />
+                            <div className="flex-grow">
+                              <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                                <h3 className="font-bold text-lg">{reservation.facilityName}</h3>
+                                {getStatusBadge(reservation.status)}
+                              </div>
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-primary" />
+                                  <span>{reservation.date}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-primary" />
+                                  <span>{reservation.time}</span>
+                                </div>
+                                <div className="flex items-center gap-2 md:col-span-2">
+                                  <MapPin className="h-4 w-4 text-primary" />
+                                  <span>{reservation.location}</span>
+                                </div>
+                              </div>
+                              <Button asChild variant="outline" size="sm">
+                                <Link href={`/reserva/${reservation.id}`}>Ver Detalles</Link>
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                  {reservations.filter((r) => r.status === "completada" || r.status === "cancelada").length === 0 && (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="text-gray-500">No tienes historial de reservas.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
             </TabsContent>
           </Tabs>
