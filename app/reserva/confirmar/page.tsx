@@ -331,6 +331,31 @@ export default function ConfirmarReserva() {
             } catch (updateError) {
               console.error('Error al actualizar el estado de pago:', updateError);
             }
+          }        } else if (paymentMethod === 'deposito' && voucherFile && reservationId) {
+          // Para depósito bancario, enviar el comprobante de pago
+          try {
+            const formData = new FormData();
+            formData.append('reservaId', reservationId.toString());
+            formData.append('monto', facility ? facility.price.replace('S/. ', '') : '0');
+            formData.append('comprobante', voucherFile);
+
+            const pagoResponse = await fetch('http://localhost:8080/api/pagos/deposito', {
+              method: 'POST',
+              credentials: 'include',
+              body: formData
+            });
+
+            if (!pagoResponse.ok) {
+              console.warn('Se creó la reserva pero hubo un problema al subir el comprobante');
+            } else {
+              // Obtener la URL del comprobante
+              const urlComprobante = await pagoResponse.text();
+              console.log('Comprobante subido correctamente:', urlComprobante);
+            }
+            
+            status = 'pending'; // Depósito siempre queda pendiente de verificación
+          } catch (pagoError) {
+            console.error('Error al subir el comprobante de pago:', pagoError);
           }
         } else {
           status = 'pending'; // Depósito siempre queda pendiente
