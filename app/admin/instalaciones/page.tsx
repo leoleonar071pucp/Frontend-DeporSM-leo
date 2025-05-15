@@ -236,7 +236,7 @@ export default function InstalacionesAdmin() {
                   <div className="relative">
                     <img
                       src={facility.imagenUrl || "/placeholder.svg"}
-                      alt={facility.nombre}
+                      alt={facility.imagenUrl}
                       className="w-full h-48 object-cover"
                     />
                     <div className="absolute top-2 right-2">
@@ -252,16 +252,17 @@ export default function InstalacionesAdmin() {
                   <CardContent>
                     <p>{facility.descripcion}</p>
                   </CardContent>
-                  <CardFooter>
+                  <CardFooter className="flex gap-2">
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/admin/instalaciones/${facility.id}`}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Editar
+                        Ver Detalles
                       </Link>
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(facility)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
+
                   </CardFooter>
                 </Card>
               ))}

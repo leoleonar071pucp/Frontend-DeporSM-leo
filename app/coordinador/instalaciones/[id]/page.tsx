@@ -19,115 +19,7 @@ import {
 import Link from "next/link"
 import { Separator } from "@/components/ui/separator"
 
-// Datos de ejemplo para las instalaciones
-const facilitiesDB = [
-  {
-    id: 1,
-    name: "Cancha de Fútbol (Grass)",
-    image: "/placeholder.svg?height=400&width=800",
-    location: "Parque Juan Pablo II",
-    description:
-      "Cancha de fútbol con grass sintético de última generación, ideal para partidos de fútbol 7 o fútbol 11. Cuenta con iluminación para partidos nocturnos.",
-    status: "disponible" as const,
-    maintenanceStatus: "none" as const,
-    lastVisit: "01/04/2025",
-    nextVisit: "05/04/2025, 14:00",
-    isToday: true,
-    features: [
-      "Dimensiones: 90m x 45m",
-      "Grass sintético de alta calidad",
-      "Iluminación nocturna",
-      "Vestuarios y duchas",
-      "Estacionamiento cercano",
-    ],
-    amenities: [
-      "Vestuarios con casilleros",
-      "Duchas con agua caliente",
-      "Área de calentamiento",
-      "Tribunas para espectadores",
-      "Alquiler de balones (costo adicional)",
-    ],
-    rules: [
-      "Uso de zapatillas adecuadas (no tacos metálicos)",
-      "No consumir alimentos dentro de la cancha",
-      "Respetar el horario reservado",
-      "Máximo 22 jugadores por reserva",
-      "Prohibido el consumo de alcohol",
-    ],
-    observations: [
-      {
-        id: 1,
-        date: "01/04/2025",
-        description: "Daños en la red de la portería norte",
-        status: "pendiente" as const,
-        photos: ["/placeholder.svg?height=100&width=100"],
-      },
-      {
-        id: 2,
-        date: "15/03/2025",
-        description: "Grass desgastado en el área central",
-        status: "aprobada" as const,
-        photos: ["/placeholder.svg?height=100&width=100"],
-      },
-    ],
-    schedule: "Lunes a Domingo: 8:00 - 22:00",
-    contactNumber: "987-654-322",
-  },
-  {
-    id: 2,
-    name: "Piscina Municipal",
-    image: "/placeholder.svg?height=400&width=800",
-    location: "Complejo Deportivo Municipal",
-    description:
-      "Piscina semiolímpica con carriles para natación y área recreativa. Ideal para practicar natación, clases de aquagym y actividades acuáticas.",
-    status: "mantenimiento" as const,
-    maintenanceStatus: "required" as const,
-    lastVisit: "02/04/2025",
-    nextVisit: "05/04/2025, 16:30",
-    isToday: true,
-    features: [
-      "Dimensiones: 25m x 12.5m",
-      "Profundidad: 1.2m - 2.0m",
-      "6 carriles para natación",
-      "Temperatura controlada (26-28°C)",
-      "Vestuarios y duchas",
-      "Salvavidas certificados",
-    ],
-    amenities: ["Vestuarios con casilleros", "Duchas con agua caliente", "Área de descanso", "Cafetería cercana"],
-    rules: [
-      "Uso obligatorio de gorro de baño",
-      "Ducharse antes de ingresar a la piscina",
-      "No correr en el área de la piscina",
-      "No consumir alimentos dentro del área de la piscina",
-      "Niños menores de 12 años deben estar acompañados por un adulto",
-    ],
-    observations: [
-      {
-        id: 3,
-        date: "02/04/2025",
-        description: "Filtro de agua requiere mantenimiento",
-        status: "aprobada" as const,
-        photos: ["/placeholder.svg?height=100&width=100"],
-      },
-      {
-        id: 4,
-        date: "20/03/2025",
-        description: "Azulejos rotos en el borde sur de la piscina",
-        status: "aprobada" as const,
-        photos: ["/placeholder.svg?height=100&width=100"],
-      },
-      {
-        id: 5,
-        date: "10/03/2025",
-        description: "Fuga de agua en las duchas de hombres",
-        status: "completada" as const,
-        photos: ["/placeholder.svg?height=100&width=100"],
-      },
-    ],
-    schedule: "Lunes a Viernes: 6:00 - 21:00, Sábados y Domingos: 8:00 - 18:00",
-    contactNumber: "987-654-321",
-  },
-]
+// Eliminamos el array estático de instalaciones
 
 interface Observation {
   id: number;
@@ -137,42 +29,117 @@ interface Observation {
   photos: string[];
 }
 
-interface Facility {
+// Actualizar la interfaz para reflejar los datos que vienen del backend
+interface Instalacion {
   id: number;
-  name: string;
-  image: string;
-  location: string;
-  description: string;
-  status: 'disponible' | 'mantenimiento';
-  maintenanceStatus: 'none' | 'required' | 'scheduled' | 'in-progress';
-  lastVisit: string;
-  nextVisit: string;
-  isToday: boolean;
-  features: string[];
-  amenities: string[];
-  rules: string[];
-  observations: Observation[];
-  schedule: string;
-  contactNumber: string;
+  nombre: string;
+  descripcion: string;
+  ubicacion: string;
+  tipo: string;
+  capacidad: number;
+  horarioApertura: string;
+  horarioCierre: string;
+  imagenUrl: string;
+  precio: number;
+  activo: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  
+  // Propiedades adicionales para el frontend
+  status?: 'disponible' | 'mantenimiento';
+  maintenanceStatus?: 'none' | 'required' | 'scheduled' | 'in-progress';
+  lastVisit?: string;
+  nextVisit?: string;
+  isToday?: boolean;
+  contactNumber?: string;
+  schedule?: string;
+  features?: string[];
+  amenities?: string[];
+  rules?: string[];
+  observations?: Observation[];
 }
 
 export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params) as { id: string }
   const [isLoading, setIsLoading] = useState(true)
-  const [facility, setFacility] = useState<Facility | null>(null)
+  const [facility, setFacility] = useState<Instalacion | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(resolvedParams.id))
-      setFacility(foundFacility || null)
-      setIsLoading(false)
-    }
+      try {
+        // Obtener los datos de la instalación desde el backend
+        const response = await fetch(`http://localhost:8080/api/instalaciones/${resolvedParams.id}`);
+        
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Procesar los datos para agregar propiedades adicionales para el frontend
+        const processedData = {
+          ...data,
+          status: data.activo ? 'disponible' : 'mantenimiento',
+          maintenanceStatus: data.activo ? 'none' : 'in-progress',
+          lastVisit: "15/04/2023",
+          nextVisit: "15/05/2023",
+          isToday: Math.random() > 0.7, // Simulación para demo
+          contactNumber: "987-654-321", // Datos simulados
+          schedule: `Lunes a Domingo: ${data.horarioApertura ? data.horarioApertura.substring(0, 5) : '08:00'} - ${data.horarioCierre ? data.horarioCierre.substring(0, 5) : '22:00'}`,
+          features: [
+            `Tipo: ${data.tipo}`,
+            `Capacidad: ${data.capacidad} personas`,
+            `Precio: S/. ${data.precio}`,
+          ],
+          amenities: [
+            "Vestuarios con casilleros",
+            "Duchas con agua caliente",
+            "Estacionamiento cercano",
+          ],
+          rules: [
+            "Uso de equipamiento adecuado",
+            "No consumir alimentos dentro de las instalaciones",
+            "Respetar el horario reservado",
+            "Prohibido el consumo de alcohol",
+          ],
+          observations: [] // Se podría obtener las observaciones desde otro endpoint
+        };
+        
+        // Obtener observaciones de la instalación (simulación por ahora)
+        // En un entorno real, se haría otra llamada a un endpoint específico para observaciones
+        const mockObservations = [
+          {
+            id: 1,
+            date: "01/04/2023",
+            description: "Requiere mantenimiento en la zona central",
+            status: "pendiente" as const,
+            photos: ["/placeholder.svg?height=100&width=100"],
+          },
+          {
+            id: 2,
+            date: "15/03/2023",
+            description: "Iluminación deficiente en el sector norte",
+            status: "aprobada" as const,
+            photos: ["/placeholder.svg?height=100&width=100"],
+          },
+        ];
+        
+        processedData.observations = mockObservations;
+        
+        setFacility(processedData);
+      } catch (error) {
+        console.error("Error al cargar detalles de la instalación:", error);
+        setError("No se pudo cargar la información de la instalación");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    loadData()
+    loadData();
   }, [resolvedParams.id])
 
-  const getStatusBadge = (status: Facility['status'], maintenanceStatus: Facility['maintenanceStatus']) => {
+  const getStatusBadge = (status: Instalacion['status'], maintenanceStatus: Instalacion['maintenanceStatus']) => {
     // Mostrar En Mantenimiento solo cuando está in-progress
     if (maintenanceStatus === "in-progress") {
       return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
@@ -182,7 +149,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
   }
 
-  const getMaintenanceStatusBadge = (status: Facility['maintenanceStatus']) => {
+  const getMaintenanceStatusBadge = (status: Instalacion['maintenanceStatus']) => {
     switch (status) {
       case "none":
         return null
@@ -220,7 +187,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     )
   }
 
-  if (!facility) {
+  if (!facility || error) {
     return (
       <div className="space-y-6">
         <div className="flex items-center">
@@ -237,7 +204,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
             <h3 className="text-lg font-medium">Instalación no encontrada</h3>
-            <p className="text-gray-500 mt-2">La instalación que estás buscando no existe o no está asignada a ti.</p>
+            <p className="text-gray-500 mt-2">
+              {error || "La instalación que estás buscando no existe o no está asignada a ti."}
+            </p>
             <Button className="mt-6 bg-primary hover:bg-primary-light" asChild>
               <Link href="/coordinador/instalaciones">Ver todas las instalaciones</Link>
             </Button>
@@ -257,7 +226,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
               Volver
             </Link>
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">{facility.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{facility.nombre}</h1>
         </div>
         <div className="flex gap-2">
           <Button className="bg-primary hover:bg-primary-light" asChild>
@@ -275,9 +244,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle>{facility.name}</CardTitle>
+                  <CardTitle>{facility.nombre}</CardTitle>
                   <CardDescription className="flex items-center gap-1 mt-1">
-                    <MapPin className="h-4 w-4" /> {facility.location}
+                    <MapPin className="h-4 w-4" /> {facility.ubicacion}
                   </CardDescription>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -289,8 +258,8 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
             </CardHeader>
             <CardContent>
               <img
-                src={facility.image || "/placeholder.svg"}
-                alt={facility.name}
+                src={facility.imagenUrl || "/placeholder.svg"}
+                alt={facility.nombre}
                 className="w-full h-64 object-cover rounded-md mb-6"
               />
 
@@ -302,7 +271,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                   <TabsTrigger value="reglas">Reglas</TabsTrigger>
                 </TabsList>
                 <TabsContent value="descripcion" className="mt-4">
-                  <p className="text-gray-700 mb-4">{facility.description}</p>
+                  <p className="text-gray-700 mb-4">{facility.descripcion}</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
@@ -335,7 +304,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                 </TabsContent>
                 <TabsContent value="caracteristicas" className="mt-4">
                   <ul className="space-y-2">
-                    {facility.features.map((feature, index) => (
+                    {facility.features && facility.features.map((feature, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                         <span>{feature}</span>
@@ -345,7 +314,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                 </TabsContent>
                 <TabsContent value="comodidades" className="mt-4">
                   <ul className="space-y-2">
-                    {facility.amenities.map((amenity, index) => (
+                    {facility.amenities && facility.amenities.map((amenity, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                         <span>{amenity}</span>
@@ -355,7 +324,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                 </TabsContent>
                 <TabsContent value="reglas" className="mt-4">
                   <ul className="space-y-2">
-                    {facility.rules.map((rule, index) => (
+                    {facility.rules && facility.rules.map((rule, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                         <span>{rule}</span>
@@ -373,7 +342,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
               <CardDescription>Historial de observaciones para esta instalación</CardDescription>
             </CardHeader>
             <CardContent>
-              {facility.observations.length > 0 ? (
+              {facility.observations && facility.observations.length > 0 ? (
                 <div className="space-y-4">
                   {facility.observations.map((observation) => (
                     <div key={observation.id} className="border rounded-lg p-4">
@@ -424,7 +393,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                 <MapPin className="h-5 w-5 text-primary" />
                 <div>
                   <p className="font-medium">Ubicación</p>
-                  <p className="text-sm text-gray-600">{facility.location}</p>
+                  <p className="text-sm text-gray-600">{facility.ubicacion}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

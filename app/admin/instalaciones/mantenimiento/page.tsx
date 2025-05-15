@@ -7,11 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Plus, Search, Calendar, CheckCircle, AlertCircle } from "lucide-react"
+import { ArrowLeft, Plus, Search, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import MantenimientoDetails from "./components/MantenimientoDetails"
 
@@ -25,8 +24,6 @@ export default function MantenimientoPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [facilityFilter, setFacilityFilter] = useState("all")
   const [selectedMaintenance, setSelectedMaintenance] = useState(null)
-  const [showCancelDialog, setShowCancelDialog] = useState(false)
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const { toast } = useToast()
 
   const getMaintenanceStatus = (maintenance) => {
@@ -96,27 +93,33 @@ export default function MantenimientoPage() {
     }
   }
 
-  const handleCancelMaintenance = (maintenance) => {
-    setSelectedMaintenance(maintenance)
-    setShowCancelDialog(true)
-  }
-
-  const confirmCancelMaintenance = () => {
-    const updated = maintenances.map((m) =>
-      m.id === selectedMaintenance.id ? { ...m, status: "cancelled" } : m
-    )
-    setMaintenances(updated)
-    setFilteredMaintenances(updated)
-    setShowCancelDialog(false)
-    toast({
-      title: "Mantenimiento cancelado",
-      description: "El mantenimiento ha sido cancelado exitosamente.",
-    })
-  }
-
-  const handleViewDetails = (maintenance) => {
-    setSelectedMaintenance(maintenance)
-    setShowDetailsDialog(true)
+  const handleDeleteMaintenance = async (m) => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/mantenimientos/${m.id}`, {
+        method: "DELETE"
+      })
+      if (res.ok) {
+        setMaintenances((prev) => prev.filter((mt) => mt.id !== m.id))
+        setFilteredMaintenances((prev) => prev.filter((mt) => mt.id !== m.id))
+        toast({
+          title: "Mantenimiento eliminado",
+          description: `Se eliminó correctamente el mantenimiento de "${m.instalacionNombre}".`,
+        })
+      } else {
+        toast({
+          title: "Error al eliminar",
+          description: "No se pudo eliminar el mantenimiento.",
+          variant: "destructive"
+        })
+      }
+    } catch (err) {
+      console.error("Error al eliminar:", err)
+      toast({
+        title: "Error de red",
+        description: "Hubo un problema al conectarse con el servidor.",
+        variant: "destructive"
+      })
+    }
   }
 
   if (isLoading) {
@@ -156,7 +159,6 @@ export default function MantenimientoPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Buscar */}
             <div className="space-y-2">
               <Label htmlFor="search">Buscar</Label>
               <div className="relative">
@@ -171,7 +173,6 @@ export default function MantenimientoPage() {
               </div>
             </div>
 
-            {/* Estado */}
             <div className="space-y-2">
               <Label htmlFor="status">Estado</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -179,7 +180,7 @@ export default function MantenimientoPage() {
                   <SelectValue placeholder="Filtrar por estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="scheduled">Programado</SelectItem>
                   <SelectItem value="in-progress">En progreso</SelectItem>
                   <SelectItem value="completed">Completado</SelectItem>
@@ -187,7 +188,6 @@ export default function MantenimientoPage() {
               </Select>
             </div>
 
-            {/* Instalación */}
             <div className="space-y-2">
               <Label htmlFor="facility">Instalación</Label>
               <Select value={facilityFilter} onValueChange={setFacilityFilter}>
@@ -216,36 +216,30 @@ export default function MantenimientoPage() {
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
 
-        {/* Tab - Activos */}
         <TabsContent value="activos" className="mt-4">
           <MaintenanceTable
             maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "in-progress")}
             getMaintenanceStatus={getMaintenanceStatus}
             getStatusBadge={getStatusBadge}
-            handleViewDetails={handleViewDetails}
-            handleCancelMaintenance={handleCancelMaintenance}
+            handleDelete={handleDeleteMaintenance}
           />
         </TabsContent>
 
-        {/* Tab - Programados */}
         <TabsContent value="programados" className="mt-4">
           <MaintenanceTable
             maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "scheduled")}
             getMaintenanceStatus={getMaintenanceStatus}
             getStatusBadge={getStatusBadge}
-            handleViewDetails={handleViewDetails}
-            handleCancelMaintenance={handleCancelMaintenance}
+            handleDelete={handleDeleteMaintenance}
           />
         </TabsContent>
 
-        {/* Tab - Historial */}
         <TabsContent value="historial" className="mt-4">
           <MaintenanceTable
             maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "completed")}
             getMaintenanceStatus={getMaintenanceStatus}
             getStatusBadge={getStatusBadge}
-            handleViewDetails={handleViewDetails}
-            handleCancelMaintenance={handleCancelMaintenance}
+            handleDelete={handleDeleteMaintenance}
           />
         </TabsContent>
       </Tabs>
@@ -253,8 +247,8 @@ export default function MantenimientoPage() {
   )
 }
 
-// Componente de Tabla de Mantenimientos
-function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, handleViewDetails, handleCancelMaintenance }) {
+// Tabla
+function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, handleDelete }) {
   if (maintenances.length === 0) {
     return (
       <div className="text-center py-8">
@@ -288,11 +282,13 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
               <td className="py-3 px-4">{getStatusBadge(getMaintenanceStatus(m))}</td>
               <td className="py-3 px-4">
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => handleViewDetails(m)}>
-                    Ver detalles
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleCancelMaintenance(m)}>
-                    Cancelar
+                  <Link href={`/admin/instalaciones/mantenimiento/${m.id}`}>
+                    <Button variant="outline" size="sm">
+                      Ver detalles
+                    </Button>
+                  </Link>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(m)}>
+                    Eliminar
                   </Button>
                 </div>
               </td>

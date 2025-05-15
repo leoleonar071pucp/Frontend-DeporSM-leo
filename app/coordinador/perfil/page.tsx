@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,45 +9,166 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { User, Mail, Phone, Shield, Key, Save, Building2, MapPin, Clock, CheckCircle, Loader2 } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
+
+// Interfaz para las instalaciones asignadas
+interface Instalacion {
+  id: number;
+  nombre: string;
+  ubicacion: string;
+  horarios: string[];
+}
+
+// Interfaz para los datos de perfil
+interface ProfileData {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  telefono: string;
+  cargo: string;
+  departamento: string;
+  direccion: string;
+  instalaciones: Instalacion[];
+}
 
 export default function PerfilCoordinador() {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Estado para los datos del perfil
-  const [profileData, setProfileData] = useState({
-    nombre: "Carlos",
-    apellidos: "Rodríguez García",
-    email: "carlos.rodriguez@example.com",
-    telefono: "987-654-321",
+  const [profileData, setProfileData] = useState<ProfileData>({
+    nombre: "",
+    apellidos: "",
+    email: "",
+    telefono: "",
     cargo: "Coordinador",
     departamento: "Deportes",
-    direccion: "Av. Principal 123, San Miguel",
-    instalaciones: [
-      {
-        id: 1,
-        nombre: "Cancha de Fútbol (Grass)",
-        ubicacion: "Parque Juan Pablo II",
-        horarios: ["Lun, Mie, Vie: 08:00 - 12:00"]
-      },
-      {
-        id: 2,
-        nombre: "Piscina Municipal",
-        ubicacion: "Complejo Deportivo Municipal",
-        horarios: ["Mar, Jue: 14:00 - 18:00"]
-      }
-    ]
+    direccion: "",
+    instalaciones: []
   })
 
   // Estado para errores de validación
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Cargar los datos del perfil desde el backend
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      try {
+        // Obtener información del coordinador desde el backend
+        const response = await fetch(`http://localhost:8080/api/usuarios/perfil`, {
+          method: 'GET',
+          credentials: 'include', // Para enviar cookies de sesión
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.status === 401) {
+          toast({
+            variant: "destructive",
+            title: "Sesión expirada",
+            description: "Por favor, inicia sesión nuevamente.",
+          });
+          setIsLoading(false);
+          return;
+        }
+        if (!response.ok) {
+          console.error("Error en la respuesta:", response.status, response.statusText);
+          throw new Error(`Error al obtener datos del perfil: ${response.status}`);
+        }
+        
+        const userData = await response.json();
+        console.log("Datos recibidos del perfil:", userData);
+        
+        // También obtener las instalaciones asignadas al coordinador
+        // En una implementación completa, aquí se haría otra llamada a la API
+        const instalacionesData = [
+          {
+            id: 1,
+            nombre: "Cancha de Fútbol (Grass)",
+            ubicacion: "Parque Juan Pablo II",
+            horarios: ["Lun, Mie, Vie: 08:00 - 12:00"]
+          },
+          {
+            id: 2,
+            nombre: "Piscina Municipal",
+            ubicacion: "Complejo Deportivo Municipal",
+            horarios: ["Mar, Jue: 14:00 - 18:00"]
+          }
+        ];
+        
+        setProfileData({
+          nombre: userData.nombre || "",
+          apellidos: userData.apellidos || "",
+          email: userData.email || "",
+          telefono: userData.telefono || "",
+          cargo: "Coordinador",
+          departamento: "Deportes",
+          direccion: userData.direccion || "",
+          instalaciones: instalacionesData
+        });
+      } catch (error) {
+        console.error("Error al cargar el perfil:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudo cargar la información del perfil",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [user, toast]);
+
   const handleEditToggle = () => {
-    setIsEditing(!isEditing)
+    setIsEditing(!isEditing);
+    
+    // Si se cancela la edición, restaurar los datos originales
+    if (isEditing) {
+      const fetchProfileData = async () => {
+        // Recargar los datos del perfil
+        setIsLoading(true);
+        try {
+          const response = await fetch(`http://localhost:8080/api/usuarios/perfil`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error('Error al obtener datos del perfil');
+          }
+          
+          const userData = await response.json();
+          
+          // Actualizar sólo los campos editables
+          setProfileData(prev => ({
+            ...prev,
+            telefono: userData.telefono || "",
+            direccion: userData.direccion || ""
+          }));
+        } catch (error) {
+          console.error("Error al recargar el perfil:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      fetchProfileData();
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,7 +195,7 @@ export default function PerfilCoordinador() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
@@ -83,15 +204,76 @@ export default function PerfilCoordinador() {
 
     setIsSaving(true)
 
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
-      setIsEditing(false)
-
+    try {
+      // Enviar la solicitud de actualización al backend
+      const response = await fetch(`http://localhost:8080/api/usuarios/perfil`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          telefono: profileData.telefono,
+          direccion: profileData.direccion
+        })
+      });
+      
+      if (response.status === 401) {
+        toast({
+          variant: "destructive",
+          title: "Sesión expirada",
+          description: "Por favor, inicia sesión nuevamente.",
+        });
+        setIsEditing(false);
+        setIsSaving(false);
+        return;
+      }
+      if (!response.ok) {
+        console.error("Error en la respuesta:", response.status, response.statusText);
+        throw new Error(`Error al actualizar el perfil: ${response.status}`);
+      }
+      
+      // Obtener los datos actualizados
+      const updatedData = await response.json();
+      
+      // Actualizar el estado con los datos recibidos del servidor
+      setProfileData(prev => ({
+        ...prev,
+        telefono: updatedData.telefono || prev.telefono,
+        direccion: updatedData.direccion || prev.direccion
+      }));
+      
+      // Establecer éxito y cerrar modo edición
+      setIsSuccess(true);
+      setIsEditing(false);
+      
+      toast({
+        title: "Perfil actualizado",
+        description: "Se han guardado los cambios correctamente",
+      });
+      
       setTimeout(() => {
-        setIsSuccess(false)
-      }, 3000)
-    }, 1500)
+        setIsSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Error al actualizar el perfil:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar la información del perfil",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  // Mostrar un indicador de carga mientras se obtienen los datos
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
@@ -105,8 +287,14 @@ export default function PerfilCoordinador() {
           <Card>
             <CardContent className="pt-6 flex flex-col items-center">
               <Avatar className="h-32 w-32 mb-4">
-                <AvatarImage src="/placeholder.svg?height=128&width=128" alt="@coordinador" />
-                <AvatarFallback className="text-4xl bg-primary text-white">CR</AvatarFallback>
+                {user?.avatarUrl ? (
+                  <AvatarImage src={user.avatarUrl} alt={`@${profileData.nombre}`} />
+                ) : (
+                  <AvatarImage src="/placeholder.svg?height=128&width=128" alt={`@${profileData.nombre}`} />
+                )}
+                <AvatarFallback className="text-4xl bg-primary text-white">
+                  {profileData.nombre.charAt(0)}{profileData.apellidos.charAt(0)}
+                </AvatarFallback>
               </Avatar>
               <h2 className="text-xl font-bold">
                 {profileData.nombre} {profileData.apellidos}
@@ -257,28 +445,34 @@ export default function PerfilCoordinador() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {profileData.instalaciones.map((instalacion) => (
-                  <div key={instalacion.id} className="space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium">{instalacion.nombre}</h3>
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {instalacion.ubicacion}
-                        </p>
+                {profileData.instalaciones.length > 0 ? (
+                  profileData.instalaciones.map((instalacion) => (
+                    <div key={instalacion.id} className="space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-medium">{instalacion.nombre}</h3>
+                          <p className="text-sm text-gray-500 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {instalacion.ubicacion}
+                          </p>
+                        </div>
                       </div>
+                      <div className="space-y-1">
+                        {instalacion.horarios.map((horario, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center gap-1 w-fit">
+                            <Clock className="h-3 w-3" />
+                            {horario}
+                          </Badge>
+                        ))}
+                      </div>
+                      <Separator className="my-2" />
                     </div>
-                    <div className="space-y-1">
-                      {instalacion.horarios.map((horario, index) => (
-                        <Badge key={index} variant="secondary" className="flex items-center gap-1 w-fit">
-                          <Clock className="h-3 w-3" />
-                          {horario}
-                        </Badge>
-                      ))}
-                    </div>
-                    <Separator className="my-2" />
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    No tienes instalaciones asignadas actualmente
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>

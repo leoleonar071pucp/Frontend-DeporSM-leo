@@ -6,237 +6,38 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format, isBefore, parse, set, isToday } from "date-fns" // Importar funciones adicionales
+import { format, isBefore, parse, isToday } from "date-fns"
 import { es } from "date-fns/locale"
 import { CalendarIcon, Clock, Info, MapPin, Users, Droplets, Dumbbell, Timer, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/context/AuthContext" // Importar useAuth
+import { useAuth } from "@/context/AuthContext"
 
-// Base de datos de instalaciones
-const facilitiesDB = [
-  {
-    id: 1,
-    name: "Piscina Municipal",
-    image: "/placeholder.svg?height=400&width=800",
-    description:
-      "Piscina semiolímpica con carriles para natación y área recreativa. Ideal para practicar natación, clases de aquagym y actividades acuáticas.",
-    type: "piscina",
-    location: "Complejo Deportivo Municipal",
-    price: "S/. 15.00 por hora",
-    features: [
-      "Dimensiones: 25m x 12.5m",
-      "Profundidad: 1.2m - 2.0m",
-      "6 carriles para natación",
-      "Temperatura controlada (26-28°C)",
-      "Vestuarios y duchas",
-      "Salvavidas certificados",
-    ],
-    amenities: ["Vestuarios con casilleros", "Duchas con agua caliente", "Área de descanso", "Cafetería cercana"],
-    rules: [
-      "Uso obligatorio de gorro de baño",
-      "Ducharse antes de ingresar a la piscina",
-      "No correr en el área de la piscina",
-      "No consumir alimentos dentro del área de la piscina",
-      "Niños menores de 12 años deben estar acompañados por un adulto",
-    ],
-    schedule: "Lunes a Viernes: 6:00 - 21:00, Sábados y Domingos: 8:00 - 18:00",
-    capacity: "Máximo 30 personas simultáneamente",
-    icon: <Droplets className="h-5 w-5" />,
-    availableTimes: [
-      "08:00 - 09:00",
-      "09:00 - 10:00",
-      "10:00 - 11:00",
-      "11:00 - 12:00",
-      "15:00 - 16:00",
-      "16:00 - 17:00",
-      "17:00 - 18:00",
-    ],
-  },
-  {
-    id: 2,
-    name: "Cancha de Fútbol (Grass)",
-    image: "/placeholder.svg?height=400&width=800",
-    description:
-      "Cancha de fútbol con grass sintético de última generación, ideal para partidos de fútbol 7 o fútbol 11. Cuenta con iluminación para partidos nocturnos.",
-    type: "cancha-futbol-grass",
-    location: "Parque Juan Pablo II",
-    price: "S/. 120.00 por hora",
-    features: [
-      "Dimensiones: 90m x 45m",
-      "Grass sintético de alta calidad",
-      "Iluminación nocturna",
-      "Vestuarios y duchas",
-      "Estacionamiento cercano",
-    ],
-    amenities: [
-      "Vestuarios con casilleros",
-      "Duchas con agua caliente",
-      "Área de calentamiento",
-      "Tribunas para espectadores",
-      "Alquiler de balones (costo adicional)",
-    ],
-    rules: [
-      "Uso de zapatillas adecuadas (no tacos metálicos)",
-      "No consumir alimentos dentro de la cancha",
-      "Respetar el horario reservado",
-      "Máximo 22 jugadores por reserva",
-      "Prohibido el consumo de alcohol",
-    ],
-    schedule: "Lunes a Domingo: 8:00 - 22:00",
-    capacity: "Máximo 22 jugadores",
-    icon: <Users className="h-5 w-5" />,
-    availableTimes: [
-      "08:00 - 09:00",
-      "09:00 - 10:00",
-      "10:00 - 11:00",
-      "11:00 - 12:00",
-      "15:00 - 16:00",
-      "16:00 - 17:00",
-      "17:00 - 18:00",
-      "18:00 - 19:00",
-      "19:00 - 20:00",
-      "20:00 - 21:00",
-    ],
-  },
-  {
-    id: 3,
-    name: "Gimnasio Municipal",
-    image: "/placeholder.svg?height=400&width=800",
-    description:
-      "Gimnasio equipado con máquinas modernas y área de pesas. Ideal para entrenamiento de fuerza, cardio y clases grupales.",
-    type: "gimnasio",
-    location: "Complejo Deportivo Municipal",
-    price: "S/. 20.00 por día",
-    features: [
-      "Área de cardio con 15 máquinas",
-      "Área de pesas y máquinas de musculación",
-      "Zona de entrenamiento funcional",
-      "Salón para clases grupales",
-      "Entrenadores certificados disponibles",
-    ],
-    amenities: [
-      "Vestuarios con casilleros",
-      "Duchas con agua caliente",
-      "Dispensador de agua",
-      "Toallas (costo adicional)",
-      "Tienda de suplementos",
-    ],
-    rules: [
-      "Uso de toalla obligatorio",
-      "Limpiar las máquinas después de usarlas",
-      "No reservar máquinas",
-      "Uso de calzado deportivo limpio",
-      "Prohibido el ingreso con alimentos",
-    ],
-    schedule: "Lunes a Viernes: 6:00 - 22:00, Sábados: 8:00 - 20:00, Domingos: 8:00 - 14:00",
-    capacity: "Máximo 50 personas simultáneamente",
-    icon: <Dumbbell className="h-5 w-5" />,
-    availableTimes: [
-      "08:00 - 09:00",
-      "09:00 - 10:00",
-      "10:00 - 11:00",
-      "11:00 - 12:00",
-      "15:00 - 16:00",
-      "16:00 - 17:00",
-      "17:00 - 18:00",
-      "18:00 - 19:00",
-      "19:00 - 20:00",
-    ],
-  },
-  {
-    id: 4,
-    name: "Cancha de Fútbol (Loza)",
-    image: "/placeholder.svg?height=400&width=800",
-    description:
-      "Cancha multifuncional de loza para fútbol y otros deportes. Superficie duradera y versátil para diferentes actividades deportivas.",
-    type: "cancha-futbol-loza",
-    location: "Parque Simón Bolívar",
-    price: "S/. 80.00 por hora",
-    features: [
-      "Dimensiones: 40m x 20m",
-      "Superficie de concreto pulido",
-      "Iluminación nocturna",
-      "Marcación para múltiples deportes",
-      "Arcos de fútbol y tableros de básquet",
-    ],
-    amenities: ["Bancas para descanso", "Bebederos de agua", "Baños públicos cercanos", "Estacionamiento gratuito"],
-    rules: [
-      "Uso de zapatillas deportivas adecuadas",
-      "No consumir alimentos dentro de la cancha",
-      "Respetar el horario reservado",
-      "Prohibido el consumo de alcohol",
-      "Mantener limpia la instalación",
-    ],
-    schedule: "Lunes a Domingo: 8:00 - 21:00",
-    capacity: "Máximo 14 jugadores",
-    icon: <Users className="h-5 w-5" />,
-    availableTimes: [
-      "08:00 - 09:00",
-      "09:00 - 10:00",
-      "10:00 - 11:00",
-      "11:00 - 12:00",
-      "15:00 - 16:00",
-      "16:00 - 17:00",
-      "17:00 - 18:00",
-      "18:00 - 19:00",
-      "19:00 - 20:00",
-    ],
-  },
-  {
-    id: 5,
-    name: "Pista de Atletismo",
-    image: "/placeholder.svg?height=400&width=800",
-    description:
-      "Pista de atletismo profesional con 6 carriles. Ideal para corredores, entrenamientos de resistencia y competencias atléticas.",
-    type: "pista-atletismo",
-    location: "Complejo Deportivo Municipal",
-    price: "S/. 10.00 por hora",
-    features: [
-      "Pista de 400m con 6 carriles",
-      "Superficie sintética de alta calidad",
-      "Áreas para salto largo y lanzamiento",
-      "Iluminación para uso nocturno",
-      "Cronometraje electrónico disponible",
-    ],
-    amenities: ["Vestuarios con duchas", "Bebederos de agua", "Área de calentamiento", "Gradas para espectadores"],
-    rules: [
-      "Uso exclusivo de zapatillas de atletismo o deportivas",
-      "Respetar la dirección de carrera",
-      "No cruzar por los carriles durante entrenamientos",
-      "Ceder el paso a corredores más rápidos",
-      "No consumir alimentos en la pista",
-    ],
-    schedule: "Lunes a Viernes: 6:00 - 21:00, Sábados y Domingos: 7:00 - 19:00",
-    capacity: "Máximo 30 personas simultáneamente",
-    icon: <Timer className="h-5 w-5" />,
-    availableTimes: [
-      "08:00 - 09:00",
-      "09:00 - 10:00",
-      "10:00 - 11:00",
-      "11:00 - 12:00",
-      "15:00 - 16:00",
-      "16:00 - 17:00",
-      "17:00 - 18:00",
-    ],
-  },
-]
+// Definir mapeo de tipos a iconos
+const getIconForType = (type: string) => {
+  const typeToLower = type.toLowerCase();
+  if (typeToLower.includes('piscina')) return <Droplets className="h-5 w-5" />;
+  if (typeToLower.includes('gimnasio')) return <Dumbbell className="h-5 w-5" />;
+  if (typeToLower.includes('pista')) return <Timer className="h-5 w-5" />;
+  // Para canchas y otros tipos
+  return <Users className="h-5 w-5" />;
+};
 
 interface Facility {
   id: number;
-  name: string;
-  image: string;
-  description: string;
-  type: string;
-  location: string;
-  price: string;
-  features: string[];
-  amenities: string[];
-  rules: string[];
-  schedule: string;
-  capacity: string;
-  icon: React.ReactNode;
-  availableTimes: string[];
+  nombre: string;
+  descripcion: string;
+  tipo: string;
+  ubicacion: string;
+  precio: number;
+  imagenUrl: string;
+  caracteristicas: string[];
+  comodidades: string[];
+  reglas: string[];
+  horario: string;
+  capacidad: string;
+  horariosDisponibles: string[];
+  activo: boolean;
 }
 
 export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
@@ -245,20 +46,87 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const [facility, setFacility] = useState<Facility | null>(null)
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [availableTimes, setAvailableTimes] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   const router = useRouter()
   const { isAuthenticated } = useAuth()
 
+  // Función para formatear el precio
+  const formatPrice = (price: number, tipo: string) => {
+    if (tipo.toLowerCase().includes('gimnasio')) {
+      return `S/. ${price.toFixed(2)} por día`
+    }
+    return `S/. ${price.toFixed(2)} por hora`
+  }
+
+  // Cargar datos de la instalación
   useEffect(() => {
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const foundFacility = facilitiesDB.find((f) => f.id === Number.parseInt(resolvedParams.id))
-      setFacility(foundFacility || null)
-      setIsLoading(false)
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`http://localhost:8080/api/instalaciones/${resolvedParams.id}`)
+        if (!response.ok) {
+          throw new Error(`Error al cargar la instalación: ${response.status}`)
+        }
+        const data = await response.json()
+        setFacility(data)
+        
+        // Consultar horarios disponibles para esta instalación
+        if (date) {
+          await fetchAvailableTimes(resolvedParams.id, date)
+        }
+      } catch (err) {
+        console.error("Error cargando la instalación:", err)
+        setError("No se pudo cargar la información de la instalación. Por favor, inténtalo de nuevo más tarde.")
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     loadData()
   }, [resolvedParams.id])
+
+  // Función para obtener horarios disponibles según la fecha seleccionada
+  const fetchAvailableTimes = async (facilityId: string, selectedDate: Date) => {
+    try {
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd')
+      const response = await fetch(`http://localhost:8080/api/instalaciones/${facilityId}/disponibilidad?fecha=${formattedDate}`)
+      
+      if (!response.ok) {
+        throw new Error(`Error al cargar horarios disponibles: ${response.status}`)
+      }
+      
+      const data = await response.json()      
+      // Transformar el formato de la respuesta del backend al formato que espera el frontend
+      // El backend devuelve un objeto con un array de rangos de horas, pero el frontend espera un array de strings
+      if (data.horariosDisponibles && Array.isArray(data.horariosDisponibles)) {
+        const horariosFormateados = data.horariosDisponibles.map((horario: any) => {
+          // Formatear las horas de inicio y fin (vienen como "HH:mm:ss")
+          const horaInicio = horario.horaInicio.substring(0, 5); // Obtener solo "HH:mm"
+          const horaFin = horario.horaFin.substring(0, 5); // Obtener solo "HH:mm"
+          return `${horaInicio} - ${horaFin}`;
+        });
+        
+        setAvailableTimes(horariosFormateados);
+      } else {
+        // Si no hay horarios disponibles o el formato no es el esperado
+        setAvailableTimes([]);
+      }
+      setSelectedTime(null) // Resetear la selección cuando cambian los horarios
+    } catch (err) {
+      console.error("Error cargando horarios disponibles:", err)
+      setAvailableTimes([])
+    }
+  }
+
+  // Actualizar horarios cuando cambia la fecha
+  useEffect(() => {
+    if (date && facility) {
+      fetchAvailableTimes(String(facility.id), date)
+    }
+  }, [date])
 
   if (isLoading) {
     return (
@@ -274,7 +142,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     )
   }
 
-  if (!facility) {
+  if (error || !facility) {
     return (
       <main className="min-h-screen flex flex-col">
         <Navbar />
@@ -282,7 +150,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           <Card className="max-w-md w-full">
             <CardHeader>
               <CardTitle>Instalación no encontrada</CardTitle>
-              <CardDescription>La instalación que estás buscando no existe o ha sido eliminada.</CardDescription>
+              <CardDescription>
+                {error || "La instalación que estás buscando no existe o ha sido eliminada."}
+              </CardDescription>
             </CardHeader>
             <CardFooter>
               <Button asChild className="w-full bg-primary hover:bg-primary-light">
@@ -312,17 +182,17 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
               <Card>
                 <CardHeader className="pb-0">
                   <div className="flex items-center gap-2">
-                    {facility.icon}
-                    <CardTitle className="text-2xl">{facility.name}</CardTitle>
+                    {getIconForType(facility.tipo)}
+                    <CardTitle className="text-2xl">{facility.nombre}</CardTitle>
                   </div>
                   <CardDescription className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" /> {facility.location}
+                    <MapPin className="h-4 w-4" /> {facility.ubicacion}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <img
-                    src={facility.image || "/placeholder.svg"}
-                    alt={facility.name}
+                    src={facility.imagenUrl || "/placeholder.svg?height=400&width=800"}
+                    alt={facility.nombre}
                     className="w-full h-64 object-cover rounded-md mb-4"
                   />
 
@@ -334,28 +204,28 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                       <TabsTrigger value="reglas">Reglas</TabsTrigger>
                     </TabsList>
                     <TabsContent value="descripcion" className="mt-4">
-                      <p className="text-gray-700 mb-4">{facility.description}</p>
+                      <p className="text-gray-700 mb-4">{facility.descripcion}</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                         <div className="flex items-center gap-2">
                           <Clock className="h-5 w-5 text-primary" />
                           <div>
                             <p className="font-medium">Horario</p>
-                            <p className="text-sm text-gray-600">{facility.schedule}</p>
+                            <p className="text-sm text-gray-600">{facility.horario}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="h-5 w-5 text-primary" />
                           <div>
                             <p className="font-medium">Capacidad</p>
-                            <p className="text-sm text-gray-600">{facility.capacity}</p>
+                            <p className="text-sm text-gray-600">{facility.capacidad}</p>
                           </div>
                         </div>
                       </div>
-                      <p className="text-primary font-bold mt-4">{facility.price}</p>
+                      <p className="text-primary font-bold mt-4">{formatPrice(facility.precio, facility.tipo)}</p>
                     </TabsContent>
                     <TabsContent value="caracteristicas" className="mt-4">
                       <ul className="space-y-2">
-                        {facility.features.map((feature: string, index: number) => (
+                        {facility.caracteristicas && facility.caracteristicas.map((feature: string, index: number) => (
                           <li key={index} className="flex items-start gap-2">
                             <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                             <span>{feature}</span>
@@ -365,7 +235,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                     </TabsContent>
                     <TabsContent value="comodidades" className="mt-4">
                       <ul className="space-y-2">
-                        {facility.amenities.map((amenity: string, index: number) => (
+                        {facility.comodidades && facility.comodidades.map((amenity: string, index: number) => (
                           <li key={index} className="flex items-start gap-2">
                             <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                             <span>{amenity}</span>
@@ -375,7 +245,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                     </TabsContent>
                     <TabsContent value="reglas" className="mt-4">
                       <ul className="space-y-2">
-                        {facility.rules.map((rule: string, index: number) => (
+                        {facility.reglas && facility.reglas.map((rule: string, index: number) => (
                           <li key={index} className="flex items-start gap-2">
                             <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                             <span>{rule}</span>
@@ -423,38 +293,42 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        {facility.availableTimes.map((time: string) => {
-                          // Lógica para deshabilitar horarios pasados en el día actual
-                          let isDisabled = false;
-                          if (date && isToday(date)) {
-                            try {
-                              // Extraer hora de inicio (ej. "08" de "08:00 - 09:00")
-                              const startTimeString = time.split(" ")[0];
-                              // Crear objeto Date para la hora de inicio en el día seleccionado
-                              const startTime = parse(startTimeString, 'HH:mm', date);
-                              // Comparar con la hora actual
-                              if (isBefore(startTime, new Date())) {
-                                isDisabled = true;
+                        {availableTimes.length > 0 ? (
+                          availableTimes.map((time: string) => {
+                            // Lógica para deshabilitar horarios pasados en el día actual
+                            let isDisabled = false;
+                            if (date && isToday(date)) {
+                              try {
+                                // Extraer hora de inicio (ej. "08" de "08:00 - 09:00")
+                                const startTimeString = time.split(" ")[0];
+                                // Crear objeto Date para la hora de inicio en el día seleccionado
+                                const startTime = parse(startTimeString, 'HH:mm', date);
+                                // Comparar con la hora actual
+                                if (isBefore(startTime, new Date())) {
+                                  isDisabled = true;
+                                }
+                              } catch (error) {
+                                console.error("Error parsing time:", time, error);
                               }
-                            } catch (error) {
-                               console.error("Error parsing time:", time, error);
-                               // Opcional: deshabilitar si hay error de parseo
-                               // isDisabled = true;
                             }
-                          }
 
-                          return (
-                            <Button
-                              key={time}
-                              variant={selectedTime === time ? "default" : "outline"}
-                              className={selectedTime === time ? "bg-primary hover:bg-primary-light" : ""}
-                              onClick={() => setSelectedTime(time)}
-                              disabled={isDisabled} // Añadir atributo disabled
-                            >
-                              {time}
-                            </Button>
-                          );
-                        })}
+                            return (
+                              <Button
+                                key={time}
+                                variant={selectedTime === time ? "default" : "outline"}
+                                className={selectedTime === time ? "bg-primary hover:bg-primary-light" : ""}
+                                onClick={() => setSelectedTime(time)}
+                                disabled={isDisabled}
+                              >
+                                {time}
+                              </Button>
+                            );
+                          })
+                        ) : (
+                          <p className="col-span-2 text-center text-gray-500 py-4">
+                            No hay horarios disponibles para esta fecha
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -471,7 +345,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                         // Si está autenticado y tiene fecha/hora, proceder a confirmar
                         const encodedTime = encodeURIComponent(selectedTime)
                         const encodedDate = encodeURIComponent(date.toISOString())
-                        router.push(`/reserva/confirmar?id=${resolvedParams.id}&date=${encodedDate}&time=${encodedTime}`) // Usar facilityId extraído
+                        router.push(`/reserva/confirmar?id=${resolvedParams.id}&date=${encodedDate}&time=${encodedTime}`)
                       }
                     }}
                   >
@@ -486,4 +360,3 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     </main>
   )
 }
-

@@ -27,7 +27,7 @@ export function Navbar() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { isAuthenticated, user, logout, isLoading } = useAuth() // Get auth state
+  const { isAuthenticated, user, logout, isLoading, isLoggingOut } = useAuth() // Agregar isLoggingOut
   const { notifications, unreadCount: contextUnreadCount } = useNotification() // Get notification state
 
   const toggleMenu = () => {
@@ -202,8 +202,20 @@ export function Navbar() {
                        </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => { logout(); setIsProfileMenuOpen(false); }} className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50 flex items-center">
-                       <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
+                    <DropdownMenuItem 
+                      onSelect={() => { logout(); setIsProfileMenuOpen(false); }} 
+                      className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50 flex items-center"
+                      disabled={isLoggingOut}
+                    >
+                      {isLoggingOut ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cerrando sesión...
+                        </>
+                      ) : (
+                        <>
+                          <LogOut className="mr-2 h-4 w-4" /> Cerrar Sesión
+                        </>
+                      )}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -343,8 +355,15 @@ export function Navbar() {
                   <button // Usar button para llamar a logout
                     onClick={() => { logout(); toggleMenu(); }}
                     className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-300 hover:bg-primary-light hover:text-red-100"
+                    disabled={isLoggingOut}
                   >
-                    Cerrar Sesión
+                    {isLoggingOut ? (
+                      <span className="flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cerrando sesión...
+                      </span>
+                    ) : (
+                      "Cerrar Sesión"
+                    )}
                   </button>
                 </div>
               </>

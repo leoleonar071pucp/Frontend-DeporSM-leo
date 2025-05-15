@@ -23,127 +23,167 @@ import { DepartureDialog } from "./components/departure-dialog"
 import { AttendanceDetailsDialog } from "./components/attendance-details-dialog"
 import { toast } from "@/components/ui/use-toast"
 
-// Datos de ejemplo para las asistencias
-const attendanceData: AttendanceRecord[] = [
-  {
-    id: 1,
-    facilityId: 1,
-    scheduleId: 101,
-    facilityName: "Cancha de Fútbol (Grass)",
-    location: "Parque Juan Pablo II",
-    date: "2025-04-05", // Viernes
-    scheduledTime: "08:00",
-    scheduledEndTime: "12:00",
-    arrivalTime: "07:55",
-    departureTime: "12:05",
-    status: "a-tiempo",
-    departureStatus: "a-tiempo",
-    notes: "", // Notas vacías para estado "a-tiempo"
-    departureNotes: "",
-  },
-  // Ejemplo de registro con entrada pero sin salida (día actual)
-  {
-    id: 6,
-    facilityId: 2,
-    scheduleId: 203,
-    facilityName: "Piscina Municipal",
-    location: "Complejo Deportivo Este",
-    date: "2025-04-19", // Día actual (19 de abril)
-    scheduledTime: "08:00",
-    scheduledEndTime: "12:00",
-    arrivalTime: "08:05",
-    departureTime: null, // Salida no registrada
-    status: "a-tiempo",
-    departureStatus: "pendiente",
-    notes: "",
-    departureNotes: "",
-  },
-  {
-    id: 2,
-    facilityId: 1,
-    scheduleId: 103,
-    facilityName: "Cancha de Fútbol (Grass)",
-    location: "Parque Juan Pablo II",
-    date: "2025-04-03", // Miércoles
-    scheduledTime: "08:00",
-    scheduledEndTime: "12:00",
-    arrivalTime: "08:10",
-    departureTime: "11:45",
-    status: "tarde",
-    departureStatus: "a-tiempo",
-    notes: "Tráfico en la avenida principal",
-    departureNotes: "Reunión urgente en la municipalidad",
-  },
-  {
-    id: 3,
-    facilityId: 2,
-    scheduleId: 201,
-    facilityName: "Piscina Municipal",
-    location: "Complejo Deportivo Municipal",
-    date: "2025-04-02", // Martes
-    scheduledTime: "08:00",
-    scheduledEndTime: "12:00",
-    arrivalTime: "08:00",
-    departureTime: "12:00",
-    status: "a-tiempo",
-    departureStatus: "a-tiempo",
-    notes: "", // Notas vacías para estado "a-tiempo"
-    departureNotes: "",
-  },
-  {
-    id: 4,
-    facilityId: 2,
-    scheduleId: 202,
-    facilityName: "Piscina Municipal",
-    location: "Complejo Deportivo Municipal",
-    date: "2025-04-04", // Jueves
-    scheduledTime: "08:00",
-    scheduledEndTime: "12:00",
-    arrivalTime: null,
-    departureTime: null,
-    status: "no-asistio",
-    departureStatus: "no-asistio",
-    notes: "Problemas de salud",
-    departureNotes: "",
-  },
-  {
-    id: 5,
-    facilityId: 1,
-    scheduleId: 102,
-    facilityName: "Cancha de Fútbol (Grass)",
-    location: "Parque Juan Pablo II",
-    date: "2025-04-01", // Lunes
-    scheduledTime: "08:00",
-    scheduledEndTime: "12:00",
-    arrivalTime: "08:05",
-    departureTime: "12:15",
-    status: "a-tiempo",
-    departureStatus: "tarde",
-    notes: "", // Notas vacías para estado "a-tiempo"
-    departureNotes: "Hubo que resolver un problema con usuarios",
-  },
-]
+// Simulamos datos de asistencia que vendrían del backend
+// Estos datos representarían lo que obtendríamos de un endpoint de asistencia
+const mockFetchAsistencias = async () => {
+  // Simulamos un delay como si fuera una llamada real a un API
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  return [
+    {
+      id: 1,
+      facilityId: 1,
+      scheduleId: 101,
+      facilityName: "Cancha de Fútbol (Grass)",
+      location: "Parque Juan Pablo II",
+      date: "2025-05-10", // Formato ajustado a la fecha actual (mayo 2025)
+      scheduledTime: "08:00",
+      scheduledEndTime: "12:00",
+      arrivalTime: "07:55",
+      departureTime: "12:05",
+      status: "a-tiempo",
+      departureStatus: "a-tiempo",
+      notes: "", // Notas vacías para estado "a-tiempo"
+      departureNotes: "",
+    },
+    // Ejemplo de registro con entrada pero sin salida (día actual)
+    {
+      id: 6,
+      facilityId: 2,
+      scheduleId: 203,
+      facilityName: "Piscina Municipal",
+      location: "Complejo Deportivo Este",
+      date: "2025-05-12", // Día actual (12 de mayo)
+      scheduledTime: "08:00",
+      scheduledEndTime: "12:00",
+      arrivalTime: "08:05",
+      departureTime: null, // Salida no registrada
+      status: "a-tiempo",
+      departureStatus: "pendiente",
+      notes: "",
+      departureNotes: "",
+    },
+    {
+      id: 2,
+      facilityId: 1,
+      scheduleId: 103,
+      facilityName: "Cancha de Fútbol (Grass)",
+      location: "Parque Juan Pablo II",
+      date: "2025-05-09", // Actualizado a mayo
+      scheduledTime: "08:00",
+      scheduledEndTime: "12:00",
+      arrivalTime: "08:10",
+      departureTime: "11:45",
+      status: "tarde",
+      departureStatus: "a-tiempo",
+      notes: "Tráfico en la avenida principal",
+      departureNotes: "Reunión urgente en la municipalidad",
+    },
+    {
+      id: 3,
+      facilityId: 2,
+      scheduleId: 201,
+      facilityName: "Piscina Municipal",
+      location: "Complejo Deportivo Municipal",
+      date: "2025-05-08", // Actualizado a mayo
+      scheduledTime: "08:00",
+      scheduledEndTime: "12:00",
+      arrivalTime: "08:00",
+      departureTime: "12:00",
+      status: "a-tiempo",
+      departureStatus: "a-tiempo",
+      notes: "", // Notas vacías para estado "a-tiempo"
+      departureNotes: "",
+    },
+    {
+      id: 4,
+      facilityId: 2,
+      scheduleId: 202,
+      facilityName: "Piscina Municipal",
+      location: "Complejo Deportivo Municipal",
+      date: "2025-05-07", // Actualizado a mayo
+      scheduledTime: "08:00",
+      scheduledEndTime: "12:00",
+      arrivalTime: null,
+      departureTime: null,
+      status: "no-asistio",
+      departureStatus: "no-asistio",
+      notes: "Problemas de salud",
+      departureNotes: "",
+    },
+    {
+      id: 5,
+      facilityId: 1,
+      scheduleId: 102,
+      facilityName: "Cancha de Fútbol (Grass)",
+      location: "Parque Juan Pablo II",
+      date: "2025-05-06", // Actualizado a mayo
+      scheduledTime: "08:00",
+      scheduledEndTime: "12:00",
+      arrivalTime: "08:05",
+      departureTime: "12:15",
+      status: "a-tiempo",
+      departureStatus: "tarde",
+      notes: "", // Notas vacías para estado "a-tiempo"
+      departureNotes: "Hubo que resolver un problema con usuarios",
+    },
+  ] as AttendanceRecord[];
+};
+
+// Función para simular la actualización de un registro de asistencia
+const mockUpdateAsistencia = async (id: number, data: any) => {
+  // Simulamos un delay como si fuera una llamada real a un API
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // En una implementación real, esto sería una llamada PUT al backend
+  console.log("Actualizando asistencia:", id, data);
+  
+  // Simulamos una respuesta exitosa
+  return { success: true, message: "Registro actualizado correctamente" };
+};
 
 export default function AsistenciaPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
   const [filteredData, setFilteredData] = useState<AttendanceRecord[]>([])
   const [departureDialogOpen, setDepartureDialogOpen] = useState(false)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [selectedAttendance, setSelectedAttendance] = useState<AttendanceRecord | null>(null)
 
+  // Cargamos los datos de asistencia desde nuestro mock API
   useEffect(() => {
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setFilteredData(attendanceData)
-      setIsLoading(false)
-    }
+      try {
+        setIsLoading(true);
+        
+        // Simulamos obtener los datos desde el backend
+        // En una implementación real, esto sería:
+        // const response = await fetch("http://localhost:8080/api/asistencias");
+        // const data = await response.json();
+        
+        const data = await mockFetchAsistencias();
+        
+        setAttendanceData(data);
+        setFilteredData(data);
+      } catch (error) {
+        console.error("Error al cargar datos de asistencia:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos de asistencia",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    loadData()
+    loadData();
   }, [])
 
+  // Aplicamos los filtros cuando cambia la consulta de búsqueda
   useEffect(() => {
-    let filtered = attendanceData
+    let filtered = attendanceData;
 
     // Aplicar filtro de búsqueda
     if (searchQuery) {
@@ -151,16 +191,24 @@ export default function AsistenciaPage() {
         (item) =>
           item.facilityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.location.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
+      );
     }
 
-    setFilteredData(filtered)
-  }, [searchQuery])
+    setFilteredData(filtered);
+  }, [searchQuery, attendanceData]);
 
   const handleSearchForm = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+    e.preventDefault();
     // La búsqueda se aplica en el useEffect
-  }
+  };
+
+  const handleFilterByStatus = (status: AttendanceRecord["status"] | null) => {
+    if (status === null) {
+      setFilteredData(attendanceData);
+    } else {
+      setFilteredData(attendanceData.filter((a) => a.status === status));
+    }
+  };
 
   const getStatusBadge = (status: AttendanceRecord["status"] | AttendanceRecord["departureStatus"]) => {
     switch (status) {
@@ -187,57 +235,76 @@ export default function AsistenciaPage() {
     setDetailsDialogOpen(true)
   }
 
-  const handleRegisterDeparture = (
+  const handleRegisterDeparture = async (
     attendanceId: number,
     departureTime: string,
     location: GeolocationCoordinates,
     notes: string
   ) => {
-    // En un escenario real, aquí llamaríamos a una API para registrar la salida
-    console.log("Registrando salida:", {
-      attendanceId,
-      departureTime,
-      location,
-      notes,
-    })
+    try {
+      // En una implementación real, aquí llamaríamos a una API para registrar la salida
+      // const response = await fetch(`http://localhost:8080/api/asistencias/${attendanceId}`, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ departureTime, location, notes })
+      // });
+      
+      // Usamos la función mock para simular la llamada a la API
+      const result = await mockUpdateAsistencia(attendanceId, { 
+        departureTime, 
+        location, 
+        notes 
+      });
+      
+      if (result.success) {
+        // Actualizar los datos en el estado local para reflejar la salida registrada
+        setAttendanceData((prevData) =>
+          prevData.map((item) => {
+            if (item.id === attendanceId) {
+              // Determinar el estado de salida basado en la hora programada de fin y la hora actual
+              const scheduledEnd = item.scheduledEndTime || "00:00"
+              let departureStatus: "a-tiempo" | "tarde" = "a-tiempo"
+              
+              // Convertir las horas a minutos para comparar fácilmente
+              const schedEndParts = scheduledEnd.split(":")
+              const schedEndMinutes = parseInt(schedEndParts[0]) * 60 + parseInt(schedEndParts[1])
+              
+              const depParts = departureTime.split(":")
+              const depMinutes = parseInt(depParts[0]) * 60 + parseInt(depParts[1])
+              
+              // Si la diferencia es mayor a 5 minutos después, es tarde
+              if (depMinutes - schedEndMinutes > 5) {
+                departureStatus = "tarde"
+              } else {
+                departureStatus = "a-tiempo"
+              }
+              
+              return {
+                ...item,
+                departureTime,
+                departureStatus,
+                departureNotes: notes,
+              }
+            }
+            return item
+          })
+        );
 
-    // Actualizar los datos en el estado local para reflejar la salida registrada
-    setFilteredData((prevData) =>
-      prevData.map((item) => {
-        if (item.id === attendanceId) {
-          // Determinar el estado de salida basado en la hora programada de fin y la hora actual
-          const scheduledEnd = item.scheduledEndTime || "00:00"
-          let departureStatus: "a-tiempo" | "tarde" = "a-tiempo"
-          
-          // Convertir las horas a minutos para comparar fácilmente
-          const schedEndParts = scheduledEnd.split(":")
-          const schedEndMinutes = parseInt(schedEndParts[0]) * 60 + parseInt(schedEndParts[1])
-          
-          const depParts = departureTime.split(":")
-          const depMinutes = parseInt(depParts[0]) * 60 + parseInt(depParts[1])
-          
-          // Si la diferencia es mayor a 5 minutos después, es tarde
-          if (depMinutes - schedEndMinutes > 5) {
-            departureStatus = "tarde"
-          } else {
-            departureStatus = "a-tiempo"
-          }
-          
-          return {
-            ...item,
-            departureTime,
-            departureStatus,
-            departureNotes: notes,
-          }
-        }
-        return item
-      })
-    )
-
-    toast({
-      title: "Salida registrada",
-      description: `Has registrado tu salida a las ${departureTime}`,
-    })
+        toast({
+          title: "Salida registrada",
+          description: `Has registrado tu salida a las ${departureTime}`,
+        });
+      } else {
+        throw new Error("Error al actualizar el registro");
+      }
+    } catch (error) {
+      console.error("Error al registrar salida:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo registrar la salida",
+        variant: "destructive",
+      });
+    }
   }
 
   if (isLoading) {
@@ -313,16 +380,10 @@ export default function AsistenciaPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilteredData(attendanceData)}>Todos</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilteredData(attendanceData.filter((a) => a.status === "a-tiempo"))}>
-                  A tiempo
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilteredData(attendanceData.filter((a) => a.status === "tarde"))}>
-                  Tarde
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilteredData(attendanceData.filter((a) => a.status === "no-asistio"))}>
-                  No asistió
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByStatus(null)}>Todos</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByStatus("a-tiempo")}>A tiempo</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByStatus("tarde")}>Tarde</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByStatus("no-asistio")}>No asistió</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
