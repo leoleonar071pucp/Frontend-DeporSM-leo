@@ -266,6 +266,54 @@ export default function ConfirmarReserva() {
             setErrors({ payment: "Hubo un problema al procesar tu pago. Verifica los datos de tu tarjeta o intenta con otro método." }); // Usar setErrors y una clave
           } else {
             status = 'success'; // Pago online exitoso
+<<<<<<< HEAD
+=======
+              // Actualizar el estado de pago en el backend
+            try {
+              const updateResponse = await fetch(`http://localhost:8080/api/reservas/${reservationId}/actualizar-pago`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                  estadoPago: 'pagado',
+                  estado: 'confirmada' // Asegurar que la reserva quede confirmada al pagar
+                })
+              });
+              
+              if (!updateResponse.ok) {
+                console.warn('No se pudo actualizar el estado del pago, pero la reserva fue creada');
+              }
+            } catch (updateError) {
+              console.error('Error al actualizar el estado de pago:', updateError);
+            }
+          }        } else if (paymentMethod === 'deposito' && voucherFile && reservationId) {
+          // Para depósito bancario, enviar el comprobante de pago
+          try {
+            const formData = new FormData();
+            formData.append('reservaId', reservationId.toString());
+            formData.append('monto', facility ? facility.price.replace('S/. ', '') : '0');
+            formData.append('comprobante', voucherFile);
+
+            const pagoResponse = await fetch('http://localhost:8080/api/pagos/deposito', {
+              method: 'POST',
+              credentials: 'include',
+              body: formData
+            });
+
+            if (!pagoResponse.ok) {
+              console.warn('Se creó la reserva pero hubo un problema al subir el comprobante');
+            } else {
+              // Obtener la URL del comprobante
+              const urlComprobante = await pagoResponse.text();
+              console.log('Comprobante subido correctamente:', urlComprobante);
+            }
+            
+            status = 'pending'; // Depósito siempre queda pendiente de verificación
+          } catch (pagoError) {
+            console.error('Error al subir el comprobante de pago:', pagoError);
+>>>>>>> a4229f7cd343acd045c09874ff7c37cbe85e8ff4
           }
         } else {
           status = 'pending'; // Depósito siempre queda pendiente

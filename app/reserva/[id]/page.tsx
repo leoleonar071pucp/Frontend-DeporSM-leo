@@ -125,6 +125,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
   // Declaración duplicada eliminada
 
   useEffect(() => {
+<<<<<<< HEAD
     // Simulación de carga de datos
     setLoading(true)
     setTimeout(() => {
@@ -133,10 +134,137 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
       setLoading(false)
     }, 500)
   }, [params.id])
+=======
+    // Cargar datos reales del backend
+    const fetchReservationDetails = async () => {
+      setLoading(true)
+      // Usar el id que ya fue extraído con React.use()
+      const reservaId = id;
+      try {
+        const response = await fetch(`http://localhost:8080/api/reservas/${reservaId}`, {
+          method: 'GET',
+          credentials: 'include', // Para enviar cookies de sesión
+          headers: {
+            'Accept': 'application/json',
+            'Origin': 'http://localhost:3000'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al obtener detalles de la reserva: ${response.status}`);
+        }
+
+        const reservaData = await response.json();
+        console.log('Datos de reserva obtenidos:', reservaData);
+        
+        // También obtener detalles de pago si existe
+        let pagoData = null;        try {
+          const pagoResponse = await fetch(`http://localhost:8080/api/pagos/reserva/${reservaId}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
+              'Origin': 'http://localhost:3000'
+            }
+          });
+          
+          if (pagoResponse.ok) {
+            pagoData = await pagoResponse.json();
+            console.log('Datos de pago obtenidos:', pagoData);
+            console.log('URL del comprobante:', pagoData.urlComprobante || pagoData.url_comprobante);
+          } else if (reservaData.metodoPago === 'deposito') {
+            // Si no hay datos de pago pero es depósito bancario, podría ser que no se haya creado el registro correctamente
+            console.log('Reserva con depósito bancario sin registro de pago. Verificando comprobante...');
+            console.log('Estado de pago en reserva:', reservaData.estadoPago);
+            console.log('Método de pago en reserva:', reservaData.metodoPago);
+          }
+        } catch (error) {
+          console.warn('No se pudieron obtener datos de pago:', error);
+        }
+        
+        // Formatear los datos obtenidos al formato que necesita la interfaz
+        const fechaReserva = new Date(reservaData.fecha);
+        const horaInicio = reservaData.horaInicio.substring(0, 5);
+        const horaFin = reservaData.horaFin.substring(0, 5);
+        
+        // Crear el objeto dateTime para cálculos
+        const [horaI, minI] = horaInicio.split(':').map(Number);
+        const dateTime = new Date(fechaReserva);
+        dateTime.setHours(horaI, minI, 0);
+        
+        const formattedReservation: ReservationDetails = {
+          id: reservaData.id,
+          reservationNumber: `RES-${reservaData.id}`,
+          facilityId: reservaData.instalacion?.id || reservaData.instalacionId,
+          facilityName: reservaData.instalacionNombre,
+          facilityImage: reservaData.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
+          date: new Intl.DateTimeFormat('es-ES', {
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric'
+          }).format(fechaReserva),
+          time: `${horaInicio} - ${horaFin}`,
+          dateTime: dateTime,
+          location: reservaData.instalacionUbicacion || "Instalación Deportiva Municipal",
+          status: reservaData.estado as ReservationDetails['status'],
+          canCancel: false, // Se calculará con la función checkCancellationEligibility
+          paymentMethod: pagoData 
+            ? (pagoData.metodo === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito') 
+            : reservaData.metodoPago 
+              ? (reservaData.metodoPago === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito')
+              : 'Pendiente',
+          paymentStatus: pagoData ? pagoData.estado.charAt(0).toUpperCase() + pagoData.estado.slice(1).toLowerCase() : (reservaData.estadoPago ? reservaData.estadoPago.charAt(0).toUpperCase() + reservaData.estadoPago.slice(1).toLowerCase() : 'Pendiente'),
+          paymentAmount: pagoData ? `S/. ${pagoData.monto}` : 'Pendiente',          paymentDate: pagoData && pagoData.createdAt 
+                        ? new Intl.DateTimeFormat('es-ES', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }).format(new Date(pagoData.createdAt))
+                        : reservaData.createdAt
+                          ? new Intl.DateTimeFormat('es-ES', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }).format(new Date(reservaData.createdAt))
+                          : 'Pendiente',          paymentReference: pagoData ? pagoData.referenciaTransaccion || 'No disponible' : 'Pendiente',
+          // Asegurarse de que la URL del comprobante sea válida
+          paymentReceiptUrl: pagoData && (pagoData.urlComprobante || pagoData.url_comprobante) 
+                            ? (pagoData.urlComprobante || pagoData.url_comprobante) 
+                            : null,
+          userDetails: {
+            name: reservaData.usuarioNombre || 'Usuario',
+            email: reservaData.usuario?.email || '',
+            phone: reservaData.usuario?.telefono || '',
+          },
+          additionalInfo: reservaData.comentarios || 'Sin comentarios adicionales',
+          createdAt: new Date(reservaData.createdAt || Date.now()).toLocaleString('es-ES'),
+        };
+        
+        setReservation(formattedReservation);
+      } catch (error) {
+        console.error('Error al cargar los detalles de la reserva:', error);
+        // Si tenemos reservas de ejemplo cargadas, podríamos mostrar una como fallback
+        const fallbackReservation = reservationsDB.find(r => r.id === Number.parseInt(reservaId));
+        if (fallbackReservation) {
+          console.log('Usando reserva de fallback');
+          setReservation(fallbackReservation);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReservationDetails();
+  }, [id])
+>>>>>>> a4229f7cd343acd045c09874ff7c37cbe85e8ff4
 
   const getStatusBadge = (status: ReservationDetails['status']) => {
-    switch (status) {
-      case "confirmada":
+    switch (status) {      case "confirmada":
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Confirmada</Badge>
       case "pendiente":
         return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pendiente</Badge>
@@ -145,7 +273,9 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
       case "cancelada":
         return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Cancelada</Badge>
       default:
-        return null
+        // Capitalizar el primer caracter del string
+        const capitalizedStatus = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : '';
+        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{capitalizedStatus}</Badge>
     }
   }
 
@@ -252,6 +382,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                     {getStatusBadge(reservation.status)}
                   </CardTitle>
                   <CardDescription>Creada el {reservation.createdAt}</CardDescription>
+<<<<<<< HEAD
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex items-center gap-1">
@@ -259,6 +390,56 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                     Descargar comprobante
                   </Button>
                   {/* Usar la función de elegibilidad */}
+=======
+                </div>                <div className="flex gap-2">
+                  {/* Botones de acción en orden: 
+                      1. Descargar comprobante (izquierda) - Aparece solo cuando hay comprobante 
+                      2. Cancelar reserva (derecha) - Aparece solo cuando es elegible para cancelar */}
+                  
+                  {/* Primer botón: "Descargar comprobante" */}
+                  {reservation.paymentReceiptUrl && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-1"                      
+                      onClick={() => {
+                        // Iniciar la descarga del archivo usando la API de descarga del navegador
+                        const url = `http://localhost:8080${reservation.paymentReceiptUrl}`;
+                        const fileName = reservation.paymentReceiptUrl.split('/').pop() || 'comprobante.jpg';
+                        
+                        // Usar fetch para obtener el archivo como blob
+                        fetch(url)
+                          .then(response => response.blob())
+                          .then(blob => {
+                            // Crear una URL para el blob
+                            const blobUrl = window.URL.createObjectURL(blob);
+                            
+                            // Crear un enlace temporal para la descarga
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.download = fileName;
+                            
+                            // Simular clic para iniciar la descarga
+                            document.body.appendChild(link);
+                            link.click();
+                            
+                            // Limpiar después de la descarga
+                            window.URL.revokeObjectURL(blobUrl);
+                            document.body.removeChild(link);
+                          })
+                          .catch(error => {
+                            console.error('Error al descargar el archivo:', error);
+                            alert('Hubo un problema al descargar el comprobante. Por favor, intenta de nuevo.');
+                          });
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                      Descargar comprobante
+                    </Button>
+                  )}
+                  
+                  {/* Segundo botón: "Cancelar Reserva" */}
+>>>>>>> a4229f7cd343acd045c09874ff7c37cbe85e8ff4
                   {checkCancellationEligibility(reservation) && (
                     <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
                       <DialogTrigger asChild>
@@ -386,11 +567,43 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                         <p>{reservation.paymentReference}</p>
                       </div>
                     )}
+<<<<<<< HEAD
                   </div>
+=======
+                    </div>
+>>>>>>> a4229f7cd343acd045c09874ff7c37cbe85e8ff4
                 </div>
-              </div>
+              </div>              {/* Mostrar comprobante de pago si es método depósito y tiene URL de comprobante (en cualquier estado) */}
+              {(reservation.paymentMethod === "Depósito bancario" || reservation.paymentMethod === "deposito") && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium mb-4">Comprobante de pago</h3>
+                  {console.log("Intentando mostrar comprobante:", reservation.paymentMethod, reservation.paymentReceiptUrl)}                  {reservation.paymentReceiptUrl ? (
+                    <div className="bg-white p-4 rounded-lg shadow-sm border">
+                      <div className="flex flex-col items-center">                        <img 
+                          src={`http://localhost:8080${reservation.paymentReceiptUrl}`}
+                          alt="Comprobante de depósito bancario" 
+                          className="max-w-full max-h-96 object-contain rounded-md mb-4"
+                          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                            const target = e.target as HTMLImageElement;
+                            console.error("Error al cargar imagen:", reservation.paymentReceiptUrl);
+                            target.src = "/placeholder.svg?text=Comprobante+no+disponible";
+                            target.alt = "Comprobante no disponible";
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <p className="text-yellow-700 flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5" />
+                        No se encontró el comprobante de pago. Contacta a soporte si realizaste el depósito.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <Separator />
+              <Separator className="my-6" />
 
               <div>
                 <h3 className="text-lg font-medium mb-4">Información adicional</h3>
