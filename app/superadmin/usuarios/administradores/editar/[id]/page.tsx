@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import React from "react"
+import { useState, useEffect, FormEvent, ChangeEvent } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,41 +11,16 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
-// Datos de ejemplo para los administradores (simula la base de datos)
-const administradoresData = [
-  {
-    id: 1,
-    nombre: "Francisco",
-    apellidos: "Morales",
-    email: "francisco.morales@munisanmiguel.gob.pe",
-    telefono: "987-123-456",
-    direccion: "Av. La Marina 1500, San Miguel",
-    area: "Deportes",
-    status: "activo",
-  },
-  {
-    id: 2,
-    nombre: "Carmen",
-    apellidos: "Vega",
-    email: "carmen.vega@munisanmiguel.gob.pe",
-    telefono: "987-123-457",
-    direccion: "Jr. Las Flores 250, San Miguel",
-    area: "Recreación",
-    status: "activo",
-  },
-  {
-    id: 3,
-    nombre: "Manuel",
-    apellidos: "Torres",
-    email: "manuel.torres@munisanmiguel.gob.pe",
-    telefono: "987-123-458",
-    direccion: "Calle Los Pinos 456, San Miguel",
-    area: "Infraestructura",
-    status: "inactivo",
-  }
-]
+interface FormData {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  password: string;
+  confirmPassword: string;
+}
 
-// Definición del tipo para los errores del formulario
 interface FormErrors {
   nombre?: string;
   apellidos?: string;
@@ -53,16 +29,16 @@ interface FormErrors {
   direccion?: string;
   password?: string;
   confirmPassword?: string;
-  [key: string]: string | undefined;
 }
 
-export default function EditarAdministradorPage({ params }: { params: { id: string } }) {
+export default function EditarAdministradorPage() {
+  const params = useParams()
   const id = params.id
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     nombre: "",
     apellidos: "",
     email: "",
@@ -75,47 +51,53 @@ export default function EditarAdministradorPage({ params }: { params: { id: stri
   const [changePassword, setChangePassword] = useState(false)
 
   useEffect(() => {
-    // Simulando la obtención de datos del servidor
-    const fetchData = () => {
-      setTimeout(() => {
-        const numericId = parseInt(id, 10)
-        const administrador = administradoresData.find(a => a.id === numericId)
-        
-        if (administrador) {
-          setFormData({
-            nombre: administrador.nombre,
-            apellidos: administrador.apellidos,
-            email: administrador.email,
-            telefono: administrador.telefono,
-            direccion: administrador.direccion,
-            password: "",
-            confirmPassword: "",
-          })
-        } else {
-          toast({
-            title: "Error",
-            description: "No se encontró el administrador solicitado",
-            variant: "destructive"
-          })
-          router.push("/superadmin/usuarios/administradores")
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`http://localhost:8080/api/usuarios/administradores/${id}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        if (!response.ok) {
+          const error = await response.text()
+          throw new Error(error || 'Error al obtener el administrador')
         }
-        
+
+        const administrador = await response.json()
+        setFormData({
+          nombre: administrador.nombre,
+          apellidos: administrador.apellidos,
+          email: administrador.email,
+          telefono: administrador.telefono,
+          direccion: administrador.direccion,
+          password: "",
+          confirmPassword: "",
+        })
+      } catch (error) {
+        console.error('Error:', error)
+        toast({
+          title: "Error",
+          description: "No se pudo obtener la información del administrador",
+          variant: "destructive"
+        })
+        router.push("/superadmin/usuarios/administradores")
+      } finally {
         setIsLoading(false)
-      }, 800)
+      }
     }
 
     fetchData()
   }, [id, router, toast])
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
       [name]: value
     }))
     
-    // Limpiar error cuando el usuario modifica el campo
-    if (formErrors[name]) {
+    if (formErrors[name as keyof FormErrors]) {
       setFormErrors((prev) => ({
         ...prev,
         [name]: undefined
@@ -148,7 +130,6 @@ export default function EditarAdministradorPage({ params }: { params: { id: stri
       errors.direccion = "La dirección es obligatoria"
     }
     
-    // Validar contraseña solo si se ha marcado la opción de cambiar contraseña
     if (changePassword) {
       if (!formData.password) {
         errors.password = "La contraseña es obligatoria"
@@ -164,7 +145,7 @@ export default function EditarAdministradorPage({ params }: { params: { id: stri
     return errors
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     
     const errors = validateForm()
@@ -175,10 +156,30 @@ export default function EditarAdministradorPage({ params }: { params: { id: stri
     
     setIsSubmitting(true)
     
-    // Simulación de envío al servidor
-    setTimeout(() => {
-      setIsSubmitting(false)
-      
+    try {
+      const body = {
+        nombre: formData.nombre,
+        apellidos: formData.apellidos,
+        email: formData.email,
+        telefono: formData.telefono,
+        direccion: formData.direccion,
+        ...(changePassword && { password: formData.password })
+      }
+
+      const response = await fetch(`http://localhost:8080/api/usuarios/administradores/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      })
+
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(error || 'Error al actualizar el administrador')
+      }
+
       const successMessage = changePassword 
         ? `Los datos y la contraseña de ${formData.nombre} ${formData.apellidos} han sido actualizados.`
         : `Los datos de ${formData.nombre} ${formData.apellidos} han sido actualizados.`
@@ -189,7 +190,16 @@ export default function EditarAdministradorPage({ params }: { params: { id: stri
       })
       
       router.push("/superadmin/usuarios/administradores")
-    }, 1500)
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el administrador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (isLoading) {

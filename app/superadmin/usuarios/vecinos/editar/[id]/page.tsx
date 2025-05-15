@@ -9,216 +9,196 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
+import { Separator } from "@/components/ui/separator"
 
-// Datos de ejemplo para los vecinos (simula la base de datos)
-const vecinosData = [
-  {
-    id: 1,
-    nombre: "Juan",
-    apellidos: "Pérez García",
-    email: "juan.perez@example.com",
-    telefono: "987-654-321",
-    direccion: "Av. Costanera 2345, San Miguel",
-    dni: "12345678",
-    status: "activo",
-  },
-  {
-    id: 2,
-    nombre: "María",
-    apellidos: "López Rodríguez",
-    email: "maria.lopez@example.com",
-    telefono: "987-654-322",
-    direccion: "Jr. Los Pinos 456, San Miguel",
-    dni: "87654321",
-    status: "activo",
-  },
-  {
-    id: 3,
-    nombre: "Carlos",
-    apellidos: "Rodríguez Martínez",
-    email: "carlos.rodriguez@example.com",
-    telefono: "987-654-323",
-    direccion: "Calle Las Flores 789, San Miguel",
-    dni: "23456789",
-    status: "inactivo",
-  },
-  {
-    id: 4,
-    nombre: "Ana",
-    apellidos: "Martínez López",
-    email: "ana.martinez@example.com",
-    telefono: "987-654-324",
-    direccion: "Av. La Marina 1234, San Miguel",
-    dni: "34567890",
-    status: "activo",
-  },
-  {
-    id: 5,
-    nombre: "Pedro",
-    apellidos: "Sánchez García",
-    email: "pedro.sanchez@example.com",
-    telefono: "987-654-325",
-    direccion: "Jr. Libertad 567, San Miguel",
-    dni: "45678901",
-    status: "activo",
-  }
-]
+interface FormData {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  telefono: string;
+  dni: string;
+  direccion: string;
+  password: string;
+  confirmPassword: string;
+}
 
-// Definición del tipo para los errores del formulario
 interface FormErrors {
   nombre?: string;
   apellidos?: string;
   email?: string;
   telefono?: string;
-  direccion?: string;
   dni?: string;
+  direccion?: string;
   password?: string;
   confirmPassword?: string;
-  [key: string]: string | undefined;
 }
 
 export default function EditarVecinoPage({ params }: { params: { id: string } }) {
-  const id = params.id
   const router = useRouter()
   const { toast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [formData, setFormData] = useState({
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { id } = params
+  const [changePassword, setChangePassword] = useState(false)
+
+  const [formData, setFormData] = useState<FormData>({
     nombre: "",
     apellidos: "",
     email: "",
     telefono: "",
-    direccion: "",
     dni: "",
+    direccion: "",
     password: "",
     confirmPassword: "",
   })
-  const [formErrors, setFormErrors] = useState<FormErrors>({})
-  const [changePassword, setChangePassword] = useState(false)
 
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+
+  // Cargar datos del vecino
   useEffect(() => {
-    // Simulando la obtención de datos del servidor
-    const fetchData = () => {
-      setTimeout(() => {
-        const numericId = parseInt(id, 10)
-        const vecino = vecinosData.find(v => v.id === numericId)
-        
-        if (vecino) {
+    const fetchVecinoData = async () => {
+      try {
+        const response = await fetch(`http://localhost:8080/api/usuarios/${id}`)
+        if (response.ok) {
+          const data = await response.json()
           setFormData({
-            nombre: vecino.nombre,
-            apellidos: vecino.apellidos,
-            email: vecino.email,
-            telefono: vecino.telefono,
-            direccion: vecino.direccion,
-            dni: vecino.dni,
+            nombre: data.nombre || "",
+            apellidos: data.apellidos || "",
+            email: data.email || "",
+            telefono: data.telefono || "",
+            dni: data.dni || "",
+            direccion: data.direccion || "",
             password: "",
             confirmPassword: "",
           })
         } else {
-          toast({
-            title: "Error",
-            description: "No se encontró el vecino solicitado",
-            variant: "destructive"
-          })
-          router.push("/superadmin/usuarios/vecinos")
+          throw new Error("Error al cargar los datos del vecino")
         }
-        
+      } catch (error) {
+        console.error("Error fetching vecino:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos del vecino",
+          variant: "destructive",
+        })
+        router.push("/superadmin/usuarios/vecinos")
+      } finally {
         setIsLoading(false)
-      }, 800)
+      }
     }
 
-    fetchData()
+    fetchVecinoData()
   }, [id, router, toast])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }))
     
-    // Limpiar error cuando el usuario modifica el campo
-    if (formErrors[name]) {
+    if (formErrors[name as keyof FormErrors]) {
       setFormErrors((prev) => ({
         ...prev,
-        [name]: undefined
+        [name]: undefined,
       }))
     }
   }
 
-  const validateForm = () => {
+  const validateForm = (): FormErrors => {
     const errors: FormErrors = {}
-    
+
     if (!formData.nombre.trim()) {
-      errors.nombre = "El nombre es obligatorio"
+      errors.nombre = "El nombre es requerido"
     }
-    
     if (!formData.apellidos.trim()) {
-      errors.apellidos = "Los apellidos son obligatorios"
+      errors.apellidos = "Los apellidos son requeridos"
     }
-    
     if (!formData.email.trim()) {
-      errors.email = "El correo electrónico es obligatorio"
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = "El formato de correo electrónico no es válido"
+      errors.email = "El email es requerido"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "El email no es válido"
     }
-    
     if (!formData.telefono.trim()) {
-      errors.telefono = "El teléfono es obligatorio"
+      errors.telefono = "El teléfono es requerido"
     }
-    
     if (!formData.direccion.trim()) {
-      errors.direccion = "La dirección es obligatoria"
+      errors.direccion = "La dirección es requerida"
     }
-    
     if (!formData.dni.trim()) {
-      errors.dni = "El DNI es obligatorio"
-    } else if (formData.dni.length !== 8 || !/^\d+$/.test(formData.dni)) {
-      errors.dni = "El DNI debe contener 8 dígitos numéricos"
+      errors.dni = "El DNI es requerido"
+    } else if (!/^\d{8}$/.test(formData.dni)) {
+      errors.dni = "El DNI debe tener 8 dígitos"
     }
-    
-    // Validar contraseña solo si se ha marcado la opción de cambiar contraseña
+
     if (changePassword) {
-      if (!formData.password) {
-        errors.password = "La contraseña es obligatoria"
-      } else if (formData.password.length < 6) {
+      if (formData.password && formData.password.length < 6) {
         errors.password = "La contraseña debe tener al menos 6 caracteres"
       }
-      
       if (formData.password !== formData.confirmPassword) {
         errors.confirmPassword = "Las contraseñas no coinciden"
       }
     }
-    
+
     return errors
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    
+
     const errors = validateForm()
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
+      toast({
+        title: "Error de validación",
+        description: "Por favor, revise los campos del formulario",
+        variant: "destructive",
+      })
       return
     }
-    
+
     setIsSubmitting(true)
-    
-    // Simulación de envío al servidor
-    setTimeout(() => {
-      setIsSubmitting(false)
-      
-      const successMessage = changePassword 
-        ? `Los datos y la contraseña de ${formData.nombre} ${formData.apellidos} han sido actualizados.`
-        : `Los datos de ${formData.nombre} ${formData.apellidos} han sido actualizados.`
-      
-      toast({
-        title: "Vecino actualizado",
-        description: successMessage,
+
+    try {
+      const userData = {
+        nombre: formData.nombre,
+        apellidos: formData.apellidos,
+        email: formData.email,
+        telefono: formData.telefono,
+        dni: formData.dni,
+        direccion: formData.direccion,
+        ...(changePassword && formData.password && { password: formData.password }),
+        rol: 4 // Rol de vecino
+      }
+
+      const response = await fetch(`http://localhost:8080/api/usuarios/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
       })
-      
-      router.push("/superadmin/usuarios/vecinos")
-    }, 1500)
+
+      if (response.ok) {
+        toast({
+          title: "Vecino actualizado",
+          description: `${formData.nombre} ${formData.apellidos} ha sido actualizado exitosamente.`,
+        })
+        router.push("/superadmin/usuarios/vecinos")
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Error al actualizar el vecino")
+      }
+    } catch (error) {
+      console.error("Error al actualizar vecino:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al actualizar el vecino",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (isLoading) {
@@ -233,159 +213,178 @@ export default function EditarVecinoPage({ params }: { params: { id: string } })
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" asChild className="h-8 w-8">
+            <Link href="/superadmin/usuarios/vecinos">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
           <h1 className="text-2xl font-bold tracking-tight">Editar Vecino</h1>
-          <p className="text-muted-foreground">Modifica la información del vecino</p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/superadmin/usuarios/vecinos">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Link>
-        </Button>
       </div>
 
       <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
-            <CardTitle>Información Personal</CardTitle>
-            <CardDescription>Actualiza la información personal del vecino</CardDescription>
+            <CardTitle>Editar Datos del Vecino</CardTitle>
+            <CardDescription>
+              Modifique los datos del vecino según sea necesario
+            </CardDescription>
           </CardHeader>
-          
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre</Label>
-                <Input
-                  id="nombre"
-                  name="nombre"
-                  placeholder="Nombre"
-                  value={formData.nombre}
-                  onChange={handleChange}
-                />
-                {formErrors.nombre && <p className="text-sm text-red-500">{formErrors.nombre}</p>}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="apellidos">Apellidos</Label>
-                <Input
-                  id="apellidos"
-                  name="apellidos"
-                  placeholder="Apellidos"
-                  value={formData.apellidos}
-                  onChange={handleChange}
-                />
-                {formErrors.apellidos && <p className="text-sm text-red-500">{formErrors.apellidos}</p>}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="dni">DNI</Label>
-                <Input
-                  id="dni"
-                  name="dni"
-                  placeholder="12345678"
-                  maxLength={8}
-                  value={formData.dni}
-                  onChange={handleChange}
-                />
-                {formErrors.dni && <p className="text-sm text-red-500">{formErrors.dni}</p>}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="telefono">Teléfono</Label>
-                <Input
-                  id="telefono"
-                  name="telefono"
-                  placeholder="987-654-321"
-                  value={formData.telefono}
-                  onChange={handleChange}
-                />
-                {formErrors.telefono && <p className="text-sm text-red-500">{formErrors.telefono}</p>}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="correo@ejemplo.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                />
-                {formErrors.email && <p className="text-sm text-red-500">{formErrors.email}</p>}
-              </div>
-              
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="direccion">Dirección</Label>
-                <Input
-                  id="direccion"
-                  name="direccion"
-                  placeholder="Av. Principal 123, San Miguel"
-                  value={formData.direccion}
-                  onChange={handleChange}
-                />
-                {formErrors.direccion && <p className="text-sm text-red-500">{formErrors.direccion}</p>}
+            {/* Datos personales */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Datos Personales</h3>
+              <Separator />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre</Label>
+                  <Input
+                    id="nombre"
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    placeholder="Ingrese el nombre"
+                  />
+                  {formErrors.nombre && (
+                    <p className="text-sm text-red-500">{formErrors.nombre}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="apellidos">Apellidos</Label>
+                  <Input
+                    id="apellidos"
+                    name="apellidos"
+                    value={formData.apellidos}
+                    onChange={handleChange}
+                    placeholder="Ingrese los apellidos"
+                  />
+                  {formErrors.apellidos && (
+                    <p className="text-sm text-red-500">{formErrors.apellidos}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dni">DNI</Label>
+                  <Input
+                    id="dni"
+                    name="dni"
+                    value={formData.dni}
+                    onChange={handleChange}
+                    placeholder="Ingrese el DNI"
+                    maxLength={8}
+                  />
+                  {formErrors.dni && (
+                    <p className="text-sm text-red-500">{formErrors.dni}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Input
+                    id="telefono"
+                    name="telefono"
+                    value={formData.telefono}
+                    onChange={handleChange}
+                    placeholder="Ingrese el teléfono"
+                  />
+                  {formErrors.telefono && (
+                    <p className="text-sm text-red-500">{formErrors.telefono}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="Ingrese el email"
+                  />
+                  {formErrors.email && (
+                    <p className="text-sm text-red-500">{formErrors.email}</p>
+                  )}
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="direccion">Dirección</Label>
+                  <Input
+                    id="direccion"
+                    name="direccion"
+                    value={formData.direccion}
+                    onChange={handleChange}
+                    placeholder="Ingrese la dirección"
+                  />
+                  {formErrors.direccion && (
+                    <p className="text-sm text-red-500">{formErrors.direccion}</p>
+                  )}
+                </div>
               </div>
             </div>
-            
-            <div className="border-t pt-4">
-              <div className="flex items-center space-x-2 mb-4">
+
+            {/* Datos de acceso */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="changePassword"
-                  className="h-4 w-4 rounded border-gray-300 text-[#0cb7f2] focus:ring-[#0cb7f2]"
                   checked={changePassword}
                   onChange={(e) => setChangePassword(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <Label htmlFor="changePassword" className="text-base font-medium">
-                  Cambiar contraseña
-                </Label>
+                <Label htmlFor="changePassword">Cambiar contraseña</Label>
               </div>
               
               {changePassword && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="password">Nueva contraseña</Label>
+                    <Label htmlFor="password">Nueva Contraseña</Label>
                     <Input
                       id="password"
                       name="password"
                       type="password"
-                      placeholder="********"
                       value={formData.password}
                       onChange={handleChange}
+                      placeholder="Ingrese la nueva contraseña"
                     />
-                    {formErrors.password && <p className="text-sm text-red-500">{formErrors.password}</p>}
+                    {formErrors.password && (
+                      <p className="text-sm text-red-500">{formErrors.password}</p>
+                    )}
                   </div>
-                  
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                    <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
                     <Input
                       id="confirmPassword"
                       name="confirmPassword"
                       type="password"
-                      placeholder="********"
                       value={formData.confirmPassword}
                       onChange={handleChange}
+                      placeholder="Confirme la nueva contraseña"
                     />
-                    {formErrors.confirmPassword && <p className="text-sm text-red-500">{formErrors.confirmPassword}</p>}
+                    {formErrors.confirmPassword && (
+                      <p className="text-sm text-red-500">{formErrors.confirmPassword}</p>
+                    )}
                   </div>
                 </div>
               )}
             </div>
           </CardContent>
-          
-          <CardFooter className="flex justify-end">
-            <Button className="bg-[#0cb7f2] hover:bg-[#53d4ff]" disabled={isSubmitting}>
+          <CardFooter className="flex justify-end gap-4">
+            <Button variant="outline" asChild>
+              <Link href="/superadmin/usuarios/vecinos">Cancelar</Link>
+            </Button>
+            <Button
+              type="submit"
+              className="bg-[#0cb7f2] hover:bg-[#53d4ff]"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Guardando...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Guardar cambios
+                  <Save className="mr-2 h-4 w-4" />
+                  Guardar Cambios
                 </>
               )}
             </Button>

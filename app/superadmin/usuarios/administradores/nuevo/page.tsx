@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, FormEvent, ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,11 +10,31 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
+interface FormData {
+  nombre: string
+  apellidos: string
+  email: string
+  telefono: string
+  direccion: string
+  password: string
+  confirmPassword: string
+}
+
+interface FormErrors {
+  nombre?: string
+  apellidos?: string
+  email?: string
+  telefono?: string
+  direccion?: string
+  password?: string
+  confirmPassword?: string
+}
+
 export default function NuevoAdministradorPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     nombre: "",
     apellidos: "",
     email: "",
@@ -23,9 +43,9 @@ export default function NuevoAdministradorPage() {
     password: "",
     confirmPassword: ""
   })
-  const [formErrors, setFormErrors] = useState({})
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -33,7 +53,7 @@ export default function NuevoAdministradorPage() {
     }))
     
     // Limpiar error cuando el usuario modifica el campo
-    if (formErrors[name]) {
+    if (formErrors[name as keyof FormErrors]) {
       setFormErrors((prev) => ({
         ...prev,
         [name]: null
@@ -42,7 +62,7 @@ export default function NuevoAdministradorPage() {
   }
 
   const validateForm = () => {
-    const errors = {}
+    const errors: FormErrors = {}
     
     if (!formData.nombre.trim()) {
       errors.nombre = "El nombre es obligatorio"
@@ -78,8 +98,7 @@ export default function NuevoAdministradorPage() {
     
     return errors
   }
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     
     const errors = validateForm()
@@ -90,17 +109,41 @@ export default function NuevoAdministradorPage() {
     
     setIsSubmitting(true)
     
-    // Simulación de envío al servidor
-    setTimeout(() => {
-      setIsSubmitting(false)
-      
+    try {
+      const response = await fetch('/api/usuarios/administradores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          apellidos: formData.apellidos,
+          email: formData.email,
+          telefono: formData.telefono,
+          direccion: formData.direccion,
+          password: formData.password,
+          role_id: 2 // ID para rol de administrador
+        }),
+      })
+
+      if (!response.ok) throw new Error('Error al crear el administrador')
+
       toast({
         title: "Administrador creado",
         description: `${formData.nombre} ${formData.apellidos} ha sido añadido como administrador.`,
       })
       
       router.push("/superadmin/usuarios/administradores")
-    }, 1500)
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo crear el administrador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

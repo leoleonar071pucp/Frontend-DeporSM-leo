@@ -10,11 +10,33 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
+interface FormData {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  dni: string;
+  password: string;
+  confirmPassword: string;
+}
+
+interface FormErrors {
+  nombre?: string;
+  apellidos?: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  dni?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
 export default function NuevoVecinoPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     nombre: "",
     apellidos: "",
     email: "",
@@ -24,9 +46,9 @@ export default function NuevoVecinoPage() {
     password: "",
     confirmPassword: ""
   })
-  const [formErrors, setFormErrors] = useState({})
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -34,16 +56,16 @@ export default function NuevoVecinoPage() {
     }))
     
     // Limpiar error cuando el usuario modifica el campo
-    if (formErrors[name]) {
+    if (formErrors[name as keyof FormErrors]) {
       setFormErrors((prev) => ({
         ...prev,
-        [name]: null
+        [name]: undefined
       }))
     }
   }
 
-  const validateForm = () => {
-    const errors = {}
+  const validateForm = (): FormErrors => {
+    const errors: FormErrors = {}
     
     if (!formData.nombre.trim()) {
       errors.nombre = "El nombre es obligatorio"
@@ -86,28 +108,64 @@ export default function NuevoVecinoPage() {
     return errors
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     const errors = validateForm()
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
+      toast({
+        title: "Error de validación",
+        description: "Por favor, revise los campos del formulario",
+        variant: "destructive",
+      })
       return
     }
     
     setIsSubmitting(true)
     
-    // Simulación de envío al servidor
-    setTimeout(() => {
-      setIsSubmitting(false)
-      
-      toast({
-        title: "Vecino creado",
-        description: `${formData.nombre} ${formData.apellidos} ha sido añadido como vecino.`,
+    try {
+      // Preparar datos para el backend
+      const userData = {
+        nombre: formData.nombre,
+        apellidos: formData.apellidos,
+        email: formData.email,
+        telefono: formData.telefono,
+        direccion: formData.direccion,
+        dni: formData.dni,
+        password: formData.password,
+        rol: 4 // Rol de vecino
+      }
+
+      // Enviar datos al backend
+      const response = await fetch("http://localhost:8080/api/usuarios/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
       })
-      
-      router.push("/superadmin/usuarios/vecinos")
-    }, 1500)
+
+      if (response.ok) {
+        toast({
+          title: "Vecino registrado",
+          description: `${formData.nombre} ${formData.apellidos} ha sido registrado como vecino.`,
+        })
+        router.push("/superadmin/usuarios/vecinos")
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Error al registrar el vecino")
+      }
+    } catch (error) {
+      console.error("Error al registrar vecino:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Ocurrió un error al registrar el vecino",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -129,7 +187,7 @@ export default function NuevoVecinoPage() {
         <Card>
           <CardHeader>
             <CardTitle>Información Personal</CardTitle>
-            <CardDescription>Gestiona tu información personal</CardDescription>
+            <CardDescription>Complete los datos del nuevo vecino</CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-4">

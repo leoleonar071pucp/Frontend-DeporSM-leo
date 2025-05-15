@@ -40,10 +40,17 @@ const nextConfig = {
       {
         source: '/api/mantenimientos/:path*',
         destination: 'http://localhost:8080/api/mantenimientos/:path*',
-      },
-      {
+      },      {
         source: '/api/mantenimientos',
         destination: 'http://localhost:8080/api/mantenimientos',
+      },
+      {
+        source: '/api/usuarios/:path*',
+        destination: 'http://localhost:8080/api/usuarios/:path*',
+      },
+      {
+        source: '/api/usuarios',
+        destination: 'http://localhost:8080/api/usuarios',
       },
     ]
   },

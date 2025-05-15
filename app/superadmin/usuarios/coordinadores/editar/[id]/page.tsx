@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import React from "react"
+import { useState, useEffect, FormEvent, ChangeEvent } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,51 +11,16 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
-// Datos de ejemplo para los coordinadores (simula la base de datos)
-const coordinadoresData = [
-  {
-    id: 1,
-    nombre: "Roberto",
-    apellidos: "Gómez",
-    email: "roberto.gomez@munisanmiguel.gob.pe",
-    telefono: "987-654-326",
-    direccion: "Av. Los Patriotas 321, San Miguel",
-    facilities: [1, 2],
-    status: "activo",
-  },
-  {
-    id: 2,
-    nombre: "Claudia",
-    apellidos: "Fuentes",
-    email: "claudia.fuentes@munisanmiguel.gob.pe",
-    telefono: "987-654-327",
-    direccion: "Jr. Las Margaritas 456, San Miguel",
-    facilities: [3, 4],
-    status: "activo",
-  },
-  {
-    id: 3,
-    nombre: "Jorge",
-    apellidos: "Ramírez",
-    email: "jorge.ramirez@munisanmiguel.gob.pe",
-    telefono: "987-654-328",
-    direccion: "Calle Los Jazmines 789, San Miguel",
-    facilities: [5],
-    status: "inactivo",
-  },
-  {
-    id: 4,
-    nombre: "Patricia",
-    apellidos: "Medina",
-    email: "patricia.medina@munisanmiguel.gob.pe",
-    telefono: "987-654-329",
-    direccion: "Av. La Marina 1234, San Miguel",
-    facilities: [6, 7],
-    status: "activo",
-  },
-]
+interface FormData {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  password: string;
+  confirmPassword: string;
+}
 
-// Definición del tipo para los errores del formulario
 interface FormErrors {
   nombre?: string;
   apellidos?: string;
@@ -63,16 +29,16 @@ interface FormErrors {
   direccion?: string;
   password?: string;
   confirmPassword?: string;
-  [key: string]: string | undefined;
 }
 
-export default function EditarCoordinadorPage({ params }: { params: { id: string } }) {
+export default function EditarCoordinadorPage() {
+  const params = useParams()
   const id = params.id
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     nombre: "",
     apellidos: "",
     email: "",
@@ -85,47 +51,53 @@ export default function EditarCoordinadorPage({ params }: { params: { id: string
   const [changePassword, setChangePassword] = useState(false)
 
   useEffect(() => {
-    // Simulando la obtención de datos del servidor
-    const fetchData = () => {
-      setTimeout(() => {
-        const numericId = parseInt(id, 10)
-        const coordinador = coordinadoresData.find(c => c.id === numericId)
-        
-        if (coordinador) {
-          setFormData({
-            nombre: coordinador.nombre,
-            apellidos: coordinador.apellidos,
-            email: coordinador.email,
-            telefono: coordinador.telefono,
-            direccion: coordinador.direccion,
-            password: "",
-            confirmPassword: "",
-          })
-        } else {
-          toast({
-            title: "Error",
-            description: "No se encontró el coordinador solicitado",
-            variant: "destructive"
-          })
-          router.push("/superadmin/usuarios/coordinadores")
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`http://localhost:8080/api/usuarios/coordinadores/${id}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        if (!response.ok) {
+          const error = await response.text()
+          throw new Error(error || 'Error al obtener el coordinador')
         }
-        
+
+        const coordinador = await response.json()
+        setFormData({
+          nombre: coordinador.nombre,
+          apellidos: coordinador.apellidos,
+          email: coordinador.email,
+          telefono: coordinador.telefono,
+          direccion: coordinador.direccion,
+          password: "",
+          confirmPassword: "",
+        })
+      } catch (error) {
+        console.error('Error:', error)
+        toast({
+          title: "Error",
+          description: "No se pudo obtener la información del coordinador",
+          variant: "destructive"
+        })
+        router.push("/superadmin/usuarios/coordinadores")
+      } finally {
         setIsLoading(false)
-      }, 800)
+      }
     }
 
     fetchData()
   }, [id, router, toast])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
       [name]: value
     }))
     
-    // Limpiar error cuando el usuario modifica el campo
-    if (formErrors[name]) {
+    if (formErrors[name as keyof FormErrors]) {
       setFormErrors((prev) => ({
         ...prev,
         [name]: undefined
@@ -158,7 +130,6 @@ export default function EditarCoordinadorPage({ params }: { params: { id: string
       errors.direccion = "La dirección es obligatoria"
     }
     
-    // Validar contraseña solo si se ha marcado la opción de cambiar contraseña
     if (changePassword) {
       if (!formData.password) {
         errors.password = "La contraseña es obligatoria"
@@ -174,7 +145,7 @@ export default function EditarCoordinadorPage({ params }: { params: { id: string
     return errors
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     
     const errors = validateForm()
@@ -185,10 +156,30 @@ export default function EditarCoordinadorPage({ params }: { params: { id: string
     
     setIsSubmitting(true)
     
-    // Simulación de envío al servidor
-    setTimeout(() => {
-      setIsSubmitting(false)
-      
+    try {
+      const body = {
+        nombre: formData.nombre,
+        apellidos: formData.apellidos,
+        email: formData.email,
+        telefono: formData.telefono,
+        direccion: formData.direccion,
+        ...(changePassword && { password: formData.password })
+      }
+
+      const response = await fetch(`http://localhost:8080/api/usuarios/coordinadores/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      })
+
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(error || 'Error al actualizar el coordinador')
+      }
+
       const successMessage = changePassword 
         ? `Los datos y la contraseña de ${formData.nombre} ${formData.apellidos} han sido actualizados.`
         : `Los datos de ${formData.nombre} ${formData.apellidos} han sido actualizados.`
@@ -199,7 +190,16 @@ export default function EditarCoordinadorPage({ params }: { params: { id: string
       })
       
       router.push("/superadmin/usuarios/coordinadores")
-    }, 1500)
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el coordinador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (isLoading) {

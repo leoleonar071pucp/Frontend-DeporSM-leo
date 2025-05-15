@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,65 +32,6 @@ interface Vecino {
   address: string;
 }
 
-// Datos de ejemplo para los vecinos
-const vecinosData: Vecino[] = [
-  {
-    id: 1,
-    name: "Juan Pérez García",
-    email: "juan.perez@example.com",
-    phone: "987-654-321",
-    dni: "12345678",
-    status: "activo",
-    lastLogin: "05/04/2025, 09:15",
-    reservations: 3,
-    address: "Av. Costanera 2345, San Miguel",
-  },
-  {
-    id: 2,
-    name: "María López Rodríguez",
-    email: "maria.lopez@example.com",
-    phone: "987-654-322",
-    dni: "87654321",
-    status: "activo",
-    lastLogin: "04/04/2025, 14:30",
-    reservations: 1,
-    address: "Jr. Los Pinos 456, San Miguel",
-  },
-  {
-    id: 3,
-    name: "Carlos Rodríguez Martínez",
-    email: "carlos.rodriguez@example.com",
-    phone: "987-654-323",
-    dni: "23456789",
-    status: "inactivo",
-    lastLogin: "01/04/2025, 10:45",
-    reservations: 0,
-    address: "Calle Las Flores 789, San Miguel",
-  },
-  {
-    id: 4,
-    name: "Ana Martínez López",
-    email: "ana.martinez@example.com",
-    phone: "987-654-324",
-    dni: "34567890",
-    status: "activo",
-    lastLogin: "03/04/2025, 16:20",
-    reservations: 2,
-    address: "Av. La Marina 1234, San Miguel",
-  },
-  {
-    id: 5,
-    name: "Pedro Sánchez García",
-    email: "pedro.sanchez@example.com",
-    phone: "987-654-325",
-    dni: "45678901",
-    status: "activo",
-    lastLogin: "02/04/2025, 11:10",
-    reservations: 5,
-    address: "Jr. Libertad 567, San Miguel",
-  },
-]
-
 export default function VecinosPage() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
@@ -99,7 +40,43 @@ export default function VecinosPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false)
   const [selectedVecino, setSelectedVecino] = useState<Vecino | null>(null)
-  const [vecinos, setVecinos] = useState<Vecino[]>(vecinosData)
+  const [vecinos, setVecinos] = useState<Vecino[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch vecinos from the API when the component mounts
+  useEffect(() => {
+    const fetchVecinos = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/usuarios/allVecinos");
+        const data = await response.json();
+        console.log("🔍 DATA RECIBIDA DEL BACKEND:", data);
+        
+        // Process the data to format it as expected
+        const processedData = data.map((vecino: any) => ({
+          id: vecino.id,
+          name: vecino.nombre,
+          email: vecino.email,
+          phone: vecino.telefono,
+          dni: vecino.dni || '',
+          status: vecino.estado || "activo",
+          lastLogin: vecino.ultimoAcceso || "-",
+          reservations: vecino.reservas || 0,
+          address: vecino.direccion || ''
+        }));
+        setVecinos(processedData);
+      } catch (error) {
+        console.error("Error fetching vecinos:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los vecinos. Por favor, intente nuevamente.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchVecinos();
+  }, [toast]);
 
   const filteredVecinos = vecinos.filter((vecino) => {
     // Filtro de búsqueda
@@ -129,39 +106,77 @@ export default function VecinosPage() {
     setIsDetailsDialogOpen(true)
   }
 
-  const handleDeleteConfirm = () => {
-    // Implementar soft delete: cambiar estado a inactivo
+  const handleDeleteConfirm = async () => {
     if (selectedVecino) {
-      setVecinos(
-        vecinos.map((vecino) =>
-          vecino.id === selectedVecino.id ? { ...vecino, status: "inactivo", reservations: 0 } : vecino
-        )
-      )
-      
-      toast({
-        title: "Usuario desactivado",
-        description: `El vecino ${selectedVecino.name} ha sido desactivado y sus reservas canceladas.`,
-      })
+      try {
+        const response = await fetch(`http://localhost:8080/api/usuarios/${selectedVecino.id}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setVecinos(
+            vecinos.map((vecino) =>
+              vecino.id === selectedVecino.id ? { ...vecino, status: "inactivo", reservations: 0 } : vecino
+            )
+          );
+          
+          toast({
+            title: "Usuario desactivado",
+            description: `El vecino ${selectedVecino.name} ha sido desactivado y sus reservas canceladas.`,
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "No se pudo desactivar el vecino. Por favor, intente nuevamente.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error al desactivar vecino:", error);
+        toast({
+          title: "Error",
+          description: "Ocurrió un error al intentar desactivar el vecino.",
+          variant: "destructive",
+        });
+      }
     }
-    
     setIsDeleteDialogOpen(false)
   }
 
-  const handleRestoreConfirm = () => {
-    // Restaurar usuario: cambiar estado a activo
+  const handleRestoreConfirm = async () => {
     if (selectedVecino) {
-      setVecinos(
-        vecinos.map((vecino) =>
-          vecino.id === selectedVecino.id ? { ...vecino, status: "activo" } : vecino
-        )
-      )
-      
-      toast({
-        title: "Usuario activado",
-        description: `El vecino ${selectedVecino.name} ha sido activado nuevamente.`,
-      })
+      try {
+        const response = await fetch(`http://localhost:8080/api/usuarios/${selectedVecino.id}/restore`, {
+          method: 'POST',
+        });
+
+        if (response.ok) {
+          setVecinos(
+            vecinos.map((vecino) =>
+              vecino.id === selectedVecino.id ? { ...vecino, status: "activo" } : vecino
+            )
+          );
+          
+          toast({
+            title: "Usuario activado",
+            description: `El vecino ${selectedVecino.name} ha sido activado nuevamente.`,
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "No se pudo activar el vecino. Por favor, intente nuevamente.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error al activar vecino:", error);
+        toast({
+          title: "Error",
+          description: "Ocurrió un error al intentar activar el vecino.",
+          variant: "destructive",
+        });
+      }
     }
-    
     setIsRestoreDialogOpen(false)
   }
   
@@ -224,7 +239,13 @@ export default function VecinosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredVecinos.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">
+                      Cargando vecinos...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredVecinos.length > 0 ? (
                   filteredVecinos.map((vecino) => (
                     <TableRow key={vecino.id}>
                       <TableCell className="font-medium">{vecino.name}</TableCell>
@@ -300,97 +321,54 @@ export default function VecinosPage() {
             <DialogTitle>Detalles del Vecino</DialogTitle>
           </DialogHeader>
           {selectedVecino && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Nombre</p>
-                  <p className="mt-1">{selectedVecino.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">DNI</p>
-                  <p className="mt-1">{selectedVecino.dni}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Email</p>
-                  <p className="mt-1">{selectedVecino.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Teléfono</p>
-                  <p className="mt-1">{selectedVecino.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Estado</p>
-                  <div className="mt-1">
-                    {selectedVecino.status === "activo" ? (
-                      <Badge className="bg-[#def7ff] text-[#0cb7f2]">Activo</Badge>
-                    ) : (
-                      <Badge className="bg-gray-100 text-gray-800">Inactivo</Badge>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Último acceso</p>
-                  <p className="mt-1">{selectedVecino.lastLogin}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Reservas</p>
-                  <p className="mt-1">{selectedVecino.reservations}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm font-medium text-gray-500">Dirección</p>
-                  <p className="mt-1">{selectedVecino.address}</p>
-                </div>
+            <div className="grid gap-4">
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm">Nombre completo</h4>
+                <p className="text-sm text-muted-foreground">{selectedVecino.name}</p>
               </div>
-              
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  className="text-blue-500"
-                  asChild
-                >
-                  <Link href={`/superadmin/usuarios/vecinos/editar/${selectedVecino.id}`}>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Editar
-                  </Link>
-                </Button>
-                {selectedVecino.status === "activo" ? (
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => {
-                      setIsDetailsDialogOpen(false)
-                      setIsDeleteDialogOpen(true)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Desactivar
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="default" 
-                    className="bg-green-600 hover:bg-green-700"
-                    onClick={() => {
-                      setIsDetailsDialogOpen(false)
-                      setIsRestoreDialogOpen(true)
-                    }}
-                  >
-                    <UserCheck className="h-4 w-4 mr-2" />
-                    Activar
-                  </Button>
-                )}
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm">Email</h4>
+                <p className="text-sm text-muted-foreground">{selectedVecino.email}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm">DNI</h4>
+                <p className="text-sm text-muted-foreground">{selectedVecino.dni}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm">Teléfono</h4>
+                <p className="text-sm text-muted-foreground">{selectedVecino.phone}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm">Dirección</h4>
+                <p className="text-sm text-muted-foreground">{selectedVecino.address}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm">Último acceso</h4>
+                <p className="text-sm text-muted-foreground">{selectedVecino.lastLogin}</p>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-medium text-sm">Estado</h4>
+                <Badge className={selectedVecino.status === "activo" ? "bg-[#def7ff] text-[#0cb7f2]" : "bg-gray-100 text-gray-800"}>
+                  {selectedVecino.status === "activo" ? "Activo" : "Inactivo"}
+                </Badge>
               </div>
             </div>
           )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de desactivación (soft delete) */}
+      {/* Diálogo de confirmación de eliminación */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar desactivación</DialogTitle>
+            <DialogTitle>Desactivar Vecino</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas desactivar al vecino <span className="font-medium">{selectedVecino?.name}</span>?
-              Esta acción cancelará todas sus reservas activas y no podrá realizar nuevas reservas.
+              ¿Estás seguro de que deseas desactivar a {selectedVecino?.name}? Esta acción también cancelará sus reservas activas.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -403,25 +381,23 @@ export default function VecinosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Diálogo de reactivación */}
+
+      {/* Diálogo de confirmación de restauración */}
       <Dialog open={isRestoreDialogOpen} onOpenChange={setIsRestoreDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar activación</DialogTitle>
+            <DialogTitle>Activar Vecino</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas activar nuevamente al vecino <span className="font-medium">{selectedVecino?.name}</span>?
-              Esto le permitirá acceder al sistema y realizar reservas.
+              ¿Estás seguro de que deseas activar a {selectedVecino?.name}?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsRestoreDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button 
-              variant="default" 
-              className="bg-green-600 hover:bg-green-700" 
+            <Button
               onClick={handleRestoreConfirm}
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               Activar
             </Button>

@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Eye, Trash2, Shield, UserCheck, Pencil } from "lucide-react"
+import { Search, Plus, Eye, Trash2, Shield, UserCheck, Pencil, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -18,46 +18,6 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-// Datos de ejemplo para los administradores
-const administradoresData = [
-  {
-    id: 1,
-    name: "Carlos Mendoza",
-    email: "carlos.mendoza@munisanmiguel.gob.pe",
-    phone: "987-654-321",
-    status: "activo",
-    lastLogin: "05/04/2025, 09:15",
-    role: "Administrador",
-  },
-  {
-    id: 2,
-    name: "Ana Rodríguez",
-    email: "ana.rodriguez@munisanmiguel.gob.pe",
-    phone: "987-654-322",
-    status: "activo",
-    lastLogin: "04/04/2025, 14:30",
-    role: "Administrador",
-  },
-  {
-    id: 3,
-    name: "Luis Torres",
-    email: "luis.torres@munisanmiguel.gob.pe",
-    phone: "987-654-323",
-    status: "inactivo",
-    lastLogin: "01/04/2025, 10:45",
-    role: "Administrador",
-  },
-  {
-    id: 4,
-    name: "Sofía Cárdenas",
-    email: "sofia.cardenas@munisanmiguel.gob.pe",
-    phone: "987-654-324",
-    status: "activo",
-    lastLogin: "03/04/2025, 16:20",
-    role: "Administrador",
-  },
-]
 
 // Definición de tipos
 interface Admin {
@@ -78,7 +38,44 @@ export default function AdministradoresPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false)
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null)
-  const [admins, setAdmins] = useState<Admin[]>(administradoresData)
+  const [admins, setAdmins] = useState<Admin[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchAdministradores = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/usuarios/allAdministradores', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+        if (!response.ok) throw new Error('Error al cargar los administradores')
+        const data = await response.json()
+        
+        setAdmins(data.map((admin: { id: number; nombre: string; email: string; telefono: string; estado: number }) => ({
+          id: admin.id,
+          name: admin.nombre,
+          email: admin.email,
+          phone: admin.telefono,
+          status: admin.estado === 1 ? 'activo' : 'inactivo',
+          lastLogin: '---', 
+          role: 'Administrador'
+        })))
+      } catch (error) {
+        console.error('Error:', error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los administradores. Por favor, intente nuevamente.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchAdministradores()
+  }, [toast])
 
   const filteredAdmins = admins.filter((admin) => {
     // Filtro de búsqueda
@@ -106,10 +103,21 @@ export default function AdministradoresPage() {
     setSelectedAdmin(admin)
     setIsRestoreDialogOpen(true)
   }
-
-  const handleDeleteConfirm = () => {
-    // Implementar soft delete: cambiar estado a inactivo
-    if (selectedAdmin) {
+  const handleDeleteConfirm = async () => {
+    if (!selectedAdmin) return
+      try {      const response = await fetch(`http://localhost:8080/api/usuarios/administradores/${selectedAdmin.id}/desactivar`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(error || 'Error al desactivar el administrador')
+      }
+      
       setAdmins(
         admins.map((admin) =>
           admin.id === selectedAdmin.id ? { ...admin, status: "inactivo" } : admin
@@ -120,14 +128,32 @@ export default function AdministradoresPage() {
         title: "Administrador desactivado",
         description: `El administrador ${selectedAdmin.name} ha sido desactivado con éxito.`,
       })
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo desactivar el administrador",
+        variant: "destructive",
+      })
     }
     
     setIsDeleteDialogOpen(false)
   }
-  
-  const handleRestoreConfirm = () => {
-    // Restaurar administrador: cambiar estado a activo
-    if (selectedAdmin) {
+  const handleRestoreConfirm = async () => {
+    if (!selectedAdmin) return
+      try {      const response = await fetch(`http://localhost:8080/api/usuarios/administradores/${selectedAdmin.id}/activar`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(error || 'Error al activar el administrador')
+      }
+      
       setAdmins(
         admins.map((admin) =>
           admin.id === selectedAdmin.id ? { ...admin, status: "activo" } : admin
@@ -138,9 +164,25 @@ export default function AdministradoresPage() {
         title: "Administrador activado",
         description: `El administrador ${selectedAdmin.name} ha sido activado nuevamente.`,
       })
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo activar el administrador",
+        variant: "destructive",
+      })
     }
     
     setIsRestoreDialogOpen(false)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[500px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0cb7f2]" />
+        <span className="ml-2">Cargando administradores...</span>
+      </div>
+    )
   }
 
   return (
@@ -189,92 +231,96 @@ export default function AdministradoresPage() {
             </div>
           </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Último Acceso</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAdmins.length > 0 ? (
-                  filteredAdmins.map((admin) => (
-                    <TableRow key={admin.id}>
-                      <TableCell className="font-medium">{admin.name}</TableCell>
-                      <TableCell>{admin.email}</TableCell>
-                      <TableCell>{admin.phone}</TableCell>
-                      <TableCell>
-                        {admin.status === "activo" ? (
-                          <Badge className="bg-[#def7ff] text-[#0cb7f2]">Activo</Badge>
-                        ) : (
-                          <Badge className="bg-gray-100 text-gray-800">Inactivo</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{admin.lastLogin}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => handleViewDetails(admin)}
-                          >
-                            <Eye className="h-4 w-4" />
-                            <span className="sr-only">Ver detalles</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-blue-500"
-                            asChild
-                          >
-                            <Link href={`/superadmin/usuarios/administradores/editar/${admin.id}`}>
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Editar</span>
-                            </Link>
-                          </Button>
-                          {admin.status === "activo" ? (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="text-red-500"
-                              onClick={() => handleDeleteClick(admin)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Desactivar</span>
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="text-green-500"
-                              onClick={() => handleRestoreClick(admin)}
-                            >
-                              <UserCheck className="h-4 w-4" />
-                              <span className="sr-only">Activar</span>
-                            </Button>
-                          )}
-                        </div>
+          {admins.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Shield className="h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium">No hay administradores registrados</h3>
+              <p className="text-sm text-gray-500 text-center mt-1">
+                Comienza agregando un nuevo administrador usando el botón "Agregar Administrador".
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Teléfono</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAdmins.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-6">
+                        <Search className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">
+                          No se encontraron resultados para tu búsqueda
+                        </p>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">
-                      No se encontraron administradores
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    filteredAdmins.map((admin) => (
+                      <TableRow key={admin.id}>
+                        <TableCell className="font-medium">{admin.name}</TableCell>
+                        <TableCell>{admin.email}</TableCell>
+                        <TableCell>{admin.phone}</TableCell>
+                        <TableCell>
+                          {admin.status === "activo" ? (
+                            <Badge className="bg-[#def7ff] text-[#0cb7f2]">Activo</Badge>
+                          ) : (
+                            <Badge className="bg-gray-100 text-gray-800">Inactivo</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleViewDetails(admin)}
+                            >
+                              <Eye className="h-4 w-4 text-gray-500" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                            >
+                              <Link href={`/superadmin/usuarios/administradores/editar/${admin.id}`}>
+                                <Pencil className="h-4 w-4 text-gray-500" />
+                              </Link>
+                            </Button>
+                            {admin.status === "activo" ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(admin)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRestoreClick(admin)}
+                              >
+                                <UserCheck className="h-4 w-4 text-green-500" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
-      
+
       {/* Diálogo de detalles */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
         <DialogContent className="max-w-md">
@@ -318,7 +364,7 @@ export default function AdministradoresPage() {
                   <p className="mt-1">{selectedAdmin.lastLogin}</p>
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button
                   variant="outline"
@@ -381,7 +427,7 @@ export default function AdministradoresPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Diálogo de reactivación */}
       <Dialog open={isRestoreDialogOpen} onOpenChange={setIsRestoreDialogOpen}>
         <DialogContent>

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import React from "react"
+import { useState, FormEvent, ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,7 +11,16 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
-// Definición del tipo para los errores del formulario
+interface FormData {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  password: string;
+  confirmPassword: string;
+}
+
 interface FormErrors {
   nombre?: string;
   apellidos?: string;
@@ -19,33 +29,31 @@ interface FormErrors {
   direccion?: string;
   password?: string;
   confirmPassword?: string;
-  [key: string]: string | undefined;
 }
 
 export default function NuevoCoordinadorPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     nombre: "",
     apellidos: "",
     email: "",
     telefono: "",
     direccion: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   })
   const [formErrors, setFormErrors] = useState<FormErrors>({})
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
       [name]: value
     }))
     
-    // Limpiar error cuando el usuario modifica el campo
-    if (formErrors[name]) {
+    if (formErrors[name as keyof FormErrors]) {
       setFormErrors((prev) => ({
         ...prev,
         [name]: undefined
@@ -77,7 +85,7 @@ export default function NuevoCoordinadorPage() {
     if (!formData.direccion.trim()) {
       errors.direccion = "La dirección es obligatoria"
     }
-    
+
     if (!formData.password) {
       errors.password = "La contraseña es obligatoria"
     } else if (formData.password.length < 6) {
@@ -91,7 +99,7 @@ export default function NuevoCoordinadorPage() {
     return errors
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     
     const errors = validateForm()
@@ -102,17 +110,49 @@ export default function NuevoCoordinadorPage() {
     
     setIsSubmitting(true)
     
-    // Simulación de envío al servidor
-    setTimeout(() => {
-      setIsSubmitting(false)
-      
+    try {
+      const response = await fetch("http://localhost:8080/api/usuarios/coordinadores", {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          apellidos: formData.apellidos,
+          email: formData.email,
+          telefono: formData.telefono,
+          direccion: formData.direccion,
+          password: formData.password,
+          rol: {
+            id: 3, // ID para el rol de coordinador
+            nombre: "coordinador"
+          },
+          activo: true
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(error || 'Error al crear el coordinador')
+      }
+
       toast({
         title: "Coordinador creado",
-        description: `${formData.nombre} ${formData.apellidos} ha sido añadido como coordinador.`,
+        description: `El coordinador ${formData.nombre} ${formData.apellidos} ha sido creado exitosamente.`,
       })
       
       router.push("/superadmin/usuarios/coordinadores")
-    }, 1500)
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo crear el coordinador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -120,7 +160,7 @@ export default function NuevoCoordinadorPage() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Nuevo Coordinador</h1>
-          <p className="text-muted-foreground">Crea un nuevo usuario con rol de coordinador de instalaciones</p>
+          <p className="text-muted-foreground">Crea un nuevo coordinador en el sistema</p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/superadmin/usuarios/coordinadores">
@@ -134,10 +174,10 @@ export default function NuevoCoordinadorPage() {
         <Card>
           <CardHeader>
             <CardTitle>Información Personal</CardTitle>
-            <CardDescription>Gestiona tu información personal</CardDescription>
+            <CardDescription>Ingresa la información del nuevo coordinador</CardDescription>
           </CardHeader>
           
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="nombre">Nombre</Label>
@@ -199,34 +239,33 @@ export default function NuevoCoordinadorPage() {
                 />
                 {formErrors.direccion && <p className="text-sm text-red-500">{formErrors.direccion}</p>}
               </div>
-            </div>
-            
-            <div className="border-t pt-4">
-              <h3 className="text-lg font-medium mb-4">Credenciales de acceso</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="password">Contraseña</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                  />
-                  {formErrors.password && <p className="text-sm text-red-500">{formErrors.password}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                  />
-                  {formErrors.confirmPassword && <p className="text-sm text-red-500">{formErrors.confirmPassword}</p>}
-                </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="********"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+                {formErrors.password && <p className="text-sm text-red-500">{formErrors.password}</p>}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="********"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                />
+                {formErrors.confirmPassword && (
+                  <p className="text-sm text-red-500">{formErrors.confirmPassword}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -236,12 +275,12 @@ export default function NuevoCoordinadorPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Guardando...
+                  Creando...
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />
-                  Guardar
+                  Crear coordinador
                 </>
               )}
             </Button>
