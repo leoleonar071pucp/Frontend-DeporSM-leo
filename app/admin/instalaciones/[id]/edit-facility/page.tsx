@@ -12,6 +12,20 @@ import { Loader2, CheckCircle, Upload } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from "next/navigation"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+// Estructura para representar un horario disponible
+interface AvailableTimeSlot {
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+}
 
 const supabase = createClient(
   'https://goajrdpkfhunnfuqtoub.supabase.co',
@@ -28,29 +42,63 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
   const [formData, setFormData] = useState<any>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [imageFile, setImageFile] = useState<File | null>(null)
-
+  const [formError, setFormError] = useState<string | null>(null)
+  
+  // Estado para el formulario de horario a añadir
+  const [newTimeSlot, setNewTimeSlot] = useState<AvailableTimeSlot>({
+    dayOfWeek: "LUNES",
+    startTime: "08:00",
+    endTime: "10:00"
+  })
   useEffect(() => {
     const fetchFacility = async () => {
       try {
+        // Obtener los datos básicos de la instalación
         const res = await fetch(`http://localhost:8080/api/instalaciones/${id}`)
         const data = await res.json()
+        
+        // Transformar los datos para el formulario
         const transformed = {
           id: data.id,
           name: data.nombre,
           location: data.ubicacion,
           description: data.descripcion,
           type: data.tipo,
-          price: data.precio.toString(),
+          price: data.precio ? data.precio.toString() : "0.00",
           capacity: data.capacidad.toString(),
           contactNumber: "987654321",
           imagenUrl: data.imagenUrl,
           schedule: `Lunes a Viernes: ${data.horarioApertura} - ${data.horarioCierre}`,
           features: "",
           amenities: "",
-          rules: ""
+          rules: "",
+          availableTimeSlots: []
         }
+        
+        // Establecer los valores iniciales
         setFacility(transformed)
         setFormData(transformed)
+        
+        // Obtener los horarios disponibles
+        try {
+          const horariosRes = await fetch(`http://localhost:8080/api/instalaciones/${id}/horarios-disponibles`)
+          if (horariosRes.ok) {
+            const horariosData = await horariosRes.json()
+            if (Array.isArray(horariosData) && horariosData.length > 0) {
+              // Actualizar el formulario con los horarios obtenidos
+              setFormData((prev: any) => ({
+                ...prev, 
+                availableTimeSlots: horariosData.map((h: any) => ({
+                  dayOfWeek: h.diaSemana,
+                  startTime: h.horaInicio ? h.horaInicio.substring(0, 5) : "08:00",
+                  endTime: h.horaFin ? h.horaFin.substring(0, 5) : "20:00"
+                }))
+              }))
+            }
+          }
+        } catch (horarioError) {
+          console.error("Error al cargar horarios disponibles:", horarioError)
+        }
       } catch (error) {
         console.error("Error al cargar instalación:", error)
       } finally {
@@ -118,18 +166,17 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validateForm()) return
-    setIsSaving(true)
-
-    let uploadedUrl = formData.imagenUrl
+    e.preventDefault();
+    if (!validateForm()) return;
+    setIsSaving(true);
+    
+    let uploadedUrl = formData.imagenUrl;
     if (imageFile) {
-      const url = await uploadImageToSupabase(imageFile)
-      if (url) uploadedUrl = url
+      const url = await uploadImageToSupabase(imageFile);
+      if (url) uploadedUrl = url;
     }
-
+    
     const updatedFacility = {
       nombre: formData.name,
       descripcion: formData.description,
@@ -141,21 +188,39 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
       imagenUrl: uploadedUrl,
       precio: parseFloat(formData.price),
       activo: true
-    }
+    };
 
     try {
+      // Primero actualizamos la información básica de la instalación
       const res = await fetch(`http://localhost:8080/api/instalaciones/${formData.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedFacility)
-      })
-      if (!res.ok) throw new Error("Error al actualizar instalación")
-      setIsSuccess(true)
-      setTimeout(() => router.push("/admin/instalaciones"), 2000)
+      });
+      
+      if (!res.ok) throw new Error("Error al actualizar instalación");
+      
+      // Luego actualizamos los horarios disponibles
+      const horariosDisponibles = (formData.availableTimeSlots || []).map((slot: AvailableTimeSlot) => ({
+        diaSemana: slot.dayOfWeek,
+        horaInicio: `${slot.startTime}:00`,
+        horaFin: `${slot.endTime}:00`
+      }));
+      
+      const horariosRes = await fetch(`http://localhost:8080/api/instalaciones/${formData.id}/horarios-disponibles`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(horariosDisponibles)
+      });
+      
+      if (!horariosRes.ok) throw new Error("Error al actualizar horarios disponibles");
+      
+      setIsSuccess(true);
+      setTimeout(() => router.push("/admin/instalaciones"), 2000);
     } catch (error) {
-      console.error(error)
+      console.error(error);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
   }
 
@@ -194,11 +259,155 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
             <div className="space-y-2">
               <Label>Precio</Label>
               <Input name="price" value={formData.price} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
+            </div>            <div className="space-y-2 md:col-span-2">
               <Label>Horario</Label>
               <Input name="schedule" value={formData.schedule} onChange={handleInputChange} />
             </div>
+            
+            {/* Sección para horarios disponibles */}
+            <div className="space-y-4 md:col-span-2 border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Horarios Disponibles</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="dayOfWeek">Día</Label>
+                  <Select 
+                    value={newTimeSlot.dayOfWeek} 
+                    onValueChange={(value: string) => setNewTimeSlot(prev => ({...prev, dayOfWeek: value}))}
+                  >
+                    <SelectTrigger id="dayOfWeek">
+                      <SelectValue placeholder="Selecciona un día" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LUNES">Lunes</SelectItem>
+                      <SelectItem value="MARTES">Martes</SelectItem>
+                      <SelectItem value="MIERCOLES">Miércoles</SelectItem>
+                      <SelectItem value="JUEVES">Jueves</SelectItem>
+                      <SelectItem value="VIERNES">Viernes</SelectItem>
+                      <SelectItem value="SABADO">Sábado</SelectItem>
+                      <SelectItem value="DOMINGO">Domingo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="startTime">Hora inicio</Label>
+                  <Input 
+                    id="startTime" 
+                    type="time" 
+                    value={newTimeSlot.startTime}
+                    onChange={(e) => setNewTimeSlot(prev => ({...prev, startTime: e.target.value}))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="endTime">Hora fin</Label>
+                  <Input 
+                    id="endTime" 
+                    type="time" 
+                    value={newTimeSlot.endTime}
+                    onChange={(e) => setNewTimeSlot(prev => ({...prev, endTime: e.target.value}))}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    // Validar que no haya solapamiento de horarios
+                    const overlapping = (formData.availableTimeSlots || []).some(
+                      (slot: AvailableTimeSlot) => 
+                        slot.dayOfWeek === newTimeSlot.dayOfWeek && 
+                        ((newTimeSlot.startTime >= slot.startTime && newTimeSlot.startTime < slot.endTime) ||
+                         (newTimeSlot.endTime > slot.startTime && newTimeSlot.endTime <= slot.endTime) ||
+                         (slot.startTime >= newTimeSlot.startTime && slot.startTime < newTimeSlot.endTime))
+                    );
+                    
+                    if (overlapping) {
+                      setFormError("Este horario se solapa con otro ya definido para el mismo día");
+                      return;
+                    }
+                    
+                    // Añadir el nuevo horario
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      availableTimeSlots: [...(prev.availableTimeSlots || []), {...newTimeSlot}]
+                    }));
+                    
+                    // Limpiar error si existe
+                    if (formError) setFormError(null);
+                  }}
+                >
+                  Añadir horario
+                </Button>
+              </div>
+              
+              {formError && (
+                <p className="text-red-500 text-sm mt-1">{formError}</p>
+              )}
+              
+              {formData.availableTimeSlots && formData.availableTimeSlots.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto border rounded-md">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Día</th>
+                        <th className="px-4 py-2 text-left">Hora inicio</th>
+                        <th className="px-4 py-2 text-left">Hora fin</th>
+                        <th className="px-4 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {formData.availableTimeSlots.map((slot: AvailableTimeSlot, index: number) => {
+                        // Convertir el valor del enum a texto legible
+                        const dayName = {
+                          "LUNES": "Lunes",
+                          "MARTES": "Martes",
+                          "MIERCOLES": "Miércoles",
+                          "JUEVES": "Jueves",
+                          "VIERNES": "Viernes",
+                          "SABADO": "Sábado",
+                          "DOMINGO": "Domingo"
+                        }[slot.dayOfWeek] || slot.dayOfWeek;
+                        
+                        return (
+                          <tr key={index}>
+                            <td className="px-4 py-2">{dayName}</td>
+                            <td className="px-4 py-2">{slot.startTime}</td>
+                            <td className="px-4 py-2">{slot.endTime}</td>
+                            <td className="px-4 py-2 text-right">
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                className="h-8 w-8 p-0 text-red-500"
+                                onClick={() => {
+                                  setFormData((prev: any) => ({
+                                    ...prev,
+                                    availableTimeSlots: prev.availableTimeSlots.filter((_: any, i: number) => i !== index)
+                                  }))
+                                }}
+                              >
+                                ✕
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-4 border rounded-md">
+                  No hay horarios disponibles definidos
+                </p>
+              )}
+              <p className="text-xs text-gray-500">Define los horarios en que la instalación estará disponible para reservas</p>
+            </div>
+            
             <div className="space-y-2 md:col-span-2">
               <Label>Descripción</Label>
               <Textarea name="description" value={formData.description} onChange={handleInputChange} />

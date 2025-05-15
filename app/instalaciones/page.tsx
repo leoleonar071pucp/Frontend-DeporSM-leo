@@ -9,89 +9,72 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 
-// Datos de ejemplo para las instalaciones
-const allFacilities = [
-  {
-    id: 1,
-    name: "Piscina Municipal",
-    image: "/placeholder.svg?height=200&width=300",
-    description: "Piscina semiolímpica con carriles para natación y área recreativa",
-    type: "piscina",
-    location: "Complejo Deportivo Municipal",
-    price: "S/. 15.00 por hora",
-  },
-  {
-    id: 2,
-    name: "Cancha de Fútbol (Grass)",
-    image: "/placeholder.svg?height=200&width=300",
-    description: "Cancha de fútbol con grass sintético de última generación",
-    type: "cancha-futbol-grass",
-    location: "Parque Juan Pablo II",
-    price: "S/. 120.00 por hora",
-  },
-  {
-    id: 3,
-    name: "Gimnasio Municipal",
-    image: "/placeholder.svg?height=200&width=300",
-    description: "Gimnasio equipado con máquinas modernas y área de pesas",
-    type: "gimnasio",
-    location: "Complejo Deportivo Municipal",
-    price: "S/. 20.00 por día",
-  },
-  {
-    id: 4,
-    name: "Cancha de Fútbol (Loza)",
-    image: "/placeholder.svg?height=200&width=300",
-    description: "Cancha multifuncional de loza para fútbol y otros deportes",
-    type: "cancha-futbol-loza",
-    location: "Parque Simón Bolívar",
-    price: "S/. 80.00 por hora",
-  },
-  {
-    id: 5,
-    name: "Pista de Atletismo",
-    image: "/placeholder.svg?height=200&width=300",
-    description: "Pista de atletismo profesional con 6 carriles",
-    type: "pista-atletismo",
-    location: "Complejo Deportivo Municipal",
-    price: "S/. 10.00 por hora",
-  },
-  {
-    id: 6,
-    name: "Piscina Recreativa",
-    image: "/placeholder.svg?height=200&width=300",
-    description: "Piscina recreativa para niños y familias",
-    type: "piscina",
-    location: "Complejo Deportivo Municipal",
-    price: "S/. 12.00 por hora",
-  },
-]
+// Tipo para las instalaciones
+interface Facility {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  ubicacion: string;
+  tipo: string;
+  precio: number;
+  imagenUrl: string;
+  activo: boolean;
+}
 
 export default function Instalaciones() {
+  // Estados para la gestión de instalaciones
+  const [allFacilities, setAllFacilities] = useState<Facility[]>([])
+  const [facilities, setFacilities] = useState<Facility[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("todos")
-  const [facilities, setFacilities] = useState(allFacilities)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Cargar instalaciones desde el backend al montar el componente
+  useEffect(() => {
+    const fetchFacilities = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch("http://localhost:8080/api/instalaciones/disponibles")
+        if (!response.ok) {
+          throw new Error(`Error al cargar instalaciones: ${response.status}`)
+        }
+        const data = await response.json()
+        setAllFacilities(data)
+        setFacilities(data)
+        console.log("Instalaciones cargadas:", data);
+      } catch (err) {
+        console.error("Error cargando instalaciones:", err)
+        setError("No se pudieron cargar las instalaciones. Por favor, inténtalo de nuevo más tarde.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchFacilities()
+  }, [])
 
   // Función para filtrar instalaciones según la búsqueda y la pestaña activa
   const filterFacilities = () => {
-    let filtered = allFacilities
+    let filtered = [...allFacilities]
 
     // Filtrar por búsqueda si hay una consulta
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
         (facility) =>
-          facility.name.toLowerCase().includes(query) ||
-          facility.description.toLowerCase().includes(query) ||
-          facility.location.toLowerCase().includes(query),
+          facility.nombre.toLowerCase().includes(query) ||
+          facility.descripcion.toLowerCase().includes(query) ||
+          facility.ubicacion.toLowerCase().includes(query)
       )
     }
 
     // Filtrar por tipo si no es la pestaña "todos"
     if (activeTab !== "todos") {
-      filtered = filtered.filter((facility) => facility.type.includes(activeTab))
+      filtered = filtered.filter((facility) => facility.tipo.toLowerCase().includes(activeTab.toLowerCase()))
     }
 
     setFacilities(filtered)
@@ -100,12 +83,20 @@ export default function Instalaciones() {
   // Actualizar los resultados cuando cambia la pestaña
   useEffect(() => {
     filterFacilities()
-  }, [activeTab])
+  }, [activeTab, allFacilities]) // Añadimos allFacilities como dependencia para reaccionar a la carga inicial
 
   // Manejar la búsqueda
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     filterFacilities()
+  }
+
+  // Función para formatear el precio
+  const formatPrice = (price: number, tipo: string) => {
+    if (tipo.toLowerCase().includes('gimnasio')) {
+      return `S/. ${price.toFixed(2)} por día`
+    }
+    return `S/. ${price.toFixed(2)} por hora`
   }
 
   return (
@@ -134,30 +125,45 @@ export default function Instalaciones() {
             <TabsList className="grid grid-cols-2 md:grid-cols-6 mb-6">
               <TabsTrigger value="todos">Todos</TabsTrigger>
               <TabsTrigger value="piscina">Piscinas</TabsTrigger>
-              <TabsTrigger value="cancha-futbol">Canchas</TabsTrigger>
+              <TabsTrigger value="cancha">Canchas</TabsTrigger>
               <TabsTrigger value="gimnasio">Gimnasio</TabsTrigger>
-              <TabsTrigger value="pista-atletismo">Pista Atletismo</TabsTrigger>
+              <TabsTrigger value="pista">Pista Atletismo</TabsTrigger>
               <TabsTrigger value="otros">Otros</TabsTrigger>
             </TabsList>
 
             <TabsContent value="todos" className="mt-0">
-              {facilities.length > 0 ? (
+              {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+              ) : error ? (
+                <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
+                  <p>{error}</p>
+                  <Button 
+                    onClick={() => window.location.reload()} 
+                    variant="outline" 
+                    className="mt-4"
+                  >
+                    Reintentar
+                  </Button>
+                </div>
+              ) : facilities.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {facilities.map((facility) => (
                     <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                       <img
-                        src={facility.image || "/placeholder.svg"}
-                        alt={facility.name}
+                        src={facility.imagenUrl || "/placeholder.svg?height=200&width=300"}
+                        alt={facility.nombre}
                         className="w-full h-48 object-cover"
                       />
                       <CardContent className="p-4">
-                        <h3 className="font-bold text-lg mb-2">{facility.name}</h3>
-                        <p className="text-gray-600 text-sm mb-2">{facility.description}</p>
+                        <h3 className="font-bold text-lg mb-2">{facility.nombre}</h3>
+                        <p className="text-gray-600 text-sm mb-2">{facility.descripcion}</p>
                         <p className="text-gray-700 text-sm mb-1">
-                          <strong>Ubicación:</strong> {facility.location}
+                          <strong>Ubicación:</strong> {facility.ubicacion}
                         </p>
                         <p className="text-gray-700 text-sm mb-4">
-                          <strong>Precio:</strong> {facility.price}
+                          <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
                         </p>
                         <Button asChild className="w-full bg-primary hover:bg-primary-light">
                           <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
@@ -167,68 +173,31 @@ export default function Instalaciones() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">No se encontraron instalaciones que coincidan con tu búsqueda.</p>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchQuery("")
-                      setFacilities(allFacilities)
-                    }}
-                  >
-                    Limpiar búsqueda
-                  </Button>
+                <div className="text-center p-8 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">No se encontraron instalaciones con los criterios especificados.</p>
                 </div>
               )}
             </TabsContent>
 
-            {["piscina", "cancha-futbol", "gimnasio", "pista-atletismo", "otros"].map((type) => (
-              <TabsContent key={type} value={type} className="mt-0">
-                {facilities.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {facilities.map((facility) => (
-                      <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                        <img
-                          src={facility.image || "/placeholder.svg"}
-                          alt={facility.name}
-                          className="w-full h-48 object-cover"
-                        />
-                        <CardContent className="p-4">
-                          <h3 className="font-bold text-lg mb-2">{facility.name}</h3>
-                          <p className="text-gray-600 text-sm mb-2">{facility.description}</p>
-                          <p className="text-gray-700 text-sm mb-1">
-                            <strong>Ubicación:</strong> {facility.location}
-                          </p>
-                          <p className="text-gray-700 text-sm mb-4">
-                            <strong>Precio:</strong> {facility.price}
-                          </p>
-                          <Button asChild className="w-full bg-primary hover:bg-primary-light">
-                            <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No se encontraron instalaciones que coincidan con tu búsqueda.</p>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSearchQuery("")
-                        setFacilities(allFacilities.filter((f) => f.type.includes(type)))
-                      }}
-                    >
-                      Limpiar búsqueda
-                    </Button>
-                  </div>
-                )}
-              </TabsContent>
-            ))}
+            {/* Las demás pestañas usan el mismo contenido */}
+            <TabsContent value="piscina" className="mt-0">
+              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
+            </TabsContent>
+            <TabsContent value="cancha" className="mt-0">
+              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
+            </TabsContent>
+            <TabsContent value="gimnasio" className="mt-0">
+              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
+            </TabsContent>
+            <TabsContent value="pista" className="mt-0">
+              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
+            </TabsContent>
+            <TabsContent value="otros" className="mt-0">
+              {/* Se muestra el mismo contenido que en "todos", el filtro ya se aplicó */}
+            </TabsContent>
           </Tabs>
         </div>
       </div>
     </main>
   )
 }
-

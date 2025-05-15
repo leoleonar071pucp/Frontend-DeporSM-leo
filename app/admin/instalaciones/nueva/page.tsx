@@ -20,7 +20,6 @@ import { createClient } from '@supabase/supabase-js'
 const supabase = createClient('https://goajrdpkfhunnfuqtoub.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYWpyZHBrZmh1bm5mdXF0b3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MTU1NTQsImV4cCI6MjA2MjI5MTU1NH0.-_GxSWv-1UZNsXcSwIcFUKlprJ5LMX_0iz5VbesGgPQ')
 
   
-  
 
 
 // --- Interfaz para los datos del formulario ---
@@ -36,6 +35,15 @@ interface FacilityFormData {
   amenities: string; // Mantener como string
   rules: string; // Mantener como string
   schedule: string;
+  // Nuevos campos para horarios disponibles
+  availableTimeSlots: AvailableTimeSlot[];
+}
+
+// Estructura para representar un horario disponible
+interface AvailableTimeSlot {
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
 }
 
 // --- Tipos para errores ---
@@ -61,6 +69,17 @@ export default function NuevaInstalacion() {
     amenities: "",
     rules: "",
     schedule: "",
+    availableTimeSlots: [],
+  })
+
+  // Días de la semana
+  const diasSemana = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"]
+  
+  // Estado para el formulario de horario a añadir
+  const [newTimeSlot, setNewTimeSlot] = useState<AvailableTimeSlot>({
+    dayOfWeek: "LUNES",
+    startTime: "08:00",
+    endTime: "10:00"
   })
 
   // Estado para errores de validación tipado
@@ -149,6 +168,12 @@ export default function NuevaInstalacion() {
     if (!formData.contactNumber.trim()) newErrors.contactNumber = "El número de contacto es obligatorio"
     if (!formData.schedule.trim()) newErrors.schedule = "El horario es obligatorio"
     if (!imageFile) newErrors.image = "La imagen es obligatoria"
+    
+    // Validar que haya al menos un horario disponible
+    if (formData.availableTimeSlots.length === 0) {
+      setFormError("Debe definir al menos un horario disponible para la instalación")
+      return false
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -181,8 +206,7 @@ export default function NuevaInstalacion() {
   
 
   // Tipar evento
-  
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
   
     if (!validateForm()) {
@@ -200,6 +224,23 @@ export default function NuevaInstalacion() {
         imagenUrl = await uploadImageToSupabase(imageFile)
         if (!imagenUrl) throw new Error("Fallo la subida de imagen")
       }
+      
+      // Procesar características, comodidades y reglas (separadas por líneas)
+      const caracteristicas = formData.features.trim() ? 
+          formData.features.split('\n').filter(line => line.trim()) : [];
+      
+      const comodidades = formData.amenities.trim() ? 
+          formData.amenities.split('\n').filter(line => line.trim()) : [];
+      
+      const reglas = formData.rules.trim() ? 
+          formData.rules.split('\n').filter(line => line.trim()) : [];
+          
+      // Formatear horarios disponibles para enviar al backend
+      const horariosDisponibles = formData.availableTimeSlots.map(slot => ({
+        diaSemana: slot.dayOfWeek,
+        horaInicio: `${slot.startTime}:00`,  // Añadir segundos para formato de hora SQL
+        horaFin: `${slot.endTime}:00`
+      }))
   
       const response = await fetch("http://localhost:8080/api/instalaciones", {
         method: "POST",
@@ -214,9 +255,14 @@ export default function NuevaInstalacion() {
           capacidad: Number(formData.capacity),
           horarioApertura: "08:00:00",
           horarioCierre: "20:00:00",
+          horario: formData.schedule,
           imagenUrl: imagenUrl,
           precio: parseFloat(formData.price),
-          activo: true
+          activo: true,
+          caracteristicas: caracteristicas,
+          comodidades: comodidades,
+          reglas: reglas,
+          horariosDisponibles: horariosDisponibles
         }),
       })
   
@@ -235,6 +281,51 @@ export default function NuevaInstalacion() {
     }
   }
   
+  // Función para manejar cambios en el formulario de nuevo horario
+  const handleTimeSlotChange = (field: keyof AvailableTimeSlot, value: string) => {
+    setNewTimeSlot(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Función para añadir un nuevo horario disponible
+  const addTimeSlot = () => {
+    // Validar que la hora de inicio sea anterior a la de fin
+    if (newTimeSlot.startTime >= newTimeSlot.endTime) {
+      setFormError("La hora de inicio debe ser anterior a la hora de fin")
+      return
+    }
+    
+    // Validar que no haya solapamientos con otros horarios del mismo día
+    const overlapping = formData.availableTimeSlots.some(slot => 
+      slot.dayOfWeek === newTimeSlot.dayOfWeek && 
+      ((slot.startTime <= newTimeSlot.startTime && slot.endTime > newTimeSlot.startTime) ||
+       (slot.startTime < newTimeSlot.endTime && slot.endTime >= newTimeSlot.endTime) ||
+       (slot.startTime >= newTimeSlot.startTime && slot.endTime <= newTimeSlot.endTime))
+    )
+    
+    if (overlapping) {
+      setFormError("Este horario se solapa con otro ya definido para el mismo día")
+      return
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      availableTimeSlots: [...prev.availableTimeSlots, {...newTimeSlot}]
+    }))
+    
+    // Limpiar error si existe
+    if (formError) setFormError("")
+  }
+  
+  // Función para eliminar un horario disponible
+  const removeTimeSlot = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      availableTimeSlots: prev.availableTimeSlots.filter((_, i) => i !== index)
+    }))
+  }
 
   return (
     <div className="space-y-6">
@@ -367,6 +458,100 @@ export default function NuevaInstalacion() {
                 className={errors.schedule ? "border-red-500" : ""}
               />
               {errors.schedule && <p className="text-red-500 text-sm">{errors.schedule}</p>}
+            </div>
+
+            {/* Nueva sección para horarios disponibles */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Horarios Disponibles</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-md">
+                <div className="space-y-2">
+                  <Label htmlFor="dayOfWeek">Día de la semana</Label>                  <Select 
+                    value={newTimeSlot.dayOfWeek} 
+                    onValueChange={(value: string) => handleTimeSlotChange("dayOfWeek", value)}
+                  >
+                    <SelectTrigger id="dayOfWeek">
+                      <SelectValue placeholder="Selecciona un día" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {diasSemana.map(dia => (
+                        <SelectItem key={dia} value={dia}>
+                          {dia.charAt(0) + dia.slice(1).toLowerCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="startTime">Hora inicio</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={newTimeSlot.startTime}
+                    onChange={(e) => handleTimeSlotChange("startTime", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endTime">Hora fin</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={newTimeSlot.endTime}
+                    onChange={(e) => handleTimeSlotChange("endTime", e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-3 mt-2 flex justify-end">
+                  <Button 
+                    type="button"
+                    onClick={addTimeSlot}
+                    className="bg-primary hover:bg-primary-light"
+                  >
+                    Añadir Horario
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Lista de horarios disponibles */}
+              {formData.availableTimeSlots.length > 0 ? (
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Día</th>
+                        <th className="px-4 py-2 text-left">Inicio</th>
+                        <th className="px-4 py-2 text-left">Fin</th>
+                        <th className="px-4 py-2 text-right">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formData.availableTimeSlots.map((slot, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="px-4 py-2">{slot.dayOfWeek.charAt(0) + slot.dayOfWeek.slice(1).toLowerCase()}</td>
+                          <td className="px-4 py-2">{slot.startTime}</td>
+                          <td className="px-4 py-2">{slot.endTime}</td>
+                          <td className="px-4 py-2 text-right">
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0 text-red-500"
+                              onClick={() => removeTimeSlot(index)}
+                            >
+                              ✕
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-4 border rounded-md">
+                  No hay horarios disponibles definidos
+                </p>
+              )}
+              <p className="text-xs text-gray-500">Define los horarios en que la instalación estará disponible para reservas</p>
             </div>
 
             <div className="space-y-2">
