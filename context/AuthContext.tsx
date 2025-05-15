@@ -42,7 +42,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false); // Estado para control de logout
   const router = useRouter();
-
   // Verificar sesión al cargar
   const checkAuthStatus = async () => {
     setIsLoading(true);
@@ -53,20 +52,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const logoutTimestamp = localStorage.getItem('logoutTimestamp');
       const currentTime = Date.now();
       
-      // Si se cerró sesión hace menos de 3 segundos, no verificar la autenticación
-      if (logoutTimestamp && (currentTime - parseInt(logoutTimestamp)) < 3000) {
+      // Si se cerró sesión hace menos de 10 segundos, no verificar la autenticación
+      // Extendemos el tiempo para evitar reconexiones inmediatas después de logout
+      if (logoutTimestamp && (currentTime - parseInt(logoutTimestamp)) < 10000) {
         console.log("Cierre de sesión reciente detectado, omitiendo verificación de autenticación");
         setUser(null);
         setIsLoading(false);
         return null;
       }
-      
-      const response = await fetch("http://localhost:8080/api/auth/me", {
+        const response = await fetch("http://localhost:8080/api/auth/me", {
         method: "GET",
         credentials: "include", // Importante para enviar las cookies
         headers: {
-          "Accept": "application/json"
-        }
+          "Accept": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate", // Evitar caché en la petición
+        },
+        // Configuración para evitar problemas de CORS y cache
+        cache: "no-store"
       });
   
       if (response.ok) {
