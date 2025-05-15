@@ -19,27 +19,39 @@ import { useNotification } from "@/context/NotificationContext" // Importar useN
 import { useAuth } from "@/context/AuthContext" // Importar useAuth
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Interfaz para la instalación de la API
-interface ApiFacility {
-  id: number;
-  nombre: string;
-  descripcion: string;
-  ubicacion: string;
-  tipo: string;
-  precio: number;
-  imagenUrl: string;
-  activo: boolean;
-}
-
-// Interfaz para la instalación adaptada a nuestra vista
-interface Facility {
-  id: number;
-  name: string;
-  image: string;
-  price: string;
-  description?: string;
-  location?: string;
-}
+// Datos de ejemplo para las instalaciones
+const facilitiesDB = [
+  {
+    id: 1,
+    name: "Piscina Municipal",
+    image: "/placeholder.svg?height=200&width=300",
+    price: "S/. 15.00",
+  },
+  {
+    id: 2,
+    name: "Cancha de Fútbol (Grass)",
+    image: "/placeholder.svg?height=200&width=300",
+    price: "S/. 120.00",
+  },
+  {
+    id: 3,
+    name: "Gimnasio Municipal",
+    image: "/placeholder.svg?height=200&width=300",
+    price: "S/. 20.00",
+  },
+  {
+    id: 4,
+    name: "Cancha de Fútbol (Loza)",
+    image: "/placeholder.svg?height=200&width=300",
+    price: "S/. 80.00",
+  },
+  {
+    id: 5,
+    name: "Pista de Atletismo",
+    image: "/placeholder.svg?height=200&width=300",
+    price: "S/. 10.00",
+  },
+]
 
 export default function ConfirmarReserva() {
   const searchParams = useSearchParams()
@@ -50,7 +62,7 @@ export default function ConfirmarReserva() {
 
   const [paymentMethod, setPaymentMethod] = useState("online")
   const [voucherFile, setVoucherFile] = useState<File | null>(null)
-  const [facility, setFacility] = useState<Facility | null>(null)
+  const [facility, setFacility] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   // Estado para el formulario
@@ -75,7 +87,6 @@ export default function ConfirmarReserva() {
 
   const date = dateParam ? new Date(dateParam) : new Date()
 
-  // Cargar detalles de la instalación
   useEffect(() => {
     setLoading(true); // Iniciar carga
 
@@ -96,39 +107,20 @@ export default function ConfirmarReserva() {
         return;
     }
 
-    // Cargar la instalación desde el backend
-    const fetchFacility = async () => {
-      try {
-        console.log(`Cargando instalación con ID ${parsedId}...`);
-        const response = await fetch(`http://localhost:8080/api/instalaciones/${parsedId}`);
-        
-        if (!response.ok) {
-          throw new Error(`Error al cargar instalación: ${response.status} ${response.statusText}`);
-        }
-        
-        const apiFacility: ApiFacility = await response.json();
-        console.log("Instalación obtenida de la API:", apiFacility);
-        
-        // Adaptar el formato de la respuesta al formato que espera nuestro componente
-        const adaptedFacility: Facility = {
-          id: apiFacility.id,
-          name: apiFacility.nombre,
-          image: apiFacility.imagenUrl || "/placeholder.svg?height=200&width=300",
-          price: `S/. ${apiFacility.precio.toFixed(2)}`,
-          description: apiFacility.descripcion,
-          location: apiFacility.ubicacion
-        };
-        
-        setFacility(adaptedFacility);
-      } catch (error) {
-        console.error(`Error cargando instalación:`, error);
-        setFacility(null);
-      } finally {
-        setLoading(false);
+    // Simular carga y buscar la instalación
+    // NOTA: En una aplicación real, aquí se haría una llamada a la API
+    setTimeout(() => {
+      const foundFacility = facilitiesDB.find((f) => f.id === parsedId);
+
+      if (foundFacility) {
+        setFacility(foundFacility);
+      } else {
+        console.error(`Error: Instalación con ID ${parsedId} no encontrada.`);
+        setFacility(null); // Establecer facility a null si no se encuentra
       }
-    };
-    
-    fetchFacility();
+      setLoading(false); // Finalizar carga en ambos casos (encontrado o no)
+    }, 500); // Simulación de retraso
+
   }, [facilityId, dateParam, timeParam]);
 
   // --- Protección de Ruta ---
@@ -253,121 +245,60 @@ export default function ConfirmarReserva() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setFormSubmitted(true)
 
     if (validateForm()) {
       // Mostrar un indicador de carga o procesamiento
       setIsSubmitting(true)
-      
-      let paymentSuccess = true;
-      let status = 'pending'; // Default status
-      let reservationId: number | null = null;
 
-      try {
-        // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
-        const [horaInicio, horaFin] = timeParam ? timeParam.split(' - ') : ['00:00', '00:00'];
-          // Crear el objeto de reserva para enviar al backend
-        const reservaDTO = {
-          instalacionId: parseInt(facilityId || '0'),
-          fecha: dateParam, // Formato ISO que viene del parámetro
-          horaInicio: `${horaInicio}:00`, // Agregar segundos para el formato SQL TIME
-          horaFin: `${horaFin}:00`,
-          numeroAsistentes: 1, // Valor por defecto
-          comentarios: formData.comentarios || '',
-          estadoPago: paymentMethod === 'online' ? 'pagado' : 'pendiente',
-          estado: paymentMethod === 'online' ? 'confirmada' : 'pendiente', // Estado de la reserva según método de pago
-          metodoPago: paymentMethod // Guardar el método de pago seleccionado
-        };
+      // Simulación de procesamiento del formulario
+      setTimeout(() => {
+        let paymentSuccess = true;
+        let status = 'pending'; // Default status
 
-        console.log('Enviando reserva al backend:', reservaDTO);
-        
-        // Realizar la petición al backend
-        const response = await fetch('http://localhost:8080/api/reservas', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // Para enviar las cookies de sesión
-          body: JSON.stringify(reservaDTO)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error al crear la reserva: ${response.status} ${response.statusText}`);
-        }
-
-        // Procesar respuesta del backend
-        const reservaCreada = await response.json();
-        console.log('Reserva creada exitosamente:', reservaCreada);
-        
-        reservationId = reservaCreada.id;
-        
-        // Simular procesamiento de pago online
+        // Simular fallo de pago online (ej. tarjeta específica)
         if (paymentMethod === 'online') {
-          if (formData.cardNumber.endsWith('1234')) { // Simular fallo para tarjetas específicas
+          if (formData.cardNumber.endsWith('1234')) { // Simular fallo para tarjetas terminadas en 1234
             paymentSuccess = false;
-            console.error("Fallo en el pago online.");
-            setErrors({ payment: "Hubo un problema al procesar tu pago. Verifica los datos de tu tarjeta o intenta con otro método." });
+            console.error("Simulación: Fallo en el pago online.");
+            setErrors({ payment: "Hubo un problema al procesar tu pago. Verifica los datos de tu tarjeta o intenta con otro método." }); // Usar setErrors y una clave
           } else {
             status = 'success'; // Pago online exitoso
-              // Actualizar el estado de pago en el backend
-            try {
-              const updateResponse = await fetch(`http://localhost:8080/api/reservas/${reservationId}/actualizar-pago`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({ 
-                  estadoPago: 'pagado',
-                  estado: 'confirmada' // Asegurar que la reserva quede confirmada al pagar
-                })
-              });
-              
-              if (!updateResponse.ok) {
-                console.warn('No se pudo actualizar el estado del pago, pero la reserva fue creada');
-              }
-            } catch (updateError) {
-              console.error('Error al actualizar el estado de pago:', updateError);
-            }
           }
         } else {
           status = 'pending'; // Depósito siempre queda pendiente
         }
-        
+
+        setIsSubmitting(false);
+
         if (paymentSuccess) {
-          // Añadir notificación 
+          // Añadir notificación simulada solo si el pago fue exitoso o es depósito
           if (facility) {
-            addNotification({
-              title: status === 'success' ? "Reserva Confirmada" : "Reserva Pendiente",
-              message: `Tu reserva para ${facility.name} (${timeParam} el ${format(date, "d/MM/yy")}) está ${status === 'success' ? 'confirmada' : 'pendiente de pago'}.`,
-              type: "reserva",
-            });
+              addNotification({
+                  title: status === 'success' ? "Reserva Confirmada" : "Reserva Pendiente",
+                  message: `Tu reserva para ${facility.name} (${timeParam} el ${format(date, "d/MM/yy")}) está ${status === 'success' ? 'confirmada' : 'pendiente de pago'}.`,
+                  type: "reserva",
+              });
           }
-          
+          // Generar un número de reserva simulado
+          const reservationNumber = `RES-${Date.now().toString().slice(-6)}`;
           // Preparar parámetros para la URL
           const queryParams = new URLSearchParams({
-            status: status,
-            resNum: reservationId ? `RES-${reservationId}` : `RES-${Date.now().toString().slice(-6)}`,
-            facilityName: facility?.name || "Instalación Desconocida",
-            date: date.toISOString(), // Pasar fecha completa
-            time: timeParam || "Horario Desconocido"
+              status: status,
+              resNum: reservationNumber,
+              facilityName: facility.name || "Instalación Desconocida",
+              date: date.toISOString(), // Pasar fecha completa
+              time: timeParam || "Horario Desconocido"
           });
-          
-          // Redirigir a la página de confirmación con los detalles
+          // Procesar el formulario y redirigir a la página de confirmación con los detalles
           console.log(`Redirigiendo a confirmación con estado: ${status} y detalles.`);
           router.push(`/reserva/confirmacion?${queryParams.toString()}`);
         }
-      } catch (error) {
-        console.error('Error al procesar la reserva:', error);
-        setErrors({ 
-          payment: error instanceof Error ? error.message : "Ocurrió un error al procesar tu reserva. Inténtalo de nuevo más tarde." 
-        });
-        paymentSuccess = false;
-      } finally {
-        setIsSubmitting(false);
-      }
+        // Si paymentSuccess es false, no se redirige y se debería mostrar el error 'payment' en el formulario.
+
+      }, 1500); // Aumentar un poco el delay para simular mejor
     }
   }
 
@@ -686,7 +617,7 @@ export default function ConfirmarReserva() {
                   </Alert>
                 )}
 
-                <div className="mt-6 space-y-4"> 
+                <div className="mt-6 space-y-4"> {/* Añadir space-y-4 */}
                   {/* Mostrar error general de pago */}
                   {errors.payment && (
                      <Alert variant="destructive">
@@ -715,3 +646,4 @@ export default function ConfirmarReserva() {
     </main>
   )
 }
+

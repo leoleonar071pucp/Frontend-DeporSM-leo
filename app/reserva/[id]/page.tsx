@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { use } from "react"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,7 +38,6 @@ interface ReservationDetails {
     paymentAmount: string;
     paymentDate: string;
     paymentReference: string;
-    paymentReceiptUrl?: string | null; // URL a la imagen del comprobante de pago (si existe)
     userDetails: {
       name: string;
       email: string;
@@ -118,124 +116,23 @@ const reservationsDB: ReservationDetails[] = [
 ]
 
 export default function ReservaDetalle({ params }: { params: { id: string } }) {
-  // Usar React.use() para desenvolver params y obtener id de manera segura
-  const unwrappedParams = use(params);
-  const id = unwrappedParams.id;
-
   // Usar tipo específico y estado para cancelación
   const [reservation, setReservation] = useState<ReservationDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const { addNotification } = useNotification() // Obtener función del contexto
+  // Declaración duplicada eliminada
 
   useEffect(() => {
-    // Cargar datos reales del backend
-    const fetchReservationDetails = async () => {
-      setLoading(true)
-      // Usar el id que ya fue extraído con React.use()
-      const reservaId = id;
-      try {
-        const response = await fetch(`http://localhost:8080/api/reservas/${reservaId}`, {
-          method: 'GET',
-          credentials: 'include', // Para enviar cookies de sesión
-          headers: {
-            'Accept': 'application/json',
-            'Origin': 'http://localhost:3000'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error al obtener detalles de la reserva: ${response.status}`);
-        }
-
-        const reservaData = await response.json();
-        console.log('Datos de reserva obtenidos:', reservaData);
-        
-        // También obtener detalles de pago si existe
-        let pagoData = null;
-        try {
-          const pagoResponse = await fetch(`http://localhost:8080/api/pagos/reserva/${reservaId}`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json',
-              'Origin': 'http://localhost:3000'
-            }
-          });
-          
-          if (pagoResponse.ok) {
-            pagoData = await pagoResponse.json();
-            console.log('Datos de pago obtenidos:', pagoData);
-          }
-        } catch (error) {
-          console.warn('No se pudieron obtener datos de pago:', error);
-        }
-        
-        // Formatear los datos obtenidos al formato que necesita la interfaz
-        const fechaReserva = new Date(reservaData.fecha);
-        const horaInicio = reservaData.horaInicio.substring(0, 5);
-        const horaFin = reservaData.horaFin.substring(0, 5);
-        
-        // Crear el objeto dateTime para cálculos
-        const [horaI, minI] = horaInicio.split(':').map(Number);
-        const dateTime = new Date(fechaReserva);
-        dateTime.setHours(horaI, minI, 0);
-        
-        const formattedReservation: ReservationDetails = {
-          id: reservaData.id,
-          reservationNumber: `RES-${reservaData.id}`,
-          facilityId: reservaData.instalacion?.id || reservaData.instalacionId,
-          facilityName: reservaData.instalacionNombre,
-          facilityImage: reservaData.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
-          date: new Intl.DateTimeFormat('es-ES', {
-            weekday: 'long', 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric'
-          }).format(fechaReserva),
-          time: `${horaInicio} - ${horaFin}`,
-          dateTime: dateTime,
-          location: reservaData.instalacionUbicacion || "Instalación Deportiva Municipal",
-          status: reservaData.estado as ReservationDetails['status'],
-          canCancel: false, // Se calculará con la función checkCancellationEligibility
-          paymentMethod: pagoData ? (pagoData.metodo === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito') : reservaData.metodoPago || 'Pendiente',
-          paymentStatus: pagoData ? pagoData.estado : reservaData.estadoPago || 'Pendiente',
-          paymentAmount: pagoData ? `S/. ${pagoData.monto}` : 'Pendiente',
-          paymentDate: pagoData && pagoData.createdAt ? new Intl.DateTimeFormat('es-ES', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }).format(new Date(pagoData.createdAt)) : 'Pendiente',
-          paymentReference: pagoData ? pagoData.referencia_transaccion || 'No disponible' : 'Pendiente',
-          paymentReceiptUrl: pagoData?.url_comprobante || null,
-          userDetails: {
-            name: reservaData.usuarioNombre || 'Usuario',
-            email: reservaData.usuario?.email || '',
-            phone: reservaData.usuario?.telefono || '',
-          },
-          additionalInfo: reservaData.comentarios || 'Sin comentarios adicionales',
-          createdAt: new Date(reservaData.createdAt || Date.now()).toLocaleString('es-ES'),
-        };
-        
-        setReservation(formattedReservation);
-      } catch (error) {
-        console.error('Error al cargar los detalles de la reserva:', error);
-        // Si tenemos reservas de ejemplo cargadas, podríamos mostrar una como fallback
-        const fallbackReservation = reservationsDB.find(r => r.id === Number.parseInt(reservaId));
-        if (fallbackReservation) {
-          console.log('Usando reserva de fallback');
-          setReservation(fallbackReservation);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchReservationDetails();
-  }, [id])
+    // Simulación de carga de datos
+    setLoading(true)
+    setTimeout(() => {
+      const foundReservation = reservationsDB.find((r) => r.id === Number.parseInt(params.id))
+      setReservation(foundReservation || null)
+      setLoading(false)
+    }, 500)
+  }, [params.id])
 
   const getStatusBadge = (status: ReservationDetails['status']) => {
     switch (status) {
@@ -357,18 +254,10 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                   <CardDescription>Creada el {reservation.createdAt}</CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  {/* Mostrar botón de descargar comprobante para todos los pagos con depósito bancario, independientemente del estado */}
-                  {reservation.paymentMethod === "Depósito bancario" && reservation.paymentReceiptUrl && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex items-center gap-1"
-                      onClick={() => window.open(reservation.paymentReceiptUrl || '', '_blank')}
-                    >
-                      <Download className="h-4 w-4" />
-                      Descargar comprobante
-                    </Button>
-                  )}
+                  <Button variant="outline" size="sm" className="flex items-center gap-1">
+                    <Download className="h-4 w-4" />
+                    Descargar comprobante
+                  </Button>
                   {/* Usar la función de elegibilidad */}
                   {checkCancellationEligibility(reservation) && (
                     <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
@@ -495,35 +384,6 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                       <div className="md:col-span-2">
                         <p className="text-sm text-gray-500">Referencia de pago</p>
                         <p>{reservation.paymentReference}</p>
-                      </div>
-                    )}
-                    
-                    {/* Mostrar comprobante de pago si es método depósito y tiene URL de comprobante (en cualquier estado) */}
-                    {reservation.paymentMethod === "Depósito bancario" && reservation.paymentReceiptUrl && (
-                      <div className="md:col-span-2 mt-4">
-                        <p className="text-sm text-gray-500 mb-2">Comprobante de pago</p>
-                        <div className="border rounded-md p-2 bg-white">
-                          <img 
-                            src={reservation.paymentReceiptUrl} 
-                            alt="Comprobante de pago" 
-                            className="w-full max-h-80 object-contain"
-                            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = "/placeholder.svg?text=Comprobante+no+disponible";
-                              target.alt = "Comprobante no disponible";
-                            }}
-                          />
-                          <div className="mt-2 text-center">
-                            <a 
-                              href={reservation.paymentReceiptUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline"
-                            >
-                              Ver comprobante completo
-                            </a>
-                          </div>
-                        </div>
                       </div>
                     )}
                   </div>
