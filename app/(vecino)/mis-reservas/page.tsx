@@ -100,7 +100,7 @@ export default function MisReservas() {
         return {
           id: reserva.id,
           facilityName: reserva.instalacionNombre,
-          facilityImage: "/placeholder.svg?height=100&width=150", // Usamos un placeholder por ahora
+          facilityImage: reserva.instalacionImagenUrl || "/placeholder.svg?height=100&width=150", // Usar imagen real de la instalación
           date: formatDate(reserva.fecha),
           time: hora,
           dateTime: dateTime,
@@ -134,7 +134,7 @@ export default function MisReservas() {
       addNotification({
         title: "Error de conexión",
         message: "No se pudieron cargar tus reservas. Por favor, intenta de nuevo más tarde.",
-        type: "error",
+        type: "info", // Cambiado de "error" a uno de los tipos válidos
       });
       
       // En caso de error, al menos mostrar un array vacío para no romper la interfaz

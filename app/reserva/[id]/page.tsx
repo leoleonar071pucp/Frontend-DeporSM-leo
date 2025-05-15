@@ -187,7 +187,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
           reservationNumber: `RES-${reservaData.id}`,
           facilityId: reservaData.instalacion?.id || reservaData.instalacionId,
           facilityName: reservaData.instalacionNombre,
-          facilityImage: reservaData.instalacion?.imagenUrl || "/placeholder.svg?height=200&width=300",
+          facilityImage: reservaData.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
           date: new Intl.DateTimeFormat('es-ES', {
             weekday: 'long', 
             day: 'numeric', 
@@ -199,10 +199,16 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
           location: reservaData.instalacionUbicacion || "Instalación Deportiva Municipal",
           status: reservaData.estado as ReservationDetails['status'],
           canCancel: false, // Se calculará con la función checkCancellationEligibility
-          paymentMethod: pagoData ? (pagoData.metodo === 'deposito' ? 'Depósito bancario' : 'Pago en línea') : reservaData.metodoPago || 'Pendiente',
+          paymentMethod: pagoData ? (pagoData.metodo === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito') : reservaData.metodoPago || 'Pendiente',
           paymentStatus: pagoData ? pagoData.estado : reservaData.estadoPago || 'Pendiente',
           paymentAmount: pagoData ? `S/. ${pagoData.monto}` : 'Pendiente',
-          paymentDate: pagoData ? new Date(pagoData.created_at).toLocaleString('es-ES') : 'Pendiente',
+          paymentDate: pagoData && pagoData.createdAt ? new Intl.DateTimeFormat('es-ES', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }).format(new Date(pagoData.createdAt)) : 'Pendiente',
           paymentReference: pagoData ? pagoData.referencia_transaccion || 'No disponible' : 'Pendiente',
           paymentReceiptUrl: pagoData?.url_comprobante || null,
           userDetails: {
@@ -351,7 +357,8 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                   <CardDescription>Creada el {reservation.createdAt}</CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  {reservation.paymentReceiptUrl && (
+                  {/* Mostrar botón de descargar comprobante para todos los pagos con depósito bancario, independientemente del estado */}
+                  {reservation.paymentMethod === "Depósito bancario" && reservation.paymentReceiptUrl && (
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -491,7 +498,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                       </div>
                     )}
                     
-                    {/* Mostrar comprobante de pago si es método depósito y tiene URL de comprobante */}
+                    {/* Mostrar comprobante de pago si es método depósito y tiene URL de comprobante (en cualquier estado) */}
                     {reservation.paymentMethod === "Depósito bancario" && reservation.paymentReceiptUrl && (
                       <div className="md:col-span-2 mt-4">
                         <p className="text-sm text-gray-500 mb-2">Comprobante de pago</p>
