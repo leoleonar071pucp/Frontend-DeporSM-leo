@@ -66,7 +66,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
       setIsLoading(true)
       setError(null)
       try {
-        const response = await fetch(`http://localhost:8080/api/instalaciones/${resolvedParams.id}`)
+        const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${resolvedParams.id}`)
         if (!response.ok) {
           throw new Error(`Error al cargar la instalación: ${response.status}`)
         }
@@ -92,7 +92,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const fetchAvailableTimes = async (facilityId: string, selectedDate: Date) => {
     try {
       const formattedDate = format(selectedDate, 'yyyy-MM-dd')
-      const response = await fetch(`http://localhost:8080/api/instalaciones/${facilityId}/disponibilidad?fecha=${formattedDate}`)
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${facilityId}/disponibilidad?fecha=${formattedDate}`)
       
       if (!response.ok) {
         throw new Error(`Error al cargar horarios disponibles: ${response.status}`)

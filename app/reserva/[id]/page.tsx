@@ -136,7 +136,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
       // Usar el id que ya fue extraído con React.use()
       const reservaId = id;
       try {
-        const response = await fetch(`http://localhost:8080/api/reservas/${reservaId}`, {
+        const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/reservas/${reservaId}`, {
           method: 'GET',
           credentials: 'include', // Para enviar cookies de sesión
           headers: {
@@ -154,7 +154,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
         
         // También obtener detalles de pago si existe
         let pagoData = null;        try {
-          const pagoResponse = await fetch(`http://localhost:8080/api/pagos/reserva/${reservaId}`, {
+          const pagoResponse = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/pagos/reserva/${reservaId}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -389,7 +389,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                       className="flex items-center gap-1"                      
                       onClick={() => {
                         // Iniciar la descarga del archivo usando la API de descarga del navegador
-                        const url = `http://localhost:8080${reservation.paymentReceiptUrl}`;
+                        const url = `https://deporsm-apiwith-1035693188565.us-central1.run.app${reservation.paymentReceiptUrl}`;
                         const fileName = reservation.paymentReceiptUrl.split('/').pop() || 'comprobante.jpg';
                         
                         // Usar fetch para obtener el archivo como blob
@@ -560,7 +560,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                   {console.log("Intentando mostrar comprobante:", reservation.paymentMethod, reservation.paymentReceiptUrl)}                  {reservation.paymentReceiptUrl ? (
                     <div className="bg-white p-4 rounded-lg shadow-sm border">
                       <div className="flex flex-col items-center">                        <img 
-                          src={`http://localhost:8080${reservation.paymentReceiptUrl}`}
+                          src={`https://deporsm-apiwith-1035693188565.us-central1.run.app${reservation.paymentReceiptUrl}`}
                           alt="Comprobante de depósito bancario" 
                           className="max-w-full max-h-96 object-contain rounded-md mb-4"
                           onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {

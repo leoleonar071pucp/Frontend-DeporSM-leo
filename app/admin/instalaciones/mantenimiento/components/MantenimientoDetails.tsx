@@ -38,7 +38,7 @@ export default function MantenimientoDetailsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:8080/api/mantenimientos/${id}`)
+        const res = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/mantenimientos/${id}`)
         if (!res.ok) throw new Error("No se encontró el mantenimiento")
         const data = await res.json()
 

@@ -25,7 +25,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/api/instalaciones/${facilityId}`)
+        const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${facilityId}`)
         if (!response.ok) throw new Error("Error al cargar instalación")
         const data = await response.json()
   

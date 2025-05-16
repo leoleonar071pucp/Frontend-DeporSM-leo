@@ -48,7 +48,7 @@ export default function ObservacionesPage() {
   useEffect(() => {
     const fetchObservations = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/observaciones/all")
+        const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/observaciones/all")
         const data = await response.json()
 
         const mappedData: Observation[] = data.map((obs: any) => ({

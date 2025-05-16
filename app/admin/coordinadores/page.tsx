@@ -28,7 +28,7 @@ export default function CoordinadoresPage() {
   useEffect(() => {
     const fetchCoordinators = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/usuarios/allCoordinadores")
+        const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/allCoordinadores")
         const data = await response.json()
 
         // Procesar instalacionesAsignadas separadas por comas

@@ -58,7 +58,7 @@ export default function EditarVecinoPage({ params }: { params: { id: string } })
   useEffect(() => {
     const fetchVecinoData = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/api/usuarios/${id}`)
+        const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/${id}`)
         if (response.ok) {
           const data = await response.json()
           setFormData({
@@ -171,7 +171,7 @@ export default function EditarVecinoPage({ params }: { params: { id: string } })
         rol: 4 // Rol de vecino
       }
 
-      const response = await fetch(`http://localhost:8080/api/usuarios/${id}`, {
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

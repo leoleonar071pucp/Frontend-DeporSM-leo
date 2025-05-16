@@ -111,7 +111,7 @@ export default function NuevoCoordinadorPage() {
     setIsSubmitting(true)
     
     try {
-      const response = await fetch("http://localhost:8080/api/usuarios/coordinadores", {
+      const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/coordinadores", {
         method: 'POST',
         credentials: 'include',
         headers: {

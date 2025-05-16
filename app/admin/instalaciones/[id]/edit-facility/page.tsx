@@ -54,7 +54,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
     const fetchFacility = async () => {
       try {
         // Obtener los datos básicos de la instalación
-        const res = await fetch(`http://localhost:8080/api/instalaciones/${id}`)
+        const res = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${id}`)
         const data = await res.json()
         
         // Transformar los datos para el formulario
@@ -81,7 +81,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
         
         // Obtener los horarios disponibles
         try {
-          const horariosRes = await fetch(`http://localhost:8080/api/instalaciones/${id}/horarios-disponibles`)
+          const horariosRes = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${id}/horarios-disponibles`)
           if (horariosRes.ok) {
             const horariosData = await horariosRes.json()
             if (Array.isArray(horariosData) && horariosData.length > 0) {
@@ -192,7 +192,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
 
     try {
       // Primero actualizamos la información básica de la instalación
-      const res = await fetch(`http://localhost:8080/api/instalaciones/${formData.id}`, {
+      const res = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${formData.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedFacility)
@@ -207,7 +207,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
         horaFin: `${slot.endTime}:00`
       }));
       
-      const horariosRes = await fetch(`http://localhost:8080/api/instalaciones/${formData.id}/horarios-disponibles`, {
+      const horariosRes = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${formData.id}/horarios-disponibles`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(horariosDisponibles)

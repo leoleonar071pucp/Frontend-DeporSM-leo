@@ -56,7 +56,7 @@ export default function InstalacionesCoordinador() {
     const loadData = async () => {
       try {
         // Reemplazamos axios por fetch
-        const response = await fetch("http://localhost:8080/api/instalaciones");
+        const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones");
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
@@ -105,7 +105,7 @@ export default function InstalacionesCoordinador() {
     
     try {
       // Usar el endpoint de búsqueda del backend
-      const response = await fetch(`http://localhost:8080/api/instalaciones/buscar?nombre=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/buscar?nombre=${encodeURIComponent(searchQuery)}`);
       
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);
@@ -153,7 +153,7 @@ export default function InstalacionesCoordinador() {
     
     try {
       // Usar el endpoint de filtrado por tipo
-      const response = await fetch(`http://localhost:8080/api/instalaciones/tipo?tipo=${encodeURIComponent(tipo)}`);
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/tipo?tipo=${encodeURIComponent(tipo)}`);
       
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);
@@ -188,7 +188,7 @@ export default function InstalacionesCoordinador() {
     
     try {
       // Usar el endpoint de filtrado por estado activo
-      const response = await fetch(`http://localhost:8080/api/instalaciones/activo?activo=${activo}`);
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/activo?activo=${activo}`);
       
       if (!response.ok) {
         throw new Error(`Error HTTP: ${response.status}`);
@@ -421,7 +421,7 @@ export default function InstalacionesCoordinador() {
                   const loadAllData = async () => {
                     try {
                       setIsLoading(true);
-                      const response = await fetch("http://localhost:8080/api/instalaciones");
+                      const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones");
                       
                       if (!response.ok) {
                         throw new Error(`Error HTTP: ${response.status}`);

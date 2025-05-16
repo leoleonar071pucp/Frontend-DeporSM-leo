@@ -69,7 +69,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     const loadData = async () => {
       try {
         // Obtener los datos de la instalación desde el backend
-        const response = await fetch(`http://localhost:8080/api/instalaciones/${resolvedParams.id}`);
+        const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/${resolvedParams.id}`);
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);

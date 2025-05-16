@@ -61,7 +61,7 @@ export default function ProgramarMantenimientoPage() {
   })
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/instalaciones")
+    fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones")
       .then(res => res.json())
       .then(data => {
         setInstallations(data)
@@ -128,7 +128,7 @@ export default function ProgramarMantenimientoPage() {
     fechaFin.setHours(eh, em, 0, 0)
 
     try {
-      const res = await fetch("http://localhost:8080/api/mantenimientos", {
+      const res = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/mantenimientos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -39,26 +39,26 @@ const nextConfig = {
     return [
       {
         source: '/api/instalaciones/:path*',
-        destination: 'http://localhost:8080/api/instalaciones/:path*',
+        destination: 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/:path*',
       },
       {
         source: '/api/instalaciones',
-        destination: 'http://localhost:8080/api/instalaciones',
+        destination: 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones',
       },
       {
         source: '/api/mantenimientos/:path*',
-        destination: 'http://localhost:8080/api/mantenimientos/:path*',
+        destination: 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api/mantenimientos/:path*',
       },      {
         source: '/api/mantenimientos',
-        destination: 'http://localhost:8080/api/mantenimientos',
+        destination: 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api/mantenimientos',
       },
       {
         source: '/api/usuarios/:path*',
-        destination: 'http://localhost:8080/api/usuarios/:path*',
+        destination: 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/:path*',
       },
       {
         source: '/api/usuarios',
-        destination: 'http://localhost:8080/api/usuarios',
+        destination: 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios',
       },
     ]
   },

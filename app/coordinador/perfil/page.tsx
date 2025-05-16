@@ -64,7 +64,7 @@ export default function PerfilCoordinador() {
       setIsLoading(true);
       try {
         // Obtener información del coordinador desde el backend
-        const response = await fetch(`http://localhost:8080/api/usuarios/perfil`, {
+        const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/perfil`, {
           method: 'GET',
           credentials: 'include', // Para enviar cookies de sesión
           headers: {
@@ -140,7 +140,7 @@ export default function PerfilCoordinador() {
         // Recargar los datos del perfil
         setIsLoading(true);
         try {
-          const response = await fetch(`http://localhost:8080/api/usuarios/perfil`, {
+          const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/perfil`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -206,7 +206,7 @@ export default function PerfilCoordinador() {
 
     try {
       // Enviar la solicitud de actualización al backend
-      const response = await fetch(`http://localhost:8080/api/usuarios/perfil`, {
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/perfil`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

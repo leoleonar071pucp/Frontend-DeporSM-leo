@@ -35,7 +35,7 @@ export default function CoordinadoresPage() {
   const [isLoading, setIsLoading] = useState(true);
   const fetchCoordinadores = async () => {
     try {
-      const response = await fetch("http://localhost:8080/api/usuarios/allCoordinadores", {
+      const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/allCoordinadores", {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -109,7 +109,7 @@ export default function CoordinadoresPage() {
     if (!selectedCoordinador) return;
     
     try {
-      const response = await fetch(`http://localhost:8080/api/usuarios/coordinadores/${selectedCoordinador.id}/desactivar`, {
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/coordinadores/${selectedCoordinador.id}/desactivar`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -144,7 +144,7 @@ export default function CoordinadoresPage() {
     if (!selectedCoordinador) return;
     
     try {
-      const response = await fetch(`http://localhost:8080/api/usuarios/coordinadores/${selectedCoordinador.id}/activar`, {
+      const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/usuarios/coordinadores/${selectedCoordinador.id}/activar`, {
         method: 'PUT',
         credentials: 'include',
         headers: {

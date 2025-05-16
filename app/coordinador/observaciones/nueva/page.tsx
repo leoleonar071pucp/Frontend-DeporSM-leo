@@ -50,7 +50,7 @@ export default function NuevaObservacion() {
         const coordinadorId = 4; // En una implementación real, esto vendría de la sesión o un contexto de autenticación
         
         // Obtener las instalaciones asignadas al coordinador
-        const response = await fetch(`http://localhost:8080/api/instalaciones/coordinador/${coordinadorId}`, {
+        const response = await fetch(`https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/coordinador/${coordinadorId}`, {
           credentials: 'include'
         });
         
@@ -240,7 +240,7 @@ export default function NuevaObservacion() {
       };
 
       // Llamada a la API para crear la observación
-      const response = await fetch('http://localhost:8080/api/observaciones', {
+      const response = await fetch('https://deporsm-apiwith-1035693188565.us-central1.run.app/api/observaciones', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

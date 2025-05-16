@@ -61,7 +61,7 @@ export default function MapaInstalaciones() {
     const loadData = async () => {
       try {
         // Obtener los datos de instalaciones desde el backend
-        const response = await fetch("http://localhost:8080/api/instalaciones");
+        const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones");
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);

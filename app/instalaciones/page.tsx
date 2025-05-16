@@ -38,7 +38,7 @@ export default function Instalaciones() {
       setIsLoading(true)
       setError(null)
       try {
-        const response = await fetch("http://localhost:8080/api/instalaciones/disponibles")
+        const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/instalaciones/disponibles")
         if (!response.ok) {
           throw new Error(`Error al cargar instalaciones: ${response.status}`)
         }

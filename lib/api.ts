@@ -2,7 +2,7 @@
  * Utility functions for API calls
  */
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api';
 
 // Use a type that's compatible with Next.js
 type FetchOptions = Omit<RequestInit, 'headers'> & {
