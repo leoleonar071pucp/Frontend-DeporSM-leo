@@ -7,113 +7,193 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search, Calendar, Clock, MapPin, ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isMonday, isTuesday, isWednesday, isThursday, isFriday } from "date-fns"
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isMonday, isTuesday, isWednesday, isThursday, isFriday, isSaturday, isSunday } from "date-fns"
 import { es } from "date-fns/locale"
 import { ScheduledVisit } from "../types"
 import { toast } from "@/components/ui/use-toast"
+import { apiGet, handleApiResponse } from "@/lib/api-client"
 
-// Función para simular obtener las visitas programadas desde el backend
-const mockFetchProgrammedVisits = async () => {
-  // Simulamos un delay como si fuera una llamada real a un API
-  await new Promise(resolve => setTimeout(resolve, 800));
+// Interfaces
+interface HorarioCoordinador {
+  id: number
+  coordinadorInstalacionId: number
+  diaSemana: string
+  horaInicio: string
+  horaFin: string
+  instalacionNombre: string
+  instalacionId: number
+}
+
+interface AssignedSchedules {
+  [key: string]: {
+    facilityId: number
+    facilityName: string
+    schedules: Array<{
+      id: number
+      day: string
+      startTime: string
+      endTime: string
+    }>
+  }
+}
+
+// Función para normalizar nombres de días
+const normalizeDayName = (dayString: string): string => {
+  if (!dayString) return "lunes"; // Valor predeterminado
   
-  // Estructura de horarios asignados
-  const assignedSchedules = {
-    "1": {
-      facilityId: 1,
-      schedules: [
-        { id: 101, day: "lunes", startTime: "08:00", endTime: "12:00" },
-        { id: 102, day: "miercoles", startTime: "08:00", endTime: "12:00" },
-        { id: 103, day: "viernes", startTime: "08:00", endTime: "12:00" }
-      ]
-    },
-    "2": {
-      facilityId: 2,
-      schedules: [
-        { id: 201, day: "martes", startTime: "14:00", endTime: "18:00" },
-        { id: 202, day: "jueves", startTime: "14:00", endTime: "18:00" }
-      ]
-    }
-  };
-
-  // Datos de las instalaciones
-  const facilities = [
-    {
-      id: 1,
-      name: "Cancha de Fútbol (Grass)",
-      location: "Parque Juan Pablo II",
-      image: "/placeholder.svg"
-    },
-    {
-      id: 2,
-      name: "Piscina Municipal",
-      location: "Complejo Deportivo Municipal",
-      image: "/placeholder.svg"
-    }
-  ];
-
-  // Función auxiliar para verificar si una fecha corresponde al horario de una instalación
-  const isScheduledDay = (date: Date, facilityId: number): boolean => {
-    if (facilityId === 1) { // Cancha de Fútbol (Grass)
-      return isMonday(date) || isWednesday(date) || isFriday(date)
-    } else if (facilityId === 2) { // Piscina Municipal
-      return isTuesday(date) || isThursday(date)
-    }
-    return false
+  const normalizedInput = dayString.trim().toLowerCase();
+  
+  // Mapeando variantes de nombres de días
+  const dayVariants = {
+    "lunes": ["lun", "lunes"],
+    "martes": ["mar", "martes"],
+    "miercoles": ["mie", "miercoles", "miércoles"],
+    "jueves": ["jue", "jueves"],
+    "viernes": ["vie", "viernes"],
+    "sabado": ["sab", "sabado", "sábado"],
+    "domingo": ["dom", "domingo"]
   };
   
-  // Configurar para mostrar la semana actual (mayo 2025)
-  const today = new Date(2025, 4, 12); // 12 de mayo de 2025
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Comenzar semana en lunes
-  const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+  // Buscar en las variantes de cada día
+  for (const [day, variants] of Object.entries(dayVariants)) {
+    if (variants.some(variant => normalizedInput.includes(variant))) {
+      return day;
+    }
+  }
   
-  // Obtener todos los días de la semana
-  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
-  
-  // Generar visitas programadas para la semana basadas en los horarios asignados
-  const visits: ScheduledVisit[] = [];
-  
-  weekDays.forEach(date => {
-    // Revisar cada instalación y sus horarios
-    Object.entries(assignedSchedules).forEach(([facilityId, facilityData]) => {
-      const facility = facilities.find(f => f.id === parseInt(facilityId));
-      if (!facility) return;
+  return "lunes";
+}
 
-      if (isScheduledDay(date, facility.id)) {
-        // Buscar el horario correspondiente al día de la semana
-        const dayName = format(date, 'EEEE', { locale: es }).toLowerCase();
-        const schedule = facilityData.schedules.find(s => s.day === dayName);
-
-        if (schedule) {
+// Función para obtener datos reales de visitas programadas desde el backend
+const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
+  try {
+    // ID de coordinador (fijo para desarrollo y pruebas)
+    const userId = 4;
+    
+    // Obtener los horarios del coordinador
+    const response = await apiGet(`horarios-coordinador/coordinador/${userId}`);
+    
+    if (!response.ok) {
+      throw new Error(`Error al cargar horarios: ${response.status}`);
+    }
+    
+    const horarios: HorarioCoordinador[] = await response.json();
+    
+    if (!Array.isArray(horarios)) {
+      throw new Error("Formato de datos incorrecto");
+    }
+    
+    // Procesar los horarios y convertirlos al formato requerido
+    const processedSchedules: AssignedSchedules = {};
+    
+    horarios.forEach((horario: HorarioCoordinador) => {
+      // Validar que el horario tenga los campos necesarios
+      if (!horario.instalacionId || !horario.diaSemana || !horario.horaInicio || !horario.horaFin) {
+        return; // Saltar este horario
+      }
+      
+      const facilityId = horario.instalacionId.toString();
+      const dia = normalizeDayName(horario.diaSemana);
+      
+      if (!processedSchedules[facilityId]) {
+        processedSchedules[facilityId] = {
+          facilityId: horario.instalacionId,
+          facilityName: horario.instalacionNombre || `Instalación ${horario.instalacionId}`,
+          schedules: []
+        };
+      }
+      
+      // Manejo seguro de los formatos de hora
+      let startTime = typeof horario.horaInicio === 'string' ? horario.horaInicio : '00:00';
+      let endTime = typeof horario.horaFin === 'string' ? horario.horaFin : '00:00';
+      
+      // Asegurar formato HH:MM y manejo de casos especiales
+      try {
+        // Si viene en formato HH:MM:SS, extraer solo HH:MM
+        if (startTime.includes(':') && startTime.length >= 5) {
+          startTime = startTime.substring(0, 5);
+        }
+        
+        if (endTime.includes(':') && endTime.length >= 5) {
+          endTime = endTime.substring(0, 5);
+        }
+      } catch (error) {
+        startTime = '00:00';
+        endTime = '00:00';
+      }
+      
+      processedSchedules[facilityId].schedules.push({
+        id: horario.id,
+        day: dia,
+        startTime: startTime,
+        endTime: endTime
+      });
+    });
+    
+    // Generar visitas programadas para la semana actual
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Comenzar semana en lunes
+    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+    const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    
+    // Función auxiliar para verificar si una fecha corresponde al día de la semana
+    const isDayOfWeek = (date: Date, day: string): boolean => {
+      switch (day) {
+        case 'lunes': return isMonday(date);
+        case 'martes': return isTuesday(date);
+        case 'miercoles': return isWednesday(date);
+        case 'jueves': return isThursday(date);
+        case 'viernes': return isFriday(date);
+        case 'sabado': return isSaturday(date);
+        case 'domingo': return isSunday(date);
+        default: return false;
+      }
+    };
+    
+    // Generar visitas programadas para la semana basadas en los horarios asignados
+    const visits: ScheduledVisit[] = [];
+    
+    weekDays.forEach(date => {
+      // Revisar cada instalación y sus horarios
+      Object.entries(processedSchedules).forEach(([facilityId, facilityData]) => {
+        const schedulesForDay = facilityData.schedules.filter(schedule => 
+          isDayOfWeek(date, schedule.day)
+        );
+        
+        schedulesForDay.forEach(schedule => {
           // Crear un ID único usando una combinación de fecha, facilityId y día
           const uniqueId = parseInt(`${date.getFullYear()}${date.getMonth()}${date.getDate()}${facilityId}${schedule.id}`);
           
           visits.push({
             id: uniqueId,
             facilityId: parseInt(facilityId),
-            facilityName: facility.name,
-            location: facility.location,
+            facilityName: facilityData.facilityName,
+            location: "Sin ubicación registrada", // La API actual no devuelve ubicación
             date: format(date, 'yyyy-MM-dd'),
             scheduledTime: schedule.startTime,
             scheduledEndTime: schedule.endTime,
-            image: facility.image
+            image: "/placeholder.svg" // La API actual no devuelve imagen
           });
-        }
-      }
+        });
+      });
     });
-  });
-
-  // Ordenar las visitas por fecha y hora
-  visits.sort((a, b) => {
-    const dateA = new Date(a.date);
-    const dateB = new Date(b.date);
     
-    const dateComparison = dateA.getTime() - dateB.getTime();
-    if (dateComparison !== 0) return dateComparison;
-    return a.scheduledTime.localeCompare(b.scheduledTime);
-  });
-  
-  return visits;
+    // Ordenar las visitas por fecha y hora
+    visits.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      
+      const dateComparison = dateA.getTime() - dateB.getTime();
+      if (dateComparison !== 0) return dateComparison;
+      return a.scheduledTime.localeCompare(b.scheduledTime);
+    });
+    
+    return visits;
+    
+  } catch (error) {
+    console.error("Error al obtener visitas programadas:", error);
+    throw error;
+  }
 };
 
 export default function ProgramadasPage() {
@@ -121,22 +201,20 @@ export default function ProgramadasPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
   const [filteredVisits, setFilteredVisits] = useState<ScheduledVisit[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
         
-        // En una implementación real, esto sería:
-        // const response = await fetch("http://localhost:8080/api/visitas-programadas");
-        // const data = await response.json();
-        
-        const data = await mockFetchProgrammedVisits();
+        const data = await fetchProgrammedVisits();
         
         setScheduledVisits(data);
         setFilteredVisits(data);
       } catch (error) {
         console.error("Error al cargar visitas programadas:", error);
+        setError("No se pudieron cargar las visitas programadas");
         toast({
           title: "Error",
           description: "No se pudieron cargar las visitas programadas",
@@ -149,7 +227,6 @@ export default function ProgramadasPage() {
 
     loadData();
   }, []);
-
   useEffect(() => {
     let filtered = scheduledVisits;
 
@@ -157,7 +234,8 @@ export default function ProgramadasPage() {
       filtered = filtered.filter(
         (visit) =>
           visit.facilityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          visit.location.toLowerCase().includes(searchQuery.toLowerCase()),
+          visit.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          format(new Date(visit.date), "EEEE d 'de' MMMM", { locale: es }).toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
@@ -172,6 +250,34 @@ export default function ProgramadasPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center">
+          <Button variant="ghost" className="mr-2" asChild>
+            <Link href="/coordinador/asistencia">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">Visitas Programadas</h1>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <h2 className="text-lg text-red-500 font-medium mb-2">Error</h2>
+            <p>{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4"
+            >
+              Intentar nuevamente
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
