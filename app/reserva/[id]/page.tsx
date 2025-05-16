@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { use } from "react"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -38,6 +39,7 @@ interface ReservationDetails {
     paymentAmount: string;
     paymentDate: string;
     paymentReference: string;
+    paymentReceiptUrl?: string | null; // URL a la imagen del comprobante de pago (si existe)
     userDetails: {
       name: string;
       email: string;
@@ -116,25 +118,18 @@ const reservationsDB: ReservationDetails[] = [
 ]
 
 export default function ReservaDetalle({ params }: { params: { id: string } }) {
+  // Usar React.use() para desenvolver params y obtener id de manera segura
+  const unwrappedParams = use(params);
+  const id = unwrappedParams.id;
+
   // Usar tipo específico y estado para cancelación
   const [reservation, setReservation] = useState<ReservationDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const { addNotification } = useNotification() // Obtener función del contexto
-  // Declaración duplicada eliminada
 
   useEffect(() => {
-<<<<<<< HEAD
-    // Simulación de carga de datos
-    setLoading(true)
-    setTimeout(() => {
-      const foundReservation = reservationsDB.find((r) => r.id === Number.parseInt(params.id))
-      setReservation(foundReservation || null)
-      setLoading(false)
-    }, 500)
-  }, [params.id])
-=======
     // Cargar datos reales del backend
     const fetchReservationDetails = async () => {
       setLoading(true)
@@ -261,7 +256,6 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
 
     fetchReservationDetails();
   }, [id])
->>>>>>> a4229f7cd343acd045c09874ff7c37cbe85e8ff4
 
   const getStatusBadge = (status: ReservationDetails['status']) => {
     switch (status) {      case "confirmada":
@@ -382,15 +376,6 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                     {getStatusBadge(reservation.status)}
                   </CardTitle>
                   <CardDescription>Creada el {reservation.createdAt}</CardDescription>
-<<<<<<< HEAD
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex items-center gap-1">
-                    <Download className="h-4 w-4" />
-                    Descargar comprobante
-                  </Button>
-                  {/* Usar la función de elegibilidad */}
-=======
                 </div>                <div className="flex gap-2">
                   {/* Botones de acción en orden: 
                       1. Descargar comprobante (izquierda) - Aparece solo cuando hay comprobante 
@@ -439,7 +424,6 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                   )}
                   
                   {/* Segundo botón: "Cancelar Reserva" */}
->>>>>>> a4229f7cd343acd045c09874ff7c37cbe85e8ff4
                   {checkCancellationEligibility(reservation) && (
                     <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
                       <DialogTrigger asChild>
@@ -567,11 +551,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                         <p>{reservation.paymentReference}</p>
                       </div>
                     )}
-<<<<<<< HEAD
-                  </div>
-=======
                     </div>
->>>>>>> a4229f7cd343acd045c09874ff7c37cbe85e8ff4
                 </div>
               </div>              {/* Mostrar comprobante de pago si es método depósito y tiene URL de comprobante (en cualquier estado) */}
               {(reservation.paymentMethod === "Depósito bancario" || reservation.paymentMethod === "deposito") && (
