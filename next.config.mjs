@@ -26,6 +26,14 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+  },  async redirects() {
+    return [
+      {
+        source: '/coordinador/horario',
+        destination: '/coordinador/asistencia/calendario',
+        permanent: true,
+      },
+    ];
   },
   async rewrites() {
     return [
