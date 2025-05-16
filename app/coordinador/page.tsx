@@ -465,6 +465,26 @@ export default function CoordinadorDashboard() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Ver estadísticas detalladas
             </Link>
+          </Button>        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Horario Semanal</CardTitle>
+          <CardDescription>Consulta tu horario de trabajo asignado</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center p-4 space-y-4">
+            <Clock className="h-12 w-12 text-primary" />
+            <h3 className="text-lg font-medium text-center">Consulta tus horarios de supervisión</h3>
+            <p className="text-gray-500 text-center">Revisa tu programación semanal para cada instalación asignada.</p>
+          </div>        </CardContent>
+        <CardFooter>
+          <Button className="w-full bg-primary hover:bg-primary-light" asChild>
+            <Link href="/coordinador/asistencia/calendario">
+              <Calendar className="h-4 w-4 mr-2" />
+              Ver mi horario semanal
+            </Link>
           </Button>
         </CardFooter>
       </Card>

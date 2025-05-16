@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
+import { API_BASE_URL, AUTH_CONFIG } from "@/lib/config"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -20,20 +21,18 @@ export default function Login() {
   const router = useRouter()
   const { login } = useAuth()
   const { toast } = useToast()
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
-
     try {
       console.log("Intentando iniciar sesión con:", email);
-      const response = await fetch("http://localhost:8080/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // Importante para recibir y enviar cookies
+        credentials: AUTH_CONFIG.INCLUDE_CREDENTIALS ? "include" : "same-origin", // Importante para recibir y enviar cookies
         body: JSON.stringify({
           email: email,
           password: password,

@@ -55,26 +55,63 @@ export default function CoordinadorLayout({
 
   // 3. useEffect hooks - All useEffect declarations together
   useEffect(() => {
-    if (!isAuthLoading) {
-      if (!isAuthenticated) {
-        router.push('/login?redirect=/coordinador');
-      } else if (user?.rol?.nombre !== 'coordinador') {
-        console.warn("Acceso denegado: Usuario no es coordinador.");
-        switch (user?.rol?.nombre) {
-          case 'admin':
-            router.push('/admin');
-            break;
-          case 'vecino':
-            router.push('/');
-            break;
-          case 'superadmin':
-            router.push('/superadmin');
-            break;
-          default:
-            router.push('/');
+    const checkAuth = async () => {
+      if (!isAuthLoading) {
+        // Al finalizar la carga de autenticación, verificar si está autenticado
+        if (!isAuthenticated) {
+          console.warn("Usuario no autenticado. Redirigiendo al login.");
+          router.push('/login?redirect=/coordinador');
+          return;
+        }
+        
+        // Verificar el rol usando sessionStorage como alternativa
+        const authDataStr = sessionStorage.getItem('authData');
+        if (authDataStr) {
+          try {
+            const authData = JSON.parse(authDataStr);
+            console.log("Datos de autenticación encontrados:", authData);
+            
+            // Si ya tenemos el rol del contexto, usarlo
+            let userRole = user?.rol?.nombre;
+            
+            // Como alternativa, intentar obtenerlo de sessionStorage
+            if (!userRole && authData && authData.usuario && authData.usuario.rol) {
+              userRole = authData.usuario.rol.nombre;
+              console.log("Usando rol desde sessionStorage:", userRole);
+            }
+            
+            // Validar el rol
+            if (userRole && userRole !== 'coordinador') {
+              console.warn("Acceso denegado: Usuario no es coordinador, es:", userRole);
+              switch (userRole) {
+                case 'admin':
+                  router.push('/admin');
+                  break;
+                case 'vecino':
+                  router.push('/');
+                  break;
+                case 'superadmin':
+                  router.push('/superadmin');
+                  break;
+                default:
+                  router.push('/');
+              }
+            } else if (!userRole) {
+              console.warn("No se pudo determinar el rol del usuario.");
+            }
+          } catch (e) {
+            console.error("Error procesando datos de autenticación:", e);
+          }
+        } else {
+          // Si no hay datos en sessionStorage pero estamos autenticados según el contexto
+          if (isAuthenticated && !user?.rol?.nombre) {
+            console.warn("Usuario autenticado pero sin rol definido.");
+          }
         }
       }
-    }
+    };
+    
+    checkAuth();
   }, [isAuthenticated, isAuthLoading, user, router]);
 
   useEffect(() => {
@@ -86,7 +123,7 @@ export default function CoordinadorLayout({
         // No forzamos que sea visible en pantallas grandes
         // para permitir ocultarlo con el botón de toggle
       }
-    }
+    };
 
     // Configuración inicial
     handleResize()
@@ -122,9 +159,7 @@ export default function CoordinadorLayout({
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  const navItems = [
+  }  const navItems = [
     { name: "Dashboard", href: "/coordinador", icon: <LayoutDashboard className="h-5 w-5" /> },
     { name: "Instalaciones Asignadas", href: "/coordinador/instalaciones", icon: <MapPin className="h-5 w-5" /> },
     { 
@@ -133,7 +168,8 @@ export default function CoordinadorLayout({
       icon: <Calendar className="h-5 w-5" />,
       subItems: [
         { name: "Historial", href: "/coordinador/asistencia", icon: <ClipboardList className="h-4 w-4" /> },
-        { name: "Calendario", href: "/coordinador/asistencia/calendario", icon: <Calendar className="h-4 w-4" /> },
+        { name: "Horario Semanal", href: "/coordinador/asistencia/calendario", icon: <Clock className="h-4 w-4" /> },
+        // Ruta antigua: "/coordinador/horario" - Ya no se utiliza, ahora es "/coordinador/asistencia/calendario"
         { name: "Programadas", href: "/coordinador/asistencia/programadas", icon: <Clock className="h-4 w-4" /> },
       ],
     },

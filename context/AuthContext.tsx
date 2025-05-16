@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { API_BASE_URL, AUTH_CONFIG } from '@/lib/config';
 
 // Define la forma de los datos del usuario (ajustar según necesidad)
 interface User {
@@ -60,9 +61,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsLoading(false);
         return null;
       }
-        const response = await fetch("http://localhost:8080/api/auth/me", {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
         method: "GET",
-        credentials: "include", // Importante para enviar las cookies
+        credentials: AUTH_CONFIG.INCLUDE_CREDENTIALS ? "include" : "same-origin", // Importante para enviar las cookies
         headers: {
           "Accept": "application/json",
           "Cache-Control": "no-cache, no-store, must-revalidate", // Evitar caché en la petición
