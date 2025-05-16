@@ -110,7 +110,6 @@ const observationsData: Observation[] = [
 export default function ObservacionesCoordinador() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [observations, setObservations] = useState<Observation[]>([])
-  const [allObservations, setAllObservations] = useState<Observation[]>([])
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [activeTab, setActiveTab] = useState<string>("todas")
   const [activePriority, setActivePriority] = useState<string>("todas")
@@ -118,8 +117,8 @@ export default function ObservacionesCoordinador() {
   const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null)
 
   // Función para aplicar los filtros actuales (estado y prioridad)
-  const applyFilters = (data: Observation[], tab: string = activeTab, priority: string = activePriority, query: string = searchQuery) => {
-    let filtered = [...data];
+  const applyFilters = (tab: string = activeTab, priority: string = activePriority, query: string = searchQuery) => {
+    let filtered = [...observationsData];
     
     // Aplicar filtro por estado (pestaña)
     if (tab !== "todas") {
@@ -156,6 +155,7 @@ export default function ObservacionesCoordinador() {
         return apiStatus.toLowerCase();
     }
   }
+
   useEffect(() => {
     // Cargar datos desde la API
     const loadData = async () => {
@@ -188,13 +188,11 @@ export default function ObservacionesCoordinador() {
           location: obs.ubicacion
         }));
         
-        setAllObservations(mappedData);
-        setObservations(applyFilters(mappedData));
+        setObservations(mappedData);
       } catch (error) {
         console.error("Error al cargar las observaciones:", error);
         // Si hay un error, cargamos los datos de ejemplo como fallback
-        setAllObservations(observationsData);
-        setObservations(applyFilters(observationsData));
+        setObservations(applyFilters());
       } finally {
         setIsLoading(false);
       }
@@ -203,21 +201,22 @@ export default function ObservacionesCoordinador() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
   const handleSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setObservations(applyFilters(allObservations, activeTab, activePriority, searchQuery))
+    setObservations(applyFilters(activeTab, activePriority, searchQuery))
   }
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     // Aplicamos los filtros inmediatamente para evitar un segundo renderizado
-    setObservations(applyFilters(allObservations, value, activePriority, searchQuery))
+    setObservations(applyFilters(value, activePriority, searchQuery))
   }
   
   const handlePriorityChange = (priority: string) => {
     setActivePriority(priority)
     // Aplicamos los filtros inmediatamente para evitar un segundo renderizado
-    setObservations(applyFilters(allObservations, activeTab, priority, searchQuery))
+    setObservations(applyFilters(activeTab, priority, searchQuery))
   }
 
   const handleViewDetails = (observation: Observation) => {
