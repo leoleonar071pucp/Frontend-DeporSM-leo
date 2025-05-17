@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
 import { API_BASE_URL, AUTH_CONFIG } from "@/lib/config"
+import { AuthApiClient } from "@/lib/auth-api"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -20,49 +21,42 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { login } = useAuth()
-  const { toast } = useToast()
-  const handleLogin = async (e: React.FormEvent) => {
+  const { toast } = useToast()  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
+    
     try {
-      console.log("Intentando iniciar sesión con:", email);
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: AUTH_CONFIG.INCLUDE_CREDENTIALS ? "include" : "same-origin", // Importante para recibir y enviar cookies
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error("Error en inicio de sesión:", response.status, errorText)
+      console.log("🔑 Intentando iniciar sesión con:", email);
+      
+      // Use our specialized auth client with built-in timeout handling
+      const tokenResponse = await AuthApiClient.login(email, password);
+      
+      console.log("✅ Inicio de sesión exitoso:", tokenResponse);
+      
+      if (tokenResponse.accessToken && tokenResponse.user) {
+        // Store the complete token response including refresh token
+        login(tokenResponse.user, tokenResponse.accessToken, tokenResponse.refreshToken);
         
-        if (response.status === 401) {
-          setError("Correo electrónico o contraseña incorrectos")
-        } else {
-          setError(errorText || "Error al iniciar sesión. Intente nuevamente.")
-        }
-        setIsLoading(false)
-        return
-      }
-
-      const user = await response.json()
-      console.log("Inicio de sesión exitoso. Rol:", user.rol?.nombre)
-      login(user) // Guardar usuario en contexto
-
-      toast({
-        title: "¡Bienvenido/a!",
-        description: `Has iniciado sesión como ${user.nombre}`,
-      })
-
-      // Redirigir según el rol
-      switch (user.rol?.nombre) {
+        toast({
+          title: "¡Bienvenido/a!",
+          description: `Has iniciado sesión como ${tokenResponse.user.nombre}`,
+        });
+        
+        // Redirect based on user role
+        switch (tokenResponse.user.rol?.nombre) {
+      } else {
+        // For backward compatibility with old response format
+        console.log("Inicio de sesión exitoso. Rol:", tokenResponse.rol?.nombre);
+        login(tokenResponse); // Store just the user data
+        
+        toast({
+          title: "¡Bienvenido/a!",
+          description: `Has iniciado sesión como ${tokenResponse.nombre}`,
+        });
+        
+        // Redirect based on user role
+        switch (tokenResponse.rol?.nombre) {
         case "superadmin":
           router.push("/superadmin")
           break

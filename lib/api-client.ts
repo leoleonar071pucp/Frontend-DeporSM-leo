@@ -3,10 +3,13 @@
  */
 
 import { API_BASE_URL, API_CONFIG, AUTH_CONFIG } from './config';
+import { getAccessToken, isTokenExpired } from './auth-utils';
+import { AuthApiClient } from './auth-api';
 
 interface FetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
   timeout?: number;
+  requireAuth?: boolean;
 }
 
 /**
@@ -42,13 +45,37 @@ export async function apiFetch(
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   
   // Merge default headers with provided headers
-  const headers = {
+  let headers = {
     ...API_CONFIG.DEFAULT_HEADERS,
     ...options.headers,
   };
   
-  // Set credentials based on configuration
-  const credentials = AUTH_CONFIG.INCLUDE_CREDENTIALS ? 'include' : 'same-origin';
+  // Add auth headers if required and token exists
+  if (options.requireAuth !== false) { // Default to requiring auth
+    const token = getAccessToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  
+  // Set credentials based on configuration - always include credentials for better session handling
+  const credentials = 'include';
+  
+  // Check if token refresh is needed
+  if (options.requireAuth !== false && isTokenExpired()) {
+    try {
+      // Try to refresh the token before making the request
+      await AuthApiClient.refreshToken();
+      // Update Authorization header with new token
+      const freshToken = getAccessToken();
+      if (freshToken) {
+        headers['Authorization'] = `Bearer ${freshToken}`;
+      }
+    } catch (error) {
+      console.warn('Failed to refresh token before request:', error);
+      // Continue with request anyway - the server will return 401 if necessary
+    }
+  }
   
   return fetchWithTimeout(url, {
     ...options,

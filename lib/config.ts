@@ -1,7 +1,13 @@
 // This file contains configuration constants for the frontend application
 
 // API base URL
-export const API_BASE_URL: string = 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api';
+// Determine if we're in development or production
+const isDevelopment = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+// Use local API for development, production API otherwise
+export const API_BASE_URL: string = isDevelopment 
+  ? 'http://localhost:8080/api'
+  : 'https://deporsm-apiwith-1035693188565.us-central1.run.app/api';
 
 // Authentication settings
 export const AUTH_CONFIG = {

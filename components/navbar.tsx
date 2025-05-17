@@ -195,12 +195,18 @@ export function Navbar() {
                       <Link href="/perfil" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
                         <User className="mr-2 h-4 w-4" /> Perfil
                       </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer">
+                    </DropdownMenuItem>                    <DropdownMenuItem asChild className="cursor-pointer">
                        <Link href="/notificaciones" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
                          <Bell className="mr-2 h-4 w-4" /> Notificaciones
                        </Link>
-                    </DropdownMenuItem>
+                    </DropdownMenuItem>                    {/* Debug link - always visible for testing purposes */}
+                    {(
+                      <DropdownMenuItem asChild className="cursor-pointer">
+                        <Link href="/debug" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
+                          <span className="mr-2 h-4 w-4">🛠️</span> Debug Auth
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       onSelect={() => { logout(); setIsProfileMenuOpen(false); }} 

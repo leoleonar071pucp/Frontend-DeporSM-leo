@@ -3,16 +3,29 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL, AUTH_CONFIG } from '@/lib/config';
+import { 
+  clearAuthCookies, 
+  setLogoutTimestamp, 
+  hasRecentLogout,
+  TokenResponse,
+  storeAuthToken,
+  clearAuthToken,
+  isTokenExpired,
+  getStoredUser,
+  getAccessToken
+} from '@/lib/auth-utils';
 
 // Define la forma de los datos del usuario (ajustar según necesidad)
 interface User {
   id: string;
   nombre: string;
+  username: string; // Added username property
   email: string;
   avatarUrl?: string;
   dni?: string;
   telefono?: string;
   direccion?: string;
+  roles?: string[]; // Changed to roles array
   rol?: {
     nombre: 'vecino' | 'admin' | 'coordinador' | 'superadmin';
     descripcion?: string;
@@ -24,8 +37,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  loading: boolean; // Alias for isLoading for compatibility with AuthDebug component
   isLoggingOut: boolean;
-  login: (userData: User) => void;
+  login: (userData: User | any, accessToken?: string, refreshToken?: string) => void;
   logout: () => void;
   checkAuthStatus: () => Promise<void>;
 }
@@ -42,48 +56,90 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false); // Estado para control de logout
-  const router = useRouter();
-  // Verificar sesión al cargar
+  const router = useRouter();  // Verificar sesión al cargar
   const checkAuthStatus = async () => {
     setIsLoading(true);
     try {
       console.log("Verificando estado de autenticación...");
-      
-      // Verificar si hay un cierre de sesión reciente
-      const logoutTimestamp = localStorage.getItem('logoutTimestamp');
-      const currentTime = Date.now();
-      
-      // Si se cerró sesión hace menos de 10 segundos, no verificar la autenticación
-      // Extendemos el tiempo para evitar reconexiones inmediatas después de logout
-      if (logoutTimestamp && (currentTime - parseInt(logoutTimestamp)) < 10000) {
+      // Verificar si hay un cierre de sesión reciente usando la función de utilidad
+      if (hasRecentLogout()) {
         console.log("Cierre de sesión reciente detectado, omitiendo verificación de autenticación");
         setUser(null);
         setIsLoading(false);
         return null;
       }
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        // First try to get session from server
+      let response = await fetch(`${API_BASE_URL}/auth/me`, {
         method: "GET",
-        credentials: AUTH_CONFIG.INCLUDE_CREDENTIALS ? "include" : "same-origin", // Importante para enviar las cookies
+        credentials: "include", // Always include credentials 
         headers: {
           "Accept": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate", // Evitar caché en la petición
+          "Cache-Control": "no-cache, no-store, must-revalidate",
         },
-        // Configuración para evitar problemas de CORS y cache
         cache: "no-store"
       });
   
       if (response.ok) {
         const userData = await response.json();
-        console.log("Usuario autenticado:", userData);
+        console.log("Usuario autenticado por sesión:", userData);
         setUser(userData);
         return userData;
       } else {
-        console.log("No hay sesión activa:", response.status);
-        setUser(null);
-        return null;
-      }
-    } catch (error) {
+        console.log("No hay sesión activa en servidor:", response.status);
+        
+        // If server session failed, check local storage token
+        const storedToken = getAccessToken();
+        const refreshToken = getRefreshToken();
+        const storedUser = getStoredUser();
+        
+        if (storedToken && refreshToken && storedUser && !isTokenExpired()) {
+          console.log("Encontrado token local válido, intentando verificar con servidor");
+          
+          // Try to refresh the token
+          try {
+            const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${storedToken}`
+              },
+              body: JSON.stringify({ refreshToken })
+            });
+            
+            if (refreshResponse.ok) {
+              const refreshData: TokenResponse = await refreshResponse.json();
+              console.log("Token refrescado con éxito");
+              storeAuthToken(refreshData);
+              setUser(refreshData.user);
+              return refreshData.user;
+            } else {
+              console.log("No se pudo refrescar el token:", refreshResponse.status);
+              clearAuthToken(); 
+              setUser(null);
+              return null;
+            }
+          } catch (refreshError) {
+            console.error("Error al refrescar token:", refreshError);
+            // Fall back to stored user temporarily
+            console.log("Usando datos de usuario almacenados temporalmente");
+            setUser(storedUser);
+            return storedUser;
+          }
+        } else {
+          console.log("No hay token local válido o está expirado");
+          clearAuthToken();
+          setUser(null);
+          return null;
+        }
+      }} catch (error) {
       console.error("Error al verificar sesión:", error);
+      // Proporcionar información más detallada sobre el error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error("Error de red: No se pudo conectar con el servidor. Verifique su conexión o si el servidor está en ejecución.");
+      } else if (error instanceof Error) {
+        console.error(`Error específico: ${error.name} - ${error.message}`);
+      }
       setUser(null);
       return null;
     } finally {
@@ -94,12 +150,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Verificar sesión al montar el componente
   useEffect(() => {
     checkAuthStatus();
-  }, []);
-
-  // Función para actualizar el estado al iniciar sesión
-  const login = (userData: User) => {
+  }, []);  // Función para actualizar el estado al iniciar sesión
+  const login = (userData: User | any, accessToken?: string, refreshToken?: string) => {
     console.log("AuthContext: Usuario iniciando sesión", userData);
-    setUser(userData);
+    
+    // If tokens are provided directly
+    if (accessToken && refreshToken) {
+      console.log("Storing tokens and user data separately");
+      storeTokens(accessToken, refreshToken, userData);
+      setUser(userData);
+    }
+    // If it's a token response object with accessToken
+    else if (userData && 'accessToken' in userData && userData.accessToken) {
+      console.log("Storing token response object");
+      storeAuthToken(userData as TokenResponse);
+      setUser(userData.user);
+    } 
+    // Just set the user for backward compatibility
+    else {
+      console.log("Only user data provided, no tokens");
+      setUser(userData as User);
+    }
   };
 
   // Función para cerrar sesión
@@ -107,10 +178,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log("Cerrando sesión...");
       setIsLoggingOut(true); // Iniciar estado de carga
-      
-      // Intentar hacer la petición al backend para cerrar sesión
+        // Intentar hacer la petición al backend para cerrar sesión
       try {
-        const response = await fetch("https://deporsm-apiwith-1035693188565.us-central1.run.app/api/auth/logout", {
+        const response = await fetch(`${API_BASE_URL}/auth/logout`, {
           method: "POST",
           credentials: "include",
           headers: {
@@ -125,38 +195,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Si hay un error CORS o de red, lo manejamos silenciosamente
         console.warn("No se pudo completar la petición al servidor:", error);
       }
+        // Sin importar la respuesta del servidor, siempre limpiamos el estado local
+      setUser(null);      // Usar nuestras funciones de utilidad para el manejo de sesión
+      setLogoutTimestamp(3000);  // Bloqueo de 3 segundos
+        
+      // Limpiar las cookies de autenticación de manera más exhaustiva
+      clearAuthCookies();
       
-      // Sin importar la respuesta del servidor, siempre limpiamos el estado local
-      setUser(null);
-      
-      // Guardar timestamp del logout para evitar reconexiones inmediatas
-      localStorage.setItem('logoutTimestamp', Date.now().toString());
-      
-      // Limpiar todas las cookies del navegador (enfoque radical pero efectivo)
-      document.cookie.split(";").forEach(function(c) {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-      });
+      // Clear the auth token from localStorage
+      clearAuthToken();
       
       // Redirigir a página principal con una recarga completa
       window.location.href = '/';
       
     } catch (error) {
-      console.error("Error general al cerrar sesión:", error);
-      // Aún así, limpiar estado local y redirigir
+      console.error("Error general al cerrar sesión:", error);      // Aún así, limpiar estado local y redirigir
       setUser(null);
-      localStorage.setItem('logoutTimestamp', Date.now().toString());
+      setLogoutTimestamp(3000);
+      clearAuthCookies();
+      clearAuthToken();
       window.location.href = '/';
     } finally {
       setIsLoggingOut(false);
     }
   };
-
   const value = {
     user,
     isAuthenticated: !!user,
     isLoading,
+    loading: isLoading, // Alias for compatibility
     isLoggingOut, // Exponer el estado de cierre
     login,
     logout,
