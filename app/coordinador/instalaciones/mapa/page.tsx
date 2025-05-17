@@ -61,7 +61,7 @@ export default function MapaInstalaciones() {
     const loadData = async () => {
       try {
         // Obtener los datos de instalaciones desde el backend
-        const response = await fetch("http://localhost:8080/api/instalaciones");
+        const response = await fetch("${API_BASE_URL}/instalaciones");
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);

@@ -47,7 +47,7 @@ export default function VecinosPage() {
   useEffect(() => {
     const fetchVecinos = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/usuarios/allVecinos");
+        const response = await fetch("${API_BASE_URL}/usuarios/allVecinos");
         const data = await response.json();
         console.log("🔍 DATA RECIBIDA DEL BACKEND:", data);
         
@@ -109,7 +109,7 @@ export default function VecinosPage() {
   const handleDeleteConfirm = async () => {
     if (selectedVecino) {
       try {
-        const response = await fetch(`http://localhost:8080/api/usuarios/${selectedVecino.id}`, {
+        const response = await fetch(`${API_BASE_URL}/usuarios/${selectedVecino.id}`, {
           method: 'DELETE',
         });
 
@@ -146,7 +146,7 @@ export default function VecinosPage() {
   const handleRestoreConfirm = async () => {
     if (selectedVecino) {
       try {
-        const response = await fetch(`http://localhost:8080/api/usuarios/${selectedVecino.id}/restore`, {
+        const response = await fetch(`${API_BASE_URL}/usuarios/${selectedVecino.id}/restore`, {
           method: 'POST',
         });
 

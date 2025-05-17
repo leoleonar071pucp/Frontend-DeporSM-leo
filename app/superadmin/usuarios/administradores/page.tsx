@@ -44,7 +44,7 @@ export default function AdministradoresPage() {
   useEffect(() => {
     const fetchAdministradores = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/usuarios/allAdministradores', {
+        const response = await fetch('${API_BASE_URL}/usuarios/allAdministradores', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -105,7 +105,7 @@ export default function AdministradoresPage() {
   }
   const handleDeleteConfirm = async () => {
     if (!selectedAdmin) return
-      try {      const response = await fetch(`http://localhost:8080/api/usuarios/administradores/${selectedAdmin.id}/desactivar`, {
+      try {      const response = await fetch(`${API_BASE_URL}/usuarios/administradores/${selectedAdmin.id}/desactivar`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -141,7 +141,7 @@ export default function AdministradoresPage() {
   }
   const handleRestoreConfirm = async () => {
     if (!selectedAdmin) return
-      try {      const response = await fetch(`http://localhost:8080/api/usuarios/administradores/${selectedAdmin.id}/activar`, {
+      try {      const response = await fetch(`${API_BASE_URL}/usuarios/administradores/${selectedAdmin.id}/activar`, {
         method: 'PUT',
         credentials: 'include',
         headers: {

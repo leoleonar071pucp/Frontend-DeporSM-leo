@@ -28,7 +28,7 @@ export default function CoordinadoresPage() {
   useEffect(() => {
     const fetchCoordinators = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/usuarios/allCoordinadores")
+        const response = await fetch("${API_BASE_URL}/usuarios/allCoordinadores")
         const data = await response.json()
 
         // Procesar instalacionesAsignadas separadas por comas

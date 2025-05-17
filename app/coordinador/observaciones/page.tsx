@@ -163,7 +163,7 @@ export default function ObservacionesCoordinador() {
         // ID de coordinador para pruebas
         const userId = 4;
         
-        const response = await fetch(`http://localhost:8080/api/observaciones/coordinador/${userId}`, {
+        const response = await fetch(`${API_BASE_URL}/observaciones/coordinador/${userId}`, {
           credentials: 'include',
         });
         

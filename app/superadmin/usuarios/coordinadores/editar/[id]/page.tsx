@@ -53,7 +53,7 @@ export default function EditarCoordinadorPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/api/usuarios/coordinadores/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/usuarios/coordinadores/${id}`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
@@ -166,7 +166,7 @@ export default function EditarCoordinadorPage() {
         ...(changePassword && { password: formData.password })
       }
 
-      const response = await fetch(`http://localhost:8080/api/usuarios/coordinadores/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/usuarios/coordinadores/${id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {

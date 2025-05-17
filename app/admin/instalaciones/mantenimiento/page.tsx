@@ -39,12 +39,12 @@ export default function MantenimientoPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const resMaintenances = await fetch("http://localhost:8080/api/mantenimientos/filtrar")
+        const resMaintenances = await fetch("${API_BASE_URL}/mantenimientos/filtrar")
         const maintenanceData = await resMaintenances.json()
         setMaintenances(maintenanceData)
         setFilteredMaintenances(maintenanceData)
 
-        const resFacilities = await fetch("http://localhost:8080/api/instalaciones")
+        const resFacilities = await fetch("${API_BASE_URL}/instalaciones")
         const facilitiesData = await resFacilities.json()
         setFacilities(facilitiesData)
       } catch (error) {
@@ -95,7 +95,7 @@ export default function MantenimientoPage() {
 
   const handleDeleteMaintenance = async (m) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/mantenimientos/${m.id}`, {
+      const res = await fetch(`${API_BASE_URL}/mantenimientos/${m.id}`, {
         method: "DELETE"
       })
       if (res.ok) {

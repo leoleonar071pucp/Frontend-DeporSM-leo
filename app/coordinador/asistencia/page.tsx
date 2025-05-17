@@ -159,7 +159,7 @@ export default function AsistenciaPage() {
         
         // Simulamos obtener los datos desde el backend
         // En una implementación real, esto sería:
-        // const response = await fetch("http://localhost:8080/api/asistencias");
+        // const response = await fetch("${API_BASE_URL}/asistencias");
         // const data = await response.json();
         
         const data = await mockFetchAsistencias();
@@ -243,7 +243,7 @@ export default function AsistenciaPage() {
   ) => {
     try {
       // En una implementación real, aquí llamaríamos a una API para registrar la salida
-      // const response = await fetch(`http://localhost:8080/api/asistencias/${attendanceId}`, {
+      // const response = await fetch(`${API_BASE_URL}/asistencias/${attendanceId}`, {
       //   method: 'PUT',
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify({ departureTime, location, notes })

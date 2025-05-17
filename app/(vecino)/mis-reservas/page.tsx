@@ -65,7 +65,7 @@ export default function MisReservas() {
       console.log("Obteniendo reservas del usuario...");
       
       // Llamada al endpoint del backend para obtener las reservas
-      const response = await fetch('http://localhost:8080/api/reservas/historial', {
+      const response = await fetch('${API_BASE_URL}/reservas/historial', {
         method: 'GET',
         credentials: 'include', // Importante para enviar cookies de sesión
         headers: {
@@ -198,7 +198,7 @@ export default function MisReservas() {
     try {
       // 3. Llamar al backend para cancelar la reserva
       const motivo = "Cancelada por el usuario"; // Opcional: podríamos agregar un campo para que el usuario ingrese un motivo
-      const response = await fetch(`http://localhost:8080/api/reservas/${reservationToCancel}/cancelar?motivo=${encodeURIComponent(motivo)}`, {
+      const response = await fetch(`${API_BASE_URL}/reservas/${reservationToCancel}/cancelar?motivo=${encodeURIComponent(motivo)}`, {
         method: 'PUT',
         credentials: 'include', // Para enviar las cookies de sesión
         headers: {

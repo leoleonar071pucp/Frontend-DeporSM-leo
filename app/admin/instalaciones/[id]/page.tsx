@@ -25,7 +25,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetch(`http://localhost:8080/api/instalaciones/${facilityId}`)
+        const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}`)
         if (!response.ok) throw new Error("Error al cargar instalación")
         const data = await response.json()
   

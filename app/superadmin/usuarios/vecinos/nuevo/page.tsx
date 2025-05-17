@@ -138,7 +138,7 @@ export default function NuevoVecinoPage() {
       }
 
       // Enviar datos al backend
-      const response = await fetch("http://localhost:8080/api/usuarios/register", {
+      const response = await fetch("${API_BASE_URL}/usuarios/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

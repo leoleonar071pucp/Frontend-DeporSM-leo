@@ -136,7 +136,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
       // Usar el id que ya fue extraído con React.use()
       const reservaId = id;
       try {
-        const response = await fetch(`http://localhost:8080/api/reservas/${reservaId}`, {
+        const response = await fetch(`${API_BASE_URL}/reservas/${reservaId}`, {
           method: 'GET',
           credentials: 'include', // Para enviar cookies de sesión
           headers: {
@@ -154,7 +154,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
         
         // También obtener detalles de pago si existe
         let pagoData = null;        try {
-          const pagoResponse = await fetch(`http://localhost:8080/api/pagos/reserva/${reservaId}`, {
+          const pagoResponse = await fetch(`${API_BASE_URL}/pagos/reserva/${reservaId}`, {
             method: 'GET',
             credentials: 'include',
             headers: {

@@ -110,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Intentar hacer la petición al backend para cerrar sesión
       try {
-        const response = await fetch("http://localhost:8080/api/auth/logout", {
+        const response = await fetch("${API_BASE_URL}/auth/logout", {
           method: "POST",
           credentials: "include",
           headers: {

@@ -72,7 +72,7 @@ export default function AdminDashboard() {
   const loadData = async () => {
     try {
       // Llamada al endpoint de estadísticas
-      const resStats = await fetch("http://localhost:8080/api/reservas/stats")
+      const resStats = await fetch("${API_BASE_URL}/reservas/stats")
       const dataStats = await resStats.json()
 
       setStats((prev) => ({
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
       }))
 
       // Llamada al endpoint de reservas recientes
-      const resRecents = await fetch("http://localhost:8080/api/reservas/recientes")
+      const resRecents = await fetch("${API_BASE_URL}/reservas/recientes")
       const dataRecents = await resRecents.json()
 
       setRecentReservations(
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
       )
 
       // Llamada al endpoint de observaciones recientes
-      const resAlerts = await fetch("http://localhost:8080/api/observaciones/recientes")
+      const resAlerts = await fetch("${API_BASE_URL}/observaciones/recientes")
       const dataAlerts = await resAlerts.json()
 
       setMaintenanceAlerts(
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
       )
 
       // Llamada al endpoint de estado actual de instalaciones
-      const resFacilities = await fetch("http://localhost:8080/api/instalaciones/estado-instalaciones")
+      const resFacilities = await fetch("${API_BASE_URL}/instalaciones/estado-instalaciones")
       const dataFacilities = await resFacilities.json()
 
       setFacilityStatus(

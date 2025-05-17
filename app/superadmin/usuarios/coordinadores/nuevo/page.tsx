@@ -111,7 +111,7 @@ export default function NuevoCoordinadorPage() {
     setIsSubmitting(true)
     
     try {
-      const response = await fetch("http://localhost:8080/api/usuarios/coordinadores", {
+      const response = await fetch("${API_BASE_URL}/usuarios/coordinadores", {
         method: 'POST',
         credentials: 'include',
         headers: {

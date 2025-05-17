@@ -100,7 +100,7 @@ export default function ConfirmarReserva() {
     const fetchFacility = async () => {
       try {
         console.log(`Cargando instalación con ID ${parsedId}...`);
-        const response = await fetch(`http://localhost:8080/api/instalaciones/${parsedId}`);
+        const response = await fetch(`${API_BASE_URL}/instalaciones/${parsedId}`);
         
         if (!response.ok) {
           throw new Error(`Error al cargar instalación: ${response.status} ${response.statusText}`);
@@ -284,7 +284,7 @@ export default function ConfirmarReserva() {
         console.log('Enviando reserva al backend:', reservaDTO);
         
         // Realizar la petición al backend
-        const response = await fetch('http://localhost:8080/api/reservas', {
+        const response = await fetch('${API_BASE_URL}/reservas', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -313,7 +313,7 @@ export default function ConfirmarReserva() {
             status = 'success'; // Pago online exitoso
               // Actualizar el estado de pago en el backend
             try {
-              const updateResponse = await fetch(`http://localhost:8080/api/reservas/${reservationId}/actualizar-pago`, {
+              const updateResponse = await fetch(`${API_BASE_URL}/reservas/${reservationId}/actualizar-pago`, {
                 method: 'PUT',
                 headers: {
                   'Content-Type': 'application/json',
@@ -339,7 +339,7 @@ export default function ConfirmarReserva() {
             formData.append('monto', facility ? facility.price.replace('S/. ', '') : '0');
             formData.append('comprobante', voucherFile);
 
-            const pagoResponse = await fetch('http://localhost:8080/api/pagos/deposito', {
+            const pagoResponse = await fetch('${API_BASE_URL}/pagos/deposito', {
               method: 'POST',
               credentials: 'include',
               body: formData
