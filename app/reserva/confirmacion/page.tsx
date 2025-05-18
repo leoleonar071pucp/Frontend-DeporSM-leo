@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
+import React, { Suspense, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,40 @@ function ConfirmacionReservaContent() {
   const facilityName = searchParams.get("facilityName")
   const dateParam = searchParams.get("date")
   const time = searchParams.get("time")
+
+  // Guardar información de la reserva completada en sessionStorage
+  // para prevenir volver a la página de confirmación
+  useEffect(() => {
+    if (resNum) {
+      // Extraer el ID de la instalación de los parámetros de búsqueda
+      const urlParams = new URLSearchParams(window.location.search);
+      const instalacionId = urlParams.get('id');
+
+      // Normalizar la fecha para guardarla en formato YYYY-MM-DD
+      const fechaNormalizada = dateParam ? new Date(dateParam).toISOString().split('T')[0] : null;
+
+      // Guardar el ID de la reserva, la fecha/hora de completado y la instalación
+      sessionStorage.setItem('reservaCompletada', JSON.stringify({
+        id: resNum,
+        timestamp: Date.now(),
+        status: status,
+        instalacionId: instalacionId,
+        fecha: dateParam,
+        fechaNormalizada: fechaNormalizada,
+        horario: time
+      }));
+
+      console.log("Reserva completada guardada en sessionStorage:", {
+        id: resNum,
+        timestamp: Date.now(),
+        status: status,
+        instalacionId: instalacionId,
+        fecha: dateParam,
+        fechaNormalizada: fechaNormalizada,
+        horario: time
+      });
+    }
+  }, [resNum, status, dateParam, time]);
 
   const formattedDate = dateParam
     ? format(new Date(dateParam), "EEEE d 'de' MMMM 'de' yyyy", { locale: es })

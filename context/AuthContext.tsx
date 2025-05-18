@@ -1,7 +1,6 @@
 "use client"
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import { API_BASE_URL, FRONTEND_URL } from '@/lib/config';
 
 // Define la forma de los datos del usuario (ajustar según necesidad)
@@ -28,6 +27,7 @@ interface AuthContextType {
   login: (userData: User) => void;
   logout: () => void;
   checkAuthStatus: () => Promise<void>;
+  hasRole: (role: 'vecino' | 'admin' | 'coordinador' | 'superadmin') => boolean;
 }
 
 // Crea el contexto con un valor inicial undefined para evitar errores SSR
@@ -42,7 +42,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false); // Estado para control de logout
-  const router = useRouter();
   // Verificar sesión al cargar
   const checkAuthStatus = async () => {
     setIsLoading(true);
@@ -76,16 +75,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok) {
         const userData = await response.json();
         console.log("Usuario autenticado:", userData);
+
+        // Verificar que el usuario tenga un rol válido
+        if (!userData.rol || !userData.rol.nombre) {
+          console.error("Usuario sin rol definido:", userData);
+          setUser(null);
+          return null;
+        }
+
+        // Guardar el rol en sessionStorage para acceso rápido y redundancia
+        sessionStorage.setItem('userRole', userData.rol.nombre);
+
         setUser(userData);
         return userData;
       } else {
         console.log("No hay sesión activa:", response.status);
         setUser(null);
+        // Limpiar el rol almacenado
+        sessionStorage.removeItem('userRole');
         return null;
       }
     } catch (error) {
       console.error("Error al verificar sesión:", error);
       setUser(null);
+      // Limpiar el rol almacenado
+      sessionStorage.removeItem('userRole');
       return null;
     } finally {
       setIsLoading(false);
@@ -156,6 +170,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Función para verificar si el usuario tiene un rol específico
+  const hasRole = (role: 'vecino' | 'admin' | 'coordinador' | 'superadmin'): boolean => {
+    if (!user || !user.rol) return false;
+    return user.rol.nombre === role;
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -163,7 +183,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoggingOut, // Exponer el estado de cierre
     login,
     logout,
-    checkAuthStatus
+    checkAuthStatus,
+    hasRole // Exponer la función de verificación de rol
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -49,70 +49,30 @@ export default function CoordinadorLayout({
 
   // 2. useContext hooks
   const pathname = usePathname()
-  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout, hasRole } = useAuth()
   const router = useRouter()
   const { notifications, unreadCount, markAsRead } = useNotification()
 
   // 3. useEffect hooks - All useEffect declarations together
   useEffect(() => {
-    const checkAuth = async () => {
-      if (!isAuthLoading) {
-        // Al finalizar la carga de autenticación, verificar si está autenticado
-        if (!isAuthenticated) {
-          console.warn("Usuario no autenticado. Redirigiendo al login.");
-          router.push('/login?redirect=/coordinador');
-          return;
-        }
-        
-        // Verificar el rol usando sessionStorage como alternativa
-        const authDataStr = sessionStorage.getItem('authData');
-        if (authDataStr) {
-          try {
-            const authData = JSON.parse(authDataStr);
-            console.log("Datos de autenticación encontrados:", authData);
-            
-            // Si ya tenemos el rol del contexto, usarlo
-            let userRole = user?.rol?.nombre;
-            
-            // Como alternativa, intentar obtenerlo de sessionStorage
-            if (!userRole && authData && authData.usuario && authData.usuario.rol) {
-              userRole = authData.usuario.rol.nombre;
-              console.log("Usando rol desde sessionStorage:", userRole);
-            }
-            
-            // Validar el rol
-            if (userRole && userRole !== 'coordinador') {
-              console.warn("Acceso denegado: Usuario no es coordinador, es:", userRole);
-              switch (userRole) {
-                case 'admin':
-                  router.push('/admin');
-                  break;
-                case 'vecino':
-                  router.push('/');
-                  break;
-                case 'superadmin':
-                  router.push('/superadmin');
-                  break;
-                default:
-                  router.push('/');
-              }
-            } else if (!userRole) {
-              console.warn("No se pudo determinar el rol del usuario.");
-            }
-          } catch (e) {
-            console.error("Error procesando datos de autenticación:", e);
-          }
+    if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
+      if (!isAuthenticated) {
+        router.push('/login?redirect=/coordinador'); // Redirigir a login si no está autenticado
+      } else if (!hasRole('coordinador')) {
+        console.warn("Acceso denegado: Usuario no es coordinador.");
+        // Redirigir según el rol del usuario
+        if (hasRole('vecino')) {
+          router.push('/');
+        } else if (hasRole('admin')) {
+          router.push('/admin');
+        } else if (hasRole('superadmin')) {
+          router.push('/superadmin');
         } else {
-          // Si no hay datos en sessionStorage pero estamos autenticados según el contexto
-          if (isAuthenticated && !user?.rol?.nombre) {
-            console.warn("Usuario autenticado pero sin rol definido.");
-          }
+          router.push('/'); // Fallback a la página principal
         }
       }
-    };
-    
-    checkAuth();
-  }, [isAuthenticated, isAuthLoading, user, router]);
+    }
+  }, [isAuthenticated, isAuthLoading, hasRole, router]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -153,7 +113,7 @@ export default function CoordinadorLayout({
   }
 
   // Loading state
-  if (isAuthLoading || (isAuthenticated && user?.rol?.nombre && user?.rol?.nombre !== 'coordinador')) {
+  if (isAuthLoading || (isAuthenticated && !hasRole('coordinador'))) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -162,9 +122,9 @@ export default function CoordinadorLayout({
   }  const navItems = [
     { name: "Dashboard", href: "/coordinador", icon: <LayoutDashboard className="h-5 w-5" /> },
     { name: "Instalaciones Asignadas", href: "/coordinador/instalaciones", icon: <MapPin className="h-5 w-5" /> },
-    { 
-      name: "Asistencia", 
-      href: "/coordinador/asistencia", 
+    {
+      name: "Asistencia",
+      href: "/coordinador/asistencia",
       icon: <Calendar className="h-5 w-5" />,
       subItems: [
         { name: "Historial", href: "/coordinador/asistencia", icon: <ClipboardList className="h-4 w-4" /> },
@@ -285,8 +245,8 @@ export default function CoordinadorLayout({
           </ScrollArea>
 
           <div className="p-4 border-t border-primary-light">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className="w-full justify-start text-white hover:bg-primary-light"
               onClick={() => logout()}
             >
@@ -339,7 +299,7 @@ export default function CoordinadorLayout({
                       {notifications.length > 0 ? (
                         notifications.map((notification) => (
                           <DropdownMenuItem key={notification.id} className="p-0">
-                            <div 
+                            <div
                               className={`w-full p-3 ${!notification.read ? "bg-primary-background cursor-pointer hover:bg-blue-50" : ""}`}
                               onClick={() => !notification.read && markAsRead(notification.id)}
                             >
@@ -383,7 +343,7 @@ export default function CoordinadorLayout({
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => logout()}
                       className="w-full"
                     >
@@ -501,8 +461,8 @@ export default function CoordinadorLayout({
                 </nav>
 
                 <div className="p-4 border-t border-primary-light">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="w-full justify-start text-white hover:bg-primary-light"
                     onClick={() => logout()}
                   >

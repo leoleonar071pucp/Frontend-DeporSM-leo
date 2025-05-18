@@ -49,7 +49,7 @@ export default function SuperAdminLayout({
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const pathname = usePathname()
   const router = useRouter()
-  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout, hasRole } = useAuth()
 
   // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
@@ -82,18 +82,18 @@ export default function SuperAdminLayout({
         { name: "Vecinos", href: "/superadmin/usuarios/vecinos", icon: <Users className="h-4 w-4" /> }
       ],
     },
-    { 
-      name: "Sistema", 
-      href: "/superadmin/sistema", 
+    {
+      name: "Sistema",
+      href: "/superadmin/sistema",
       icon: <Server className="h-5 w-5" />,
       subItems: [
         { name: "Configuración", href: "/superadmin/sistema/configuracion", icon: <Settings className="h-4 w-4" /> },
         { name: "Seguridad", href: "/superadmin/sistema/seguridad", icon: <Lock className="h-4 w-4" /> },
       ],
     },
-    { 
-      name: "Monitoreo", 
-      href: "/superadmin/monitoreo", 
+    {
+      name: "Monitoreo",
+      href: "/superadmin/monitoreo",
       icon: <MonitorSmartphone className="h-5 w-5" />,
       subItems: [
         { name: "Actividad de Usuarios", href: "/superadmin/monitoreo/actividad-usuarios", icon: <Users className="h-4 w-4" /> },
@@ -106,16 +106,24 @@ export default function SuperAdminLayout({
     if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
       if (!isAuthenticated) {
         router.push('/login?redirect=/superadmin'); // Redirigir a login si no está autenticado
-      } else if (user?.rol?.nombre !== 'superadmin') {
+      } else if (!hasRole('superadmin')) {
         console.warn("Acceso denegado: Usuario no es superadministrador.");
-        // Redirigir a una página de 'no autorizado' o a la página principal del usuario
-        router.push('/');
+        // Redirigir según el rol del usuario
+        if (hasRole('vecino')) {
+          router.push('/');
+        } else if (hasRole('admin')) {
+          router.push('/admin');
+        } else if (hasRole('coordinador')) {
+          router.push('/coordinador');
+        } else {
+          router.push('/'); // Fallback a la página principal
+        }
       }
     }
-  }, [isAuthenticated, isAuthLoading, user, router]);
+  }, [isAuthenticated, isAuthLoading, hasRole, router]);
 
   // --- Renderizado Condicional por Carga/Autenticación/Rol ---
-  if (isAuthLoading || !isAuthenticated || user?.rol?.nombre !== 'superadmin') {
+  if (isAuthLoading || !isAuthenticated || !hasRole('superadmin')) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Loader2 className="h-8 w-8 animate-spin text-[#0cb7f2]" />

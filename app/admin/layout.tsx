@@ -49,7 +49,7 @@ export default function AdminLayout({
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const pathname = usePathname()
   const router = useRouter()
-  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth()
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout, hasRole } = useAuth()
   const { notifications, unreadCount, markAsRead } = useNotification()
 
   // Cerrar menú móvil al cambiar de ruta
@@ -95,18 +95,25 @@ export default function AdminLayout({
     if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
       if (!isAuthenticated) {
         router.push('/login?redirect=/admin'); // Redirigir a login si no está autenticado
-      } else if (user?.rol?.nombre !== 'admin') {
+      } else if (!hasRole('admin')) {
         console.warn("Acceso denegado: Usuario no es administrador.");
-        // Redirigir a una página de 'no autorizado' o a la página principal del usuario
-        // Por ahora, redirigimos a la página principal como ejemplo
-        router.push('/');
+        // Redirigir según el rol del usuario
+        if (hasRole('vecino')) {
+          router.push('/');
+        } else if (hasRole('coordinador')) {
+          router.push('/coordinador');
+        } else if (hasRole('superadmin')) {
+          router.push('/superadmin');
+        } else {
+          router.push('/'); // Fallback a la página principal
+        }
       }
     }
-  }, [isAuthenticated, isAuthLoading, user, router]);
+  }, [isAuthenticated, isAuthLoading, hasRole, router]);
 
   // --- Renderizado Condicional por Carga/Autenticación/Rol ---
   // Muestra un loader mientras carga o si el usuario no es admin (antes de redirigir)
-  if (isAuthLoading || !isAuthenticated || user?.rol?.nombre !== 'admin') {
+  if (isAuthLoading || !isAuthenticated || !hasRole('admin')) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

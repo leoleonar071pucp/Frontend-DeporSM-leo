@@ -48,7 +48,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const [facility, setFacility] = useState<Facility | null>(null)
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [bloqueoToken, setBloqueoToken] = useState<string | null>(null)
   const [availableTimes, setAvailableTimes] = useState<string[]>([])
+  const [blockedTimes, setBlockedTimes] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const router = useRouter()
@@ -74,10 +76,25 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
         }
         const data = await response.json()
         setFacility(data)
-        
+
         // Consultar horarios disponibles para esta instalación
         if (date) {
           await fetchAvailableTimes(resolvedParams.id, date)
+        }
+
+        // Depurar el contenido de sessionStorage
+        const reservaCompletadaStr = sessionStorage.getItem('reservaCompletada');
+        if (reservaCompletadaStr) {
+          try {
+            const reservaCompletada = JSON.parse(reservaCompletadaStr);
+            console.log("Reserva completada encontrada en sessionStorage:", reservaCompletada);
+            console.log("ID de instalación actual:", resolvedParams.id);
+            console.log("¿Es la misma instalación?", reservaCompletada.instalacionId === resolvedParams.id);
+          } catch (error) {
+            console.error("Error al parsear reserva completada:", error);
+          }
+        } else {
+          console.log("No hay reserva completada en sessionStorage");
         }
       } catch (err) {
         console.error("Error cargando la instalación:", err)
@@ -93,35 +110,132 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   // Función para obtener horarios disponibles según la fecha seleccionada
   const fetchAvailableTimes = async (facilityId: string, selectedDate: Date) => {
     try {
+      console.log("Obteniendo horarios disponibles para fecha:", format(selectedDate, 'yyyy-MM-dd'));
       const formattedDate = format(selectedDate, 'yyyy-MM-dd')
-      const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}/disponibilidad?fecha=${formattedDate}`)
-      
+
+      // Añadir parámetros para evitar caché y obtener datos frescos
+      const timestamp = Date.now(); // Timestamp único para evitar caché
+      const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}/disponibilidad?fecha=${formattedDate}&_=${timestamp}`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        credentials: 'include' // Incluir cookies para autenticación
+      })
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error en la respuesta:", errorText);
         throw new Error(`Error al cargar horarios disponibles: ${response.status}`)
       }
-      
-      const data = await response.json()      
+
+      const data = await response.json()
+      console.log("Datos recibidos:", data);
+
       // Transformar el formato de la respuesta del backend al formato que espera el frontend
       // El backend devuelve un objeto con un array de rangos de horas, pero el frontend espera un array de strings
       if (data.horariosDisponibles && Array.isArray(data.horariosDisponibles)) {
-        const horariosFormateados = data.horariosDisponibles.map((horario: any) => {
+        // Crear dos arrays: uno para horarios disponibles y otro para bloqueados
+        const horariosDisponibles: string[] = [];
+        const horariosBloqueados: string[] = [];
+
+        // Limpiar los arrays actuales para evitar duplicados
+        setAvailableTimes([]);
+        setBlockedTimes([]);
+
+        data.horariosDisponibles.forEach((horario: any) => {
           // Formatear las horas de inicio y fin (vienen como "HH:mm:ss")
           const horaInicio = horario.horaInicio.substring(0, 5); // Obtener solo "HH:mm"
           const horaFin = horario.horaFin.substring(0, 5); // Obtener solo "HH:mm"
-          return `${horaInicio} - ${horaFin}`;
+          const timeString = `${horaInicio} - ${horaFin}`;
+
+          // Verificar si el horario está bloqueado temporalmente
+          if (horario.bloqueadoTemporalmente) {
+            // IMPORTANTE: Los horarios bloqueados temporalmente se muestran como no disponibles
+            // pero con un estilo diferente que muestra el horario
+            console.log(`Horario ${timeString} está bloqueado temporalmente, se mostrará como bloqueado`);
+
+            // Verificar si el bloqueo es del usuario actual
+            const bloqueoTemporalStr = sessionStorage.getItem('bloqueoTemporal');
+            let esBloqueoPropio = false;
+
+            if (bloqueoTemporalStr) {
+              try {
+                const bloqueoTemporal = JSON.parse(bloqueoTemporalStr);
+                // Verificar si el bloqueo es para este mismo horario y fecha
+                if (bloqueoTemporal.instalacionId === String(resolvedParams.id) &&
+                    bloqueoTemporal.fecha === (date ? format(date, 'yyyy-MM-dd') : '') &&
+                    bloqueoTemporal.horario === timeString) {
+                  console.log(`El horario ${timeString} está bloqueado por el usuario actual`);
+                  esBloqueoPropio = true;
+                  // Si es bloqueo propio, lo añadimos a disponibles para que pueda seguir con su reserva
+                  horariosDisponibles.push(timeString);
+                }
+              } catch (error) {
+                console.error("Error al verificar bloqueo temporal propio:", error);
+              }
+            }
+
+            // Si no es bloqueo propio, lo añadimos a bloqueados
+            if (!esBloqueoPropio) {
+              horariosBloqueados.push(timeString);
+            }
+          } else {
+            // Si no está bloqueado, lo añadimos a la lista de disponibles
+            horariosDisponibles.push(timeString);
+          }
         });
-        
-        setAvailableTimes(horariosFormateados);
+
+        console.log("Horarios disponibles:", horariosDisponibles);
+        console.log("Horarios bloqueados:", horariosBloqueados);
+
+        // Guardar tanto los horarios disponibles como los bloqueados
+        setAvailableTimes(horariosDisponibles);
+
+        // Guardar los horarios bloqueados en un estado separado para mostrarlos como deshabilitados
+        setBlockedTimes(horariosBloqueados);
       } else {
         // Si no hay horarios disponibles o el formato no es el esperado
+        console.log("No se encontraron horarios disponibles");
         setAvailableTimes([]);
+        setBlockedTimes([]);
       }
-      setSelectedTime(null) // Resetear la selección cuando cambian los horarios
+
+      // Verificar si el horario seleccionado sigue disponible
+      if (selectedTime) {
+        const isStillAvailable = availableTimes.includes(selectedTime);
+        const isBlockedByOthers = blockedTimes.includes(selectedTime);
+
+        // Si el horario ya no está disponible y no está bloqueado por el usuario actual
+        if (!isStillAvailable && !isBlockedByOthers) {
+          console.log("El horario seleccionado ya no está disponible, reseteando selección");
+          setSelectedTime(null);
+
+          // Liberar el bloqueo temporal si existe
+          if (bloqueoToken) {
+            fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoToken}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            }).catch(error => console.error('Error al liberar bloqueo:', error));
+            setBloqueoToken(null);
+          }
+
+          // Mostrar mensaje al usuario
+          setError("El horario seleccionado ya no está disponible. Por favor, selecciona otro horario.");
+          setTimeout(() => setError(null), 5000); // Limpiar el mensaje después de 5 segundos
+        }
+      }
     } catch (err) {
       console.error("Error cargando horarios disponibles:", err)
       setAvailableTimes([])
+      setError("Error al cargar horarios disponibles. Por favor, intenta de nuevo más tarde.")
     }
   }
+
+
 
   // Actualizar horarios cuando cambia la fecha
   useEffect(() => {
@@ -129,6 +243,49 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
       fetchAvailableTimes(String(facility.id), date)
     }
   }, [date])
+
+  // Verificar periódicamente si hay cambios en la disponibilidad
+  useEffect(() => {
+    // Solo si hay una fecha seleccionada y hay una instalación
+    if (date && facility) {
+      console.log("Configurando intervalo de actualización de horarios...");
+
+      // Función para actualizar horarios
+      const updateTimes = async () => {
+        console.log("Actualizando horarios disponibles automáticamente...");
+        try {
+          await fetchAvailableTimes(String(facility.id), date);
+        } catch (error) {
+          console.error("Error al actualizar horarios:", error);
+        }
+      };
+
+      // Actualizar inmediatamente al montar el componente
+      updateTimes();
+
+      // Crear un intervalo para verificar cada 1 segundo para una actualización más rápida
+      const intervalId = setInterval(updateTimes, 1000);
+
+      // Limpiar el intervalo cuando el componente se desmonte
+      return () => {
+        console.log("Limpiando intervalo de actualización de horarios");
+        clearInterval(intervalId);
+      };
+    }
+  }, [date, facility])
+
+  // Limpiar el bloqueo temporal cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      // Liberar el bloqueo temporal al desmontar el componente
+      if (bloqueoToken) {
+        fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoToken}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        }).catch(error => console.error('Error al liberar bloqueo:', error));
+      }
+    };
+  }, [bloqueoToken]);
 
   if (isLoading) {
     return (
@@ -174,9 +331,12 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
       <div className="bg-primary-background py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <Link href="/instalaciones" className="text-primary hover:underline">
-              &larr; Volver a instalaciones
-            </Link>
+            <button
+              onClick={() => router.back()}
+              className="text-primary hover:underline cursor-pointer border-none bg-transparent p-0 flex items-center"
+            >
+              &larr; Volver
+            </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -288,50 +448,94 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
 
                   {date && (
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-5 w-5 text-primary" />
-                        <span className="font-medium">
-                          Horarios disponibles para {format(date, "EEEE d 'de' MMMM", { locale: es })}
-                        </span>
+                      <div className="flex items-center mb-2">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-primary" />
+                          <span className="font-medium">
+                            Horarios disponibles para {format(date, "EEEE d 'de' MMMM", { locale: es })}
+                          </span>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {availableTimes.length > 0 ? (
-                          availableTimes.map((time: string) => {
-                            // Lógica para deshabilitar horarios pasados en el día actual
-                            let isDisabled = false;
-                            if (date && isToday(date)) {
-                              try {
-                                // Extraer hora de inicio (ej. "08" de "08:00 - 09:00")
-                                const startTimeString = time.split(" ")[0];
-                                // Crear objeto Date para la hora de inicio en el día seleccionado
-                                const startTime = parse(startTimeString, 'HH:mm', date);
-                                // Comparar con la hora actual
-                                if (isBefore(startTime, new Date())) {
-                                  isDisabled = true;
-                                }
-                              } catch (error) {
-                                console.error("Error parsing time:", time, error);
-                              }
-                            }
 
-                            return (
-                              <Button
-                                key={time}
-                                variant={selectedTime === time ? "default" : "outline"}
-                                className={selectedTime === time ? "bg-primary hover:bg-primary-light" : ""}
-                                onClick={() => setSelectedTime(time)}
-                                disabled={isDisabled}
+                      <div className="grid grid-cols-2 gap-2">
+                        {error ? (
+                          <p className="col-span-2 text-center text-red-500 py-4">
+                            {error}
+                          </p>
+                        ) : availableTimes.length > 0 || blockedTimes.length > 0 ? (
+                          <>
+                            {/* Mostrar horarios disponibles */}
+                            {availableTimes.map((time: string) => {
+                              // Lógica para deshabilitar horarios pasados en el día actual
+                              let isDisabled = false;
+                              if (date && isToday(date)) {
+                                try {
+                                  // Extraer hora de inicio (ej. "08" de "08:00 - 09:00")
+                                  const startTimeString = time.split(" ")[0];
+                                  // Crear objeto Date para la hora de inicio en el día seleccionado
+                                  const startTime = parse(startTimeString, 'HH:mm', date);
+                                  // Comparar con la hora actual
+                                  if (isBefore(startTime, new Date())) {
+                                    isDisabled = true;
+                                  }
+                                } catch (error) {
+                                  console.error("Error parsing time:", time, error);
+                                }
+                              }
+
+                              return (
+                                <Button
+                                  key={time}
+                                  variant={selectedTime === time ? "default" : "outline"}
+                                  className={selectedTime === time ? "bg-primary hover:bg-primary-light" : ""}
+                                  onClick={() => {
+                                    // Si ya estaba seleccionado, deseleccionar
+                                    if (selectedTime === time) {
+                                      setSelectedTime(null);
+                                      // Liberar el bloqueo temporal si existe
+                                      if (bloqueoToken) {
+                                        fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoToken}`, {
+                                          method: 'DELETE',
+                                          credentials: 'include'
+                                        }).catch(error => console.error('Error al liberar bloqueo:', error));
+                                        setBloqueoToken(null);
+                                      }
+                                    } else {
+                                      // Solo seleccionar el horario, sin bloquear temporalmente
+                                      setSelectedTime(time);
+                                      // Ya no llamamos a bloquearHorarioTemporal aquí
+                                      // El bloqueo se realizará cuando el usuario vaya a la página de confirmación
+                                    }
+                                  }}
+                                  disabled={isDisabled}
+                                >
+                                  {time}
+                                </Button>
+                              );
+                            })}
+
+                            {/* Mostrar horarios temporalmente bloqueados (en proceso de reserva por otros usuarios) */}
+                            {blockedTimes.map((time: string) => (
+                              <div
+                                key={`blocked-${time}`}
+                                className="h-10 rounded-md border border-gray-300 bg-gray-200 flex items-center justify-center text-gray-500 cursor-not-allowed pointer-events-none select-none opacity-60"
+                                title="Este horario está temporalmente bloqueado mientras se completa una reserva (disponible en 10 minutos)"
+                                aria-disabled="true"
+                                onClick={(e) => e.preventDefault()}
+                                onKeyDown={(e) => e.preventDefault()}
+                                tabIndex={-1}
                               >
-                                {time}
-                              </Button>
-                            );
-                          })
+                                <span className="text-sm font-medium">{time}</span>
+                              </div>
+                            ))}
+                          </>
                         ) : (
                           <p className="col-span-2 text-center text-gray-500 py-4">
                             No hay horarios disponibles para esta fecha
                           </p>
                         )}
                       </div>
+
                     </div>
                   )}
                 </CardContent>
@@ -344,9 +548,88 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                         // Si no está autenticado, redirigir a login
                         router.push('/login');
                       } else if (date && selectedTime) {
-                        // Si está autenticado y tiene fecha/hora, proceder a confirmar
+                        // Verificar si hay una reserva completada recientemente
+                        const reservaCompletadaStr = sessionStorage.getItem('reservaCompletada');
+                        if (reservaCompletadaStr) {
+                          try {
+                            const reservaCompletada = JSON.parse(reservaCompletadaStr);
+                            const tiempoTranscurrido = Date.now() - reservaCompletada.timestamp;
+
+                            // Si la reserva se completó hace menos de 30 minutos
+                            if (tiempoTranscurrido < 30 * 60 * 1000) {
+                              // Normalizar las fechas para comparar solo la parte de la fecha (YYYY-MM-DD)
+                              const fechaActual = date.toISOString().split('T')[0];
+
+                              // Usar la fecha normalizada si está disponible, o calcularla si no
+                              const fechaCompletada = reservaCompletada.fechaNormalizada ||
+                                                     (reservaCompletada.fecha ?
+                                                      new Date(reservaCompletada.fecha).toISOString().split('T')[0] :
+                                                      null);
+
+                              // Verificar si es exactamente la misma reserva (misma instalación, fecha y horario)
+                              const mismaInstalacion = reservaCompletada.instalacionId === resolvedParams.id;
+                              const mismaFecha = fechaCompletada && fechaActual === fechaCompletada;
+                              const mismoHorario = reservaCompletada.horario && reservaCompletada.horario === selectedTime;
+
+                              // Solo consideramos que es la misma reserva si coinciden los tres criterios
+                              const mismaReserva = mismaInstalacion && mismaFecha && mismoHorario;
+
+                              console.log("Comparando reserva actual con reserva completada:", {
+                                actual: {
+                                  instalacionId: resolvedParams.id,
+                                  fecha: date.toISOString(),
+                                  fechaNormalizada: fechaActual,
+                                  horario: selectedTime
+                                },
+                                completada: {
+                                  instalacionId: reservaCompletada.instalacionId,
+                                  fecha: reservaCompletada.fecha,
+                                  fechaNormalizada: fechaCompletada,
+                                  horario: reservaCompletada.horario
+                                },
+                                comparacion: {
+                                  mismaInstalacion,
+                                  mismaFecha,
+                                  mismoHorario,
+                                  mismaReserva
+                                }
+                              });
+
+                              // Solo redirigir si es exactamente la misma reserva (misma instalación, fecha y horario)
+                              if (mismaReserva) {
+                                console.log("Intentando reservar el mismo horario que ya fue reservado. Redirigiendo a mis reservas...");
+                                router.push('/mis-reservas');
+                                return;
+                              } else {
+                                console.log("Permitiendo continuar con la nueva reserva aunque sea en la misma instalación.");
+                              }
+                            } else {
+                              // Si pasó más tiempo, limpiar el storage
+                              console.log("Reserva antigua encontrada. Limpiando sessionStorage.");
+                              sessionStorage.removeItem('reservaCompletada');
+                            }
+                          } catch (error) {
+                            console.error("Error al verificar reserva completada:", error);
+                            sessionStorage.removeItem('reservaCompletada');
+                          }
+                        }
+
+                        // Si no hay reserva completada reciente, proceder a confirmar
                         const encodedTime = encodeURIComponent(selectedTime)
                         const encodedDate = encodeURIComponent(date.toISOString())
+
+                        // Ya no guardamos el token de bloqueo porque no lo estamos usando en esta etapa
+                        // El bloqueo se realizará cuando el usuario llegue a la página de confirmación
+
+                        // Liberar cualquier bloqueo temporal existente antes de navegar
+                        if (bloqueoToken) {
+                          fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoToken}`, {
+                            method: 'DELETE',
+                            credentials: 'include'
+                          }).catch(error => console.error('Error al liberar bloqueo:', error));
+                          setBloqueoToken(null);
+                        }
+
                         router.push(`/reserva/confirmar?id=${resolvedParams.id}&date=${encodedDate}&time=${encodedTime}`)
                       }
                     }}

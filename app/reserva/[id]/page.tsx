@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import React from "react"
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,7 +41,6 @@ interface ReservationDetails {
     paymentStatus: string;
     paymentAmount: string;
     paymentDate: string;
-    paymentReference: string;
     paymentReceiptUrl?: string | null; // URL a la imagen del comprobante de pago (si existe)
     userDetails: {
       name: string;
@@ -71,7 +70,6 @@ const reservationsDB: ReservationDetails[] = [
     paymentStatus: "Pagado",
     paymentAmount: "S/. 120.00",
     paymentDate: "2 de abril de 2025, 15:30",
-    paymentReference: "PAY-987654321",
     userDetails: { name: "Juan Pérez García", email: "juan.perez@example.com", phone: "987654321" },
     additionalInfo: "Traer balón propio. Se solicita puntualidad.",
     createdAt: "2 de abril de 2025, 15:25",
@@ -92,7 +90,6 @@ const reservationsDB: ReservationDetails[] = [
     paymentStatus: "Pendiente de verificación",
     paymentAmount: "S/. 15.00",
     paymentDate: "Pendiente",
-    paymentReference: "Pendiente",
     userDetails: { name: "Juan Pérez García", email: "juan.perez@example.com", phone: "987654321" },
     additionalInfo: "Traer gorro de baño obligatorio.",
     createdAt: "3 de abril de 2025, 09:15",
@@ -113,7 +110,6 @@ const reservationsDB: ReservationDetails[] = [
     paymentStatus: "Pagado",
     paymentAmount: "S/. 20.00",
     paymentDate: "1 de abril de 2025, 14:20",
-    paymentReference: "PAY-987654322",
     userDetails: { name: "Juan Pérez García", email: "juan.perez@example.com", phone: "987654321" },
     additionalInfo: "Traer toalla personal.",
     createdAt: "1 de abril de 2025, 14:15",
@@ -126,6 +122,7 @@ export default function ReservaDetalle() {
   // Usar el hook useParams para obtener los parámetros de la ruta de forma segura
   const params = useParams();
   const reservaId = params.id as string;
+  const router = useRouter(); // Importar useRouter para redireccionar
 
   // Usar tipo específico y estado para cancelación
   const [reservation, setReservation] = useState<ReservationDetails | null>(null);
@@ -183,7 +180,10 @@ export default function ReservaDetalle() {
         }
 
         // Formatear los datos obtenidos al formato que necesita la interfaz
-        const fechaReserva = new Date(reservaData.fecha);
+        // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
+        const datePart = reservaData.fecha.split('T')[0];
+        // Crear la fecha con la hora a mediodía para evitar problemas de zona horaria
+        const fechaReserva = new Date(`${datePart}T12:00:00`);
         const horaInicio = reservaData.horaInicio.substring(0, 5);
         const horaFin = reservaData.horaFin.substring(0, 5);
 
@@ -231,7 +231,7 @@ export default function ReservaDetalle() {
                               hour: '2-digit',
                               minute: '2-digit'
                             }).format(new Date(reservaData.createdAt))
-                          : 'Pendiente',          paymentReference: pagoData ? pagoData.referenciaTransaccion || 'No disponible' : 'Pendiente',
+                          : 'Pendiente',
           // Asegurarse de que la URL del comprobante sea válida
           paymentReceiptUrl: pagoData && (pagoData.urlComprobante || pagoData.url_comprobante)
                             ? (pagoData.urlComprobante || pagoData.url_comprobante)
@@ -291,32 +291,66 @@ export default function ReservaDetalle() {
     return hoursDifference >= 48;
   };
 
-  const handleCancelReservation = () => {
+  const handleCancelReservation = async () => {
     if (!reservation) return;
 
     setIsCancelling(true);
-    console.log("Simulando cancelación para reserva ID:", reservation.id);
+    console.log("Cancelando reserva ID:", reservation.id);
 
-    // Simular llamada a API
-    setTimeout(() => {
+    try {
+      // Llamar al backend para cancelar la reserva
+      const motivo = "Cancelada por el usuario";
+      const response = await fetch(`${API_BASE_URL}/reservas/${reservation.id}/cancelar?motivo=${encodeURIComponent(motivo)}`, {
+        method: 'PUT',
+        credentials: 'include', // Para enviar las cookies de sesión
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': FRONTEND_URL // Asegurar que se envíe el origen correcto
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al cancelar la reserva: ${response.status}`);
+      }
+
       // Actualizar el estado local de la reserva
       setReservation((prev) => {
-          if (!prev) return null;
-          return {
-              ...prev,
-              status: 'cancelada',
-              canCancel: false // Actualizar también canCancel si se usa en otro lado
-          }
+        if (!prev) return null;
+        return {
+          ...prev,
+          status: 'cancelada',
+          canCancel: false // Actualizar también canCancel si se usa en otro lado
+        }
       });
+
+      // Añadir notificación de cancelación usando los detalles de la reserva actual
+      addNotification({
+        title: reservation.status === "pendiente" ? "Solicitud Cancelada" : "Reserva Cancelada",
+        message: `Tu ${reservation.status === "pendiente" ? "solicitud de reserva" : "reserva"} para ${reservation.facilityName} (${reservation.time} el ${reservation.date}) ha sido cancelada.`,
+        type: "reserva",
+      });
+
+      console.log("Cancelación completada con éxito");
+
+      // Esperar un momento para que el usuario vea la notificación
+      setTimeout(() => {
+        // Redirigir a la lista de reservas
+        router.push('/mis-reservas');
+      }, 1000);
+    } catch (error) {
+      console.error("Error al cancelar la reserva:", error);
+
+      // Notificar al usuario sobre el error
+      addNotification({
+        title: "Error al cancelar",
+        message: "No se pudo cancelar la reserva. Por favor, intenta de nuevo más tarde.",
+        type: "reserva",
+      });
+    } finally {
       setIsCancelling(false);
       setShowCancelDialog(false); // Cerrar el diálogo
-      console.log("Cancelación simulada completada.");    // Añadir notificación de cancelación usando los detalles de la reserva actual
-      addNotification({
-          title: "Reserva Cancelada",
-          message: reservation ? `Tu reserva para ${reservation.facilityName} (${reservation.time} el ${reservation.date}) ha sido cancelada.` : "Tu reserva ha sido cancelada.",
-          type: "reserva",
-      });
-    }, 1500);
+    }
   }
 
 
@@ -422,18 +456,22 @@ export default function ReservaDetalle() {
                     </Button>
                   )}
 
-                  {/* Segundo botón: "Cancelar Reserva" */}
+                  {/* Segundo botón: "Cancelar Reserva" o "Cancelar Solicitud" según el estado */}
                   {checkCancellationEligibility(reservation) && (
                     <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
                       <DialogTrigger asChild>
                         <Button variant="destructive" size="sm">
-                          Cancelar Reserva
+                          {reservation.status === "pendiente" ? "Cancelar Solicitud" : "Cancelar Reserva"}
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Cancelar Reserva</DialogTitle>
-                          <DialogDescription>¿Estás seguro de que deseas cancelar esta reserva?</DialogDescription>
+                          <DialogTitle>
+                            {reservation.status === "pendiente" ? "Cancelar Solicitud de Reserva" : "Cancelar Reserva"}
+                          </DialogTitle>
+                          <DialogDescription>
+                            ¿Estás seguro de que deseas cancelar esta {reservation.status === "pendiente" ? "solicitud de reserva" : "reserva"}?
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="flex items-center gap-4 py-4">
                           <div className="bg-red-100 p-3 rounded-full">
@@ -542,12 +580,7 @@ export default function ReservaDetalle() {
                       <p className="text-sm text-gray-500">Fecha de pago</p>
                       <p>{reservation.paymentDate}</p>
                     </div>
-                    {reservation.paymentReference !== "Pendiente" && (
-                      <div className="md:col-span-2">
-                        <p className="text-sm text-gray-500">Referencia de pago</p>
-                        <p>{reservation.paymentReference}</p>
-                      </div>
-                    )}
+
                     </div>
                 </div>
               </div>              {/* Mostrar comprobante de pago si es método depósito y tiene URL de comprobante (en cualquier estado) */}

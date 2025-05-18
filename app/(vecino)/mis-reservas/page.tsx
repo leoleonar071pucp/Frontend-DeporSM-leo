@@ -45,10 +45,15 @@ export default function MisReservas() {
   const [isCancelling, setIsCancelling] = useState(false) // Estado para la carga de cancelación
   const [isLoadingReservations, setIsLoadingReservations] = useState(false) // Estado para la carga de reservas
   const [reservations, setReservations] = useState<Reservation[]>([])
-  
+
   // Función para formatear la fecha de la base de datos a un formato más amigable
   const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
+    // Crear la fecha asegurando que no haya problemas de zona horaria
+    // Primero extraemos solo la parte de la fecha (YYYY-MM-DD)
+    const datePart = dateStr.split('T')[0];
+    // Luego creamos la fecha con la hora a mediodía para evitar problemas de zona horaria
+    const date = new Date(`${datePart}T12:00:00`);
+
     return date.toLocaleDateString('es-ES', {
       weekday: 'long',
       day: 'numeric',
@@ -56,15 +61,15 @@ export default function MisReservas() {
       year: 'numeric'
     });
   }
-  
+
   // Función para cargar las reservas del usuario desde el backend
   const fetchReservations = async () => {
     if (!isAuthenticated) return;
-    
+
     setIsLoadingReservations(true);
     try {
       console.log("Obteniendo reservas del usuario...");
-      
+
       // Llamada al endpoint del backend para obtener las reservas
       const response = await fetch(`${API_BASE_URL}/reservas/historial`, {
         method: 'GET',
@@ -74,16 +79,16 @@ export default function MisReservas() {
           'Origin': FRONTEND_URL // Asegurar que se envíe el origen correcto
         }
       });
-      
+
       if (!response.ok) {
         console.error(`Error al obtener las reservas. Código: ${response.status}, Mensaje: ${await response.text()}`);
         throw new Error(`Error al obtener las reservas: ${response.status}`);
       }
-      
+
       // Obtener los datos del backend
       const reservasFromBackend = await response.json();
       console.log('Reservas obtenidas del backend:', reservasFromBackend);
-      
+
       // Transformar los datos para adaptarlos a nuestra interfaz
       const formattedReservations = reservasFromBackend.map((reserva: any) => {
         // Crear un objeto Date para calcular si se puede cancelar
@@ -92,12 +97,12 @@ export default function MisReservas() {
         const horaInicio = reserva.horaInicio.substring(0, 5); // Tomar solo HH:MM
         const horaFin = reserva.horaFin.substring(0, 5); // Tomar solo HH:MM
         const hora = `${horaInicio} - ${horaFin}`;
-        
+
         // Crear el objeto dateTime para cálculos de cancelación
         const [horaI, minI] = horaInicio.split(':').map(Number);
         const dateTime = new Date(fechaReserva);
         dateTime.setHours(horaI, minI, 0);
-        
+
         return {
           id: reserva.id,
           facilityName: reserva.instalacionNombre,
@@ -112,7 +117,7 @@ export default function MisReservas() {
           canCancel: false // Se calculará después
         };
       });
-      
+
       // Aplicar reglas de negocio para determinar si se puede cancelar
       const reservationsWithCancelStatus = formattedReservations.map((res: Reservation) => {
         // Calcular si se puede cancelar según nuestras reglas de negocio
@@ -120,24 +125,24 @@ export default function MisReservas() {
           ...res,
           canCancel: false // Valor temporal que será sobrescrito
         });
-        
+
         return {
           ...res,
           canCancel
         };
       });
-      
+
       setReservations(reservationsWithCancelStatus);
     } catch (error) {
       console.error('Error al cargar las reservas:', error);
-      
+
       // Notificar al usuario sobre el problema
       addNotification({
         title: "Error de conexión",
         message: "No se pudieron cargar tus reservas. Por favor, intenta de nuevo más tarde.",
         type: "info", // Cambiado de "error" a uno de los tipos válidos
       });
-      
+
       // En caso de error, al menos mostrar un array vacío para no romper la interfaz
       setReservations([]);
     } finally {
@@ -171,7 +176,7 @@ export default function MisReservas() {
       router.push('/login');
     }
   }, [isAuthenticated, isAuthLoading, router]);
-  
+
   // --- Cargar Reservas desde el Backend ---
   useEffect(() => {
     if (isAuthenticated && !isAuthLoading) {
@@ -212,7 +217,7 @@ export default function MisReservas() {
       if (!response.ok) {
         throw new Error(`Error al cancelar la reserva: ${response.status}`);
       }
-      
+
       // 4. Actualizar el estado de las reservas localmente sin tener que hacer otra llamada
       setReservations(prevReservations =>
         prevReservations.map((res: Reservation) => // Añadir tipo explícito a res
@@ -228,7 +233,7 @@ export default function MisReservas() {
         message: `Tu reserva para ${reservationDetails.facilityName} (${reservationDetails.time} el ${reservationDetails.date}) ha sido cancelada.`,
         type: "reserva",
       });
-      
+
     } catch (error) {
       console.error("Error al cancelar la reserva:", error);
       // Opcional: Mostrar un mensaje de error al usuario

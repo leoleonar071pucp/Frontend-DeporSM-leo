@@ -102,14 +102,14 @@ export default function ConfirmarReserva() {
       try {
         console.log(`Cargando instalación con ID ${parsedId}...`);
         const response = await fetch(`${API_BASE_URL}/instalaciones/${parsedId}`);
-        
+
         if (!response.ok) {
           throw new Error(`Error al cargar instalación: ${response.status} ${response.statusText}`);
         }
-        
+
         const apiFacility: ApiFacility = await response.json();
         console.log("Instalación obtenida de la API:", apiFacility);
-        
+
         // Adaptar el formato de la respuesta al formato que espera nuestro componente
         const adaptedFacility: Facility = {
           id: apiFacility.id,
@@ -119,7 +119,7 @@ export default function ConfirmarReserva() {
           description: apiFacility.descripcion,
           location: apiFacility.ubicacion
         };
-        
+
         setFacility(adaptedFacility);
       } catch (error) {
         console.error(`Error cargando instalación:`, error);
@@ -128,9 +128,244 @@ export default function ConfirmarReserva() {
         setLoading(false);
       }
     };
-    
+
     fetchFacility();
   }, [facilityId, dateParam, timeParam]);
+
+  // --- Verificar si ya existe una reserva completada recientemente ---
+  useEffect(() => {
+    // Verificar si hay una reserva completada en sessionStorage
+    const reservaCompletadaStr = sessionStorage.getItem('reservaCompletada');
+    if (reservaCompletadaStr) {
+      try {
+        const reservaCompletada = JSON.parse(reservaCompletadaStr);
+        const tiempoTranscurrido = Date.now() - reservaCompletada.timestamp;
+
+        // Si la reserva se completó hace menos de 30 minutos
+        if (tiempoTranscurrido < 30 * 60 * 1000) {
+          // Verificar si es exactamente la misma reserva (misma instalación, fecha y horario)
+          if (facilityId && dateParam && timeParam) {
+            const mismaInstalacion = reservaCompletada.instalacionId === facilityId;
+
+            // Normalizar las fechas para comparar solo la parte de la fecha (YYYY-MM-DD)
+            const fechaParam = new Date(dateParam).toISOString().split('T')[0];
+            const fechaCompletada = reservaCompletada.fechaNormalizada ||
+                                   (reservaCompletada.fecha ?
+                                    new Date(reservaCompletada.fecha).toISOString().split('T')[0] :
+                                    null);
+
+            const mismaFecha = fechaCompletada && fechaParam === fechaCompletada;
+            const mismoHorario = reservaCompletada.horario && reservaCompletada.horario === timeParam;
+
+            // Solo redirigir si es exactamente la misma reserva
+            const mismaReserva = mismaInstalacion && mismaFecha && mismoHorario;
+
+            console.log("Comparando reserva actual con reserva completada:", {
+              actual: {
+                instalacionId: facilityId,
+                fecha: fechaParam,
+                horario: timeParam
+              },
+              completada: {
+                instalacionId: reservaCompletada.instalacionId,
+                fecha: reservaCompletada.fecha,
+                fechaNormalizada: fechaCompletada,
+                horario: reservaCompletada.horario
+              },
+              comparacion: {
+                mismaInstalacion,
+                mismaFecha,
+                mismoHorario,
+                mismaReserva
+              }
+            });
+
+            if (mismaReserva) {
+              console.log("Intentando confirmar el mismo horario que ya fue reservado. Redirigiendo a mis reservas...");
+              router.push('/mis-reservas');
+              return;
+            } else {
+              console.log("Permitiendo continuar con la nueva reserva aunque sea en la misma instalación.");
+            }
+          }
+        } else {
+          // Si pasó más tiempo, limpiar el storage
+          console.log("Reserva antigua encontrada. Limpiando sessionStorage.");
+          sessionStorage.removeItem('reservaCompletada');
+        }
+      } catch (error) {
+        console.error("Error al verificar reserva completada:", error);
+        sessionStorage.removeItem('reservaCompletada');
+      }
+    }
+  }, [router, facilityId, dateParam, timeParam]);
+
+  // --- Crear bloqueo temporal al cargar la página ---
+  useEffect(() => {
+    // Solo crear el bloqueo si tenemos todos los datos necesarios y el usuario está autenticado
+    if (facilityId && dateParam && timeParam && isAuthenticated && !isAuthLoading) {
+      const crearBloqueoTemporal = async () => {
+        try {
+          // Verificar si ya existe un bloqueo temporal para este horario en sessionStorage
+          const bloqueoTemporalStr = sessionStorage.getItem('bloqueoTemporal');
+
+          // Si ya existe un bloqueo temporal para este mismo horario, no crear uno nuevo
+          if (bloqueoTemporalStr) {
+            try {
+              const bloqueoExistente = JSON.parse(bloqueoTemporalStr);
+              const tiempoTranscurrido = Date.now() - bloqueoExistente.timestamp;
+
+              // Si el bloqueo es para el mismo horario y no ha expirado (menos de 10 minutos)
+              if (tiempoTranscurrido < 10 * 60 * 1000 &&
+                  bloqueoExistente.instalacionId === facilityId &&
+                  bloqueoExistente.fecha === new Date(dateParam).toISOString().split('T')[0] &&
+                  bloqueoExistente.horario === timeParam) {
+
+                console.log("Ya existe un bloqueo temporal para este horario. No se creará uno nuevo.");
+                return; // No crear un nuevo bloqueo
+              } else {
+                console.log("El bloqueo temporal existente es para otro horario o ha expirado. Se creará uno nuevo.");
+                // Liberar el bloqueo anterior antes de crear uno nuevo
+                if (bloqueoExistente.token) {
+                  fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoExistente.token}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                  }).catch(error => console.error('Error al liberar bloqueo anterior:', error));
+                }
+                sessionStorage.removeItem('bloqueoTemporal');
+              }
+            } catch (error) {
+              console.error("Error al verificar bloqueo temporal existente:", error);
+              sessionStorage.removeItem('bloqueoTemporal');
+            }
+          }
+
+          console.log("Creando bloqueo temporal para la reserva...");
+
+          // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
+          const [horaInicio, horaFin] = timeParam.split(' - ');
+
+          // Crear el objeto de bloqueo temporal
+          const bloqueoDTO = {
+            instalacionId: parseInt(facilityId),
+            fecha: new Date(dateParam).toISOString().split('T')[0],
+            horaInicio: `${horaInicio}:00`,
+            horaFin: `${horaFin}:00`
+          };
+
+          console.log("Datos del bloqueo:", bloqueoDTO);
+
+          // Enviar la solicitud de bloqueo temporal con reintentos
+          let response: Response | undefined;
+          let retryCount = 0;
+          const maxRetries = 3;
+
+          while (retryCount < maxRetries) {
+            try {
+              response = await fetch(`${API_BASE_URL}/bloqueos-temporales`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Pragma': 'no-cache'
+                },
+                body: JSON.stringify(bloqueoDTO)
+              });
+
+              // Si la solicitud fue exitosa, salir del bucle
+              if (response.ok) {
+                break;
+              }
+
+              // Si el error es que el horario no está disponible, no reintentar
+              const errorText = await response.text();
+              if (errorText.includes("no está disponible")) {
+                response = { ok: false, text: () => Promise.resolve(errorText) } as Response;
+                break;
+              }
+
+              // Incrementar contador de reintentos
+              retryCount++;
+              console.log(`Intento ${retryCount} fallido. Reintentando...`);
+
+              // Esperar un poco antes de reintentar (tiempo exponencial)
+              await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
+            } catch (error) {
+              console.error(`Error en intento ${retryCount}:`, error);
+              retryCount++;
+
+              // Si es el último intento, propagar el error
+              if (retryCount >= maxRetries) {
+                throw error;
+              }
+
+              // Esperar antes de reintentar
+              await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
+            }
+          }
+
+          if (response && response.ok) {
+            const data = await response.json();
+            console.log("Bloqueo temporal creado con éxito. Token:", data.token);
+
+            // Guardar el token en sessionStorage para liberarlo después
+            sessionStorage.setItem('bloqueoTemporal', JSON.stringify({
+              token: data.token,
+              timestamp: Date.now(),
+              horario: timeParam,
+              fecha: new Date(dateParam).toISOString().split('T')[0],
+              instalacionId: facilityId
+            }));
+          } else if (response) {
+            let errorText = '';
+            try {
+              errorText = await response.text();
+            } catch (e) {
+              errorText = 'Error desconocido al crear bloqueo temporal';
+            }
+            console.error('Error al crear bloqueo temporal:', errorText);
+
+            // Si el horario ya no está disponible, mostrar un mensaje y redirigir
+            if (errorText.includes("no está disponible")) {
+              setErrors({
+                payment: "El horario seleccionado ya no está disponible. Por favor, regresa y selecciona otro horario."
+              });
+
+              // Esperar un momento antes de redirigir para que el usuario pueda ver el mensaje
+              setTimeout(() => {
+                router.push(`/instalaciones/${facilityId}`);
+              }, 3000);
+            }
+          }
+        } catch (error) {
+          console.error('Error al crear bloqueo temporal:', error);
+        }
+      };
+
+      crearBloqueoTemporal();
+    }
+
+    // Función de limpieza para liberar el bloqueo cuando el usuario abandone la página
+    return () => {
+      const bloqueoTemporalStr = sessionStorage.getItem('bloqueoTemporal');
+      if (bloqueoTemporalStr) {
+        try {
+          const bloqueoTemporal = JSON.parse(bloqueoTemporalStr);
+
+          // Liberar el bloqueo temporal
+          fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoTemporal.token}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          }).catch(error => console.error('Error al liberar bloqueo:', error));
+
+          // No eliminamos el item de sessionStorage aquí para permitir que la página de confirmación lo use
+        } catch (error) {
+          console.error("Error al liberar bloqueo temporal:", error);
+        }
+      }
+    };
+  }, [facilityId, dateParam, timeParam, isAuthenticated, isAuthLoading, router]);
 
   // --- Protección de Ruta ---
   useEffect(() => {
@@ -254,6 +489,39 @@ export default function ConfirmarReserva() {
     return Object.keys(newErrors).length === 0
   }
 
+  // Función para verificar si el horario sigue disponible
+  const verificarDisponibilidadHorario = async () => {
+    try {
+      if (!facilityId || !dateParam || !timeParam) return false;
+
+      const formattedDate = new Date(dateParam).toISOString().split('T')[0];
+      const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}/disponibilidad?fecha=${formattedDate}`);
+
+      if (!response.ok) {
+        throw new Error(`Error al verificar disponibilidad: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Verificar si el horario seleccionado sigue disponible
+      if (data.horariosDisponibles && Array.isArray(data.horariosDisponibles)) {
+        const horariosFormateados = data.horariosDisponibles.map((horario: any) => {
+          const horaInicio = horario.horaInicio.substring(0, 5);
+          const horaFin = horario.horaFin.substring(0, 5);
+          return `${horaInicio} - ${horaFin}`;
+        });
+
+        // Verificar si el horario seleccionado está en la lista de disponibles
+        return horariosFormateados.includes(timeParam);
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Error verificando disponibilidad:", error);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormSubmitted(true)
@@ -261,7 +529,18 @@ export default function ConfirmarReserva() {
     if (validateForm()) {
       // Mostrar un indicador de carga o procesamiento
       setIsSubmitting(true)
-      
+
+      // Verificar si el horario sigue disponible antes de proceder
+      const horarioDisponible = await verificarDisponibilidadHorario();
+
+      if (!horarioDisponible) {
+        setErrors({
+          payment: "El horario seleccionado ya no está disponible. Por favor, regresa y selecciona otro horario."
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       let paymentSuccess = true;
       let status = 'pending'; // Default status
       let reservationId: number | null = null;
@@ -283,7 +562,7 @@ export default function ConfirmarReserva() {
         };
 
         console.log('Enviando reserva al backend:', reservaDTO);
-        
+
         // Realizar la petición al backend
         const response = await fetch(`${API_BASE_URL}/reservas`, {
           method: 'POST',
@@ -295,15 +574,23 @@ export default function ConfirmarReserva() {
         });
 
         if (!response.ok) {
-          throw new Error(`Error al crear la reserva: ${response.status} ${response.statusText}`);
+          const errorData = await response.text();
+          // Verificar si es un error de conflicto de horario
+          if (errorData.includes("conflicto con otra reserva")) {
+            throw new Error("El horario seleccionado entra en conflicto con otra reserva que ya tienes para ese día. Por favor, selecciona otro horario.");
+          } else if (errorData.includes("no está disponible")) {
+            throw new Error("El horario seleccionado ya no está disponible. Por favor, regresa y selecciona otro horario.");
+          } else {
+            throw new Error(`Error al crear la reserva: ${response.status} ${errorData}`);
+          }
         }
 
         // Procesar respuesta del backend
         const reservaCreada = await response.json();
         console.log('Reserva creada exitosamente:', reservaCreada);
-        
+
         reservationId = reservaCreada.id;
-        
+
         // Simular procesamiento de pago online
         if (paymentMethod === 'online') {
           if (formData.cardNumber.endsWith('1234')) { // Simular fallo para tarjetas específicas
@@ -320,12 +607,12 @@ export default function ConfirmarReserva() {
                   'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                   estadoPago: 'pagado',
                   estado: 'confirmada' // Asegurar que la reserva quede confirmada al pagar
                 })
               });
-              
+
               if (!updateResponse.ok) {
                 console.warn('No se pudo actualizar el estado del pago, pero la reserva fue creada');
               }
@@ -353,7 +640,7 @@ export default function ConfirmarReserva() {
               const urlComprobante = await pagoResponse.text();
               console.log('Comprobante subido correctamente:', urlComprobante);
             }
-            
+
             status = 'pending'; // Depósito siempre queda pendiente de verificación
           } catch (pagoError) {
             console.error('Error al subir el comprobante de pago:', pagoError);
@@ -361,9 +648,9 @@ export default function ConfirmarReserva() {
         } else {
           status = 'pending'; // Depósito siempre queda pendiente
         }
-        
+
         if (paymentSuccess) {
-          // Añadir notificación 
+          // Añadir notificación
           if (facility) {
             addNotification({
               title: status === 'success' ? "Reserva Confirmada" : "Reserva Pendiente",
@@ -371,24 +658,45 @@ export default function ConfirmarReserva() {
               type: "reserva",
             });
           }
-          
+
+          // Liberar el bloqueo temporal si existe
+          const bloqueoTemporalStr = sessionStorage.getItem('bloqueoTemporal');
+          if (bloqueoTemporalStr) {
+            try {
+              const bloqueoTemporal = JSON.parse(bloqueoTemporalStr);
+
+              // Liberar el bloqueo temporal
+              fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoTemporal.token}`, {
+                method: 'DELETE',
+                credentials: 'include'
+              }).catch(error => console.error('Error al liberar bloqueo:', error));
+
+              // Limpiar el storage
+              sessionStorage.removeItem('bloqueoTemporal');
+            } catch (error) {
+              console.error("Error al liberar bloqueo temporal:", error);
+              sessionStorage.removeItem('bloqueoTemporal');
+            }
+          }
+
           // Preparar parámetros para la URL
           const queryParams = new URLSearchParams({
             status: status,
             resNum: reservationId ? `RES-${reservationId}` : `RES-${Date.now().toString().slice(-6)}`,
             facilityName: facility?.name || "Instalación Desconocida",
             date: date.toISOString(), // Pasar fecha completa
-            time: timeParam || "Horario Desconocido"
+            time: timeParam || "Horario Desconocido",
+            id: facilityId || "" // Incluir el ID de la instalación
           });
-          
+
           // Redirigir a la página de confirmación con los detalles
           console.log(`Redirigiendo a confirmación con estado: ${status} y detalles.`);
           router.push(`/reserva/confirmacion?${queryParams.toString()}`);
         }
       } catch (error) {
         console.error('Error al procesar la reserva:', error);
-        setErrors({ 
-          payment: error instanceof Error ? error.message : "Ocurrió un error al procesar tu reserva. Inténtalo de nuevo más tarde." 
+        setErrors({
+          payment: error instanceof Error ? error.message : "Ocurrió un error al procesar tu reserva. Inténtalo de nuevo más tarde."
         });
         paymentSuccess = false;
       } finally {
@@ -451,6 +759,24 @@ export default function ConfirmarReserva() {
               <CardDescription>Completa los datos para finalizar tu reserva</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Mensaje informativo sobre bloqueo temporal */}
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-start">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="font-bold text-blue-700 mb-1">Horario bloqueado temporalmente</p>
+                    <p className="text-sm text-blue-700">
+                      Este horario está <strong>reservado exclusivamente para ti</strong> mientras completas tu reserva. Otros usuarios verán este horario como bloqueado y no podrán seleccionarlo durante los próximos 10 minutos.
+                    </p>
+                    <p className="text-sm text-blue-700 mt-2">
+                      <strong>Nota:</strong> Si recargas la página o retrocedes, podrás continuar con tu reserva sin problemas. Tu bloqueo temporal se mantiene activo.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-primary-pale p-4 rounded-md">
                 <h3 className="font-medium text-lg mb-2">Detalles de la Reserva</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -712,7 +1038,7 @@ export default function ConfirmarReserva() {
                   </Alert>
                 )}
 
-                <div className="mt-6 space-y-4"> 
+                <div className="mt-6 space-y-4">
                   {/* Mostrar error general de pago */}
                   {errors.payment && (
                      <Alert variant="destructive">

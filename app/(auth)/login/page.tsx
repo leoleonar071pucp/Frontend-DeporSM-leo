@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,8 +19,36 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const { login } = useAuth()
+  const searchParams = useSearchParams()
+  const redirectPath = searchParams.get("redirect") || "/"
+  const { login, isAuthenticated, user, isLoading: isAuthLoading } = useAuth()
   const { toast } = useToast()
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (!isAuthLoading && isAuthenticated) {
+      // Si ya está autenticado, redirigir según su rol
+      if (user?.rol?.nombre) {
+        switch (user.rol.nombre) {
+          case "superadmin":
+            router.push("/superadmin")
+            break
+          case "admin":
+            router.push("/admin")
+            break
+          case "coordinador":
+            router.push("/coordinador")
+            break
+          default:
+            router.push("/") // Vecino o rol desconocido
+            break
+        }
+      } else {
+        // Si está autenticado pero no tiene rol definido
+        router.push("/")
+      }
+    }
+  }, [isAuthenticated, isAuthLoading, user, router])
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -64,20 +92,24 @@ export default function Login() {
         description: `Has iniciado sesión como ${user.nombre}`,
       })
 
-      // Redirigir según el rol
-      switch (user.rol?.nombre) {
-        case "superadmin":
-          router.push("/superadmin")
-          break
-        case "admin":
-          router.push("/admin")
-          break
-        case "coordinador":
-          router.push("/coordinador")
-          break
-        default:
-          router.push("/")
-          break
+      // Redirigir según el rol o a la ruta de redirección si existe
+      if (redirectPath && redirectPath !== "/login") {
+        router.push(redirectPath)
+      } else {
+        switch (user.rol?.nombre) {
+          case "superadmin":
+            router.push("/superadmin")
+            break
+          case "admin":
+            router.push("/admin")
+            break
+          case "coordinador":
+            router.push("/coordinador")
+            break
+          default:
+            router.push("/")
+            break
+        }
       }
     } catch (err) {
       console.error("Error de red:", err)
