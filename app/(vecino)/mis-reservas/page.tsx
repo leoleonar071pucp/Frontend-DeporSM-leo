@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertTriangle, Calendar, Clock, MapPin, Loader2, RefreshCw } from "lucide-react" // Add Loader2 and RefreshCw
 import Link from "next/link"
 import { differenceInHours } from 'date-fns' // Importar date-fns
-import { API_BASE_URL,FRONTEND_URL } from "@/lib/config";
+import { API_BASE_URL, FRONTEND_URL } from "@/lib/config";
 
 // Define la interfaz para una reserva adaptada al formato del backend
 interface Reservation {
