@@ -47,6 +47,7 @@ interface Observation {
   completedAt?: string;
   feedback?: string;
   location: string; // Añadimos la ubicación
+  fotosUrl?: string; // Campo original de URLs separadas por comas
 }
 
 // Datos de respaldo en caso de que la API falle
@@ -187,19 +188,27 @@ export default function ObservacionesCoordinador() {
         console.log('API Response data:', data);
         
       // Transformamos los datos de la API al formato necesario para nuestro componente
-        const mappedData = data.map((obs: any) => {
-          // Procesar URLs de imágenes (puede ser null o contener múltiples URLs separadas por comas)
+        const mappedData = data.map((obs: any) => {          // Procesar URLs de imágenes (puede ser null o contener múltiples URLs separadas por comas)
           const photoUrls: string[] = [];
           
           if (obs.fotosUrl) {
             try {
               if (typeof obs.fotosUrl === 'string') {
-                // Intentar ambos separadores (coma y pipe) para mayor compatibilidad
-                const urlsArray = obs.fotosUrl.includes(',') 
-                  ? obs.fotosUrl.split(',').filter((url: string) => url && url.trim())
-                  : obs.fotosUrl.split('|').filter((url: string) => url && url.trim());
+                // Limpiar la cadena y eliminar espacios en blanco
+                const cleanUrlString = obs.fotosUrl.trim();
                 
-                photoUrls.push(...urlsArray);
+                if (cleanUrlString) {
+                  // Intentar ambos separadores (coma y pipe) para mayor compatibilidad
+                  const urlsArray = cleanUrlString.includes(',') 
+                    ? cleanUrlString.split(',').filter((url: string) => url && url.trim())
+                    : cleanUrlString.split('|').filter((url: string) => url && url.trim());
+                  
+                  // Filtrar URLs vacías y agregar al array
+                  const validUrls = urlsArray.filter(url => url && url.trim());
+                  if (validUrls.length > 0) {
+                    photoUrls.push(...validUrls);
+                  }
+                }
               }
             } catch (error) {
               console.error(`Error processing fotosUrl for observation ${obs.idObservacion}:`, error);
@@ -210,6 +219,9 @@ export default function ObservacionesCoordinador() {
           if (photoUrls.length === 0) {
             photoUrls.push("/placeholder.svg?height=100&width=100");
           }
+          
+          // Imprimir para depuración
+          console.log(`Observation ${obs.idObservacion} - fotos:`, photoUrls);
           
           return {            id: obs.idObservacion,
             facilityId: obs.idObservacion,
@@ -453,13 +465,38 @@ export default function ObservacionesCoordinador() {
                   <span className="font-medium">Completado en:</span>
                   <p className="text-sm text-gray-600">{selectedObservation.completedAt}</p>
                 </div>
-              )}
-              {selectedObservation.feedback && (
+              )}              {selectedObservation.feedback && (
                 <div>
                   <span className="font-medium">Comentarios:</span>
                   <p className="text-sm text-gray-600">{selectedObservation.feedback}</p>
                 </div>
               )}
+              
+              {/* Sección de imágenes */}
+              <div>
+                <span className="font-medium">Imágenes:</span>
+                {selectedObservation.photos.length > 0 && selectedObservation.photos[0] !== "/placeholder.svg?height=100&width=100" ? (
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {selectedObservation.photos.map((photo, index) => (
+                      <a 
+                        key={index} 
+                        href={photo} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
+                        <img 
+                          src={photo} 
+                          alt={`Foto ${index + 1}`} 
+                          className="w-full h-24 object-cover rounded-md border border-gray-200 hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600 italic mt-1">No hay imágenes disponibles</p>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button onClick={() => setShowDetailsDialog(false)}>Cerrar</Button>

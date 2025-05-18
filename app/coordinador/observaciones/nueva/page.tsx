@@ -276,9 +276,7 @@ function NuevaObservacionForm() {
         if (uploadedUrls.length < photos.length) {
           throw new Error("No se pudieron subir todas las imágenes");
         }
-      }
-
-      const observacionData = {
+      }      const observacionData = {
         usuarioId: 4, // Aquí deberías obtener el ID del usuario autenticado
         instalacionId: parseInt(formData.facilityId),
         titulo: "Observación de instalación", // Título por defecto
@@ -286,7 +284,8 @@ function NuevaObservacionForm() {
         prioridad: formData.priority,
         ubicacionLat: userLocation?.lat.toString(),
         ubicacionLng: userLocation?.lng.toString(),
-        fotos: uploadedUrls // Agregar las URLs de Supabase
+        fotos: uploadedUrls, // Agregar las URLs de Supabase
+        fotosUrl: uploadedUrls.join(',') // Añadir también como string separado por comas
       };
 
       // Llamada a la API para crear la observación
