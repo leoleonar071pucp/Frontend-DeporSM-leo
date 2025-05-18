@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,7 +62,7 @@ export default function MapaInstalaciones() {
     const loadData = async () => {
       try {
         // Obtener los datos de instalaciones desde el backend
-        const response = await fetch("${API_BASE_URL}/instalaciones");
+        const response = await fetch('${API_BASE_URL}/instalaciones');
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);

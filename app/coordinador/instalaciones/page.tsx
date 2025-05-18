@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
+
 // Eliminamos la importación de axios
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -56,7 +58,7 @@ export default function InstalacionesCoordinador() {
     const loadData = async () => {
       try {
         // Reemplazamos axios por fetch
-        const response = await fetch("${API_BASE_URL}/instalaciones");
+        const response = await fetch('${API_BASE_URL}/instalaciones');
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
@@ -421,7 +423,7 @@ export default function InstalacionesCoordinador() {
                   const loadAllData = async () => {
                     try {
                       setIsLoading(true);
-                      const response = await fetch("${API_BASE_URL}/instalaciones");
+                      const response = await fetch('${API_BASE_URL}/instalaciones');
                       
                       if (!response.ok) {
                         throw new Error(`Error HTTP: ${response.status}`);

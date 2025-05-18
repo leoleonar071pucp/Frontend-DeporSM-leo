@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 import { useState, FormEvent, ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -111,7 +112,7 @@ export default function NuevoCoordinadorPage() {
     setIsSubmitting(true)
     
     try {
-      const response = await fetch("${API_BASE_URL}/usuarios/coordinadores", {
+      const response = await fetch('${API_BASE_URL}/usuarios/coordinadores', {
         method: 'POST',
         credentials: 'include',
         headers: {

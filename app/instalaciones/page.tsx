@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 
 import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
@@ -38,7 +39,7 @@ export default function Instalaciones() {
       setIsLoading(true)
       setError(null)
       try {
-        const response = await fetch("${API_BASE_URL}/instalaciones/disponibles")
+        const response = await fetch('${API_BASE_URL}/instalaciones/disponibles')
         if (!response.ok) {
           throw new Error(`Error al cargar instalaciones: ${response.status}`)
         }

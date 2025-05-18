@@ -61,7 +61,7 @@ export default function ProgramarMantenimientoPage() {
   })
 
   useEffect(() => {
-    fetch("${API_BASE_URL}/instalaciones")
+    fetch('${API_BASE_URL}/instalaciones')
       .then(res => res.json())
       .then(data => {
         setInstallations(data)
@@ -128,7 +128,7 @@ export default function ProgramarMantenimientoPage() {
     fechaFin.setHours(eh, em, 0, 0)
 
     try {
-      const res = await fetch("${API_BASE_URL}/mantenimientos", {
+      const res = await fetch('${API_BASE_URL}/mantenimientos', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -159,7 +159,7 @@ export default function AsistenciaPage() {
         
         // Simulamos obtener los datos desde el backend
         // En una implementación real, esto sería:
-        // const response = await fetch("${API_BASE_URL}/asistencias");
+        // const response = await fetch('${API_BASE_URL}/asistencias');
         // const data = await response.json();
         
         const data = await mockFetchAsistencias();

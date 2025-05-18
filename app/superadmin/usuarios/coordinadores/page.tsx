@@ -1,4 +1,6 @@
 "use client"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +37,7 @@ export default function CoordinadoresPage() {
   const [isLoading, setIsLoading] = useState(true);
   const fetchCoordinadores = async () => {
     try {
-      const response = await fetch("${API_BASE_URL}/usuarios/allCoordinadores", {
+      const response = await fetch('${API_BASE_URL}/usuarios/allCoordinadores', {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'

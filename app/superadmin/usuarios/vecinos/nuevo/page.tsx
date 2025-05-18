@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -138,7 +139,7 @@ export default function NuevoVecinoPage() {
       }
 
       // Enviar datos al backend
-      const response = await fetch("${API_BASE_URL}/usuarios/register", {
+      const response = await fetch('${API_BASE_URL}/usuarios/register', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

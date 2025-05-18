@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,7 +48,7 @@ export default function VecinosPage() {
   useEffect(() => {
     const fetchVecinos = async () => {
       try {
-        const response = await fetch("${API_BASE_URL}/usuarios/allVecinos");
+        const response = await fetch('${API_BASE_URL}/usuarios/allVecinos');
         const data = await response.json();
         console.log("🔍 DATA RECIBIDA DEL BACKEND:", data);
         
