@@ -123,6 +123,15 @@ export default function ConfiguracionPage() {
         // Error al cambiar la contraseña
         const errorData = await response.json();
         setIsSaving(false);
+        
+        // Añadir error al campo de contraseña actual si es incorrecta
+        if (errorData.error && errorData.error.includes("contraseña actual no es válida")) {
+          setErrors(prev => ({
+            ...prev,
+            currentPassword: "La contraseña actual es incorrecta"
+          }));
+        }
+        
         toast({
           title: "Error al cambiar la contraseña",
           description: errorData.error || "La contraseña actual es incorrecta",
