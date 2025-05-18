@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -53,7 +54,7 @@ export default function InstalacionesAdmin() {
   const fetchFacilities = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/instalaciones")
+      const response = await fetch('${API_BASE_URL}/instalaciones')
       const data: Facility[] = await response.json()
       setFacilities(data)
     } catch (error) {
@@ -67,7 +68,7 @@ export default function InstalacionesAdmin() {
   const fetchFacilitiesBySearch = async (query: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/instalaciones/buscar?nombre=${query}`)
+      const response = await fetch(`${API_BASE_URL}/instalaciones/buscar?nombre=${query}`)
       const data: Facility[] = await response.json()
       setFacilities(data)
     } catch (error) {
@@ -81,7 +82,7 @@ export default function InstalacionesAdmin() {
   const fetchFacilitiesByType = async (type: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/instalaciones/tipo?tipo=${type}`)
+      const response = await fetch(`${API_BASE_URL}/instalaciones/tipo?tipo=${type}`)
       const data: Facility[] = await response.json()
       setFacilities(data)
     } catch (error) {
@@ -95,7 +96,7 @@ export default function InstalacionesAdmin() {
   const fetchFacilitiesByStatus = async (activo: boolean) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/instalaciones/activo?activo=${activo}`)
+      const response = await fetch(`${API_BASE_URL}/instalaciones/activo?activo=${activo}`)
       const data: Facility[] = await response.json()
       setFacilities(data)
     } catch (error) {
@@ -145,7 +146,7 @@ export default function InstalacionesAdmin() {
   const confirmDelete = async () => {
     if (!facilityToDelete) return
     try {
-      const response = await fetch(`/api/instalaciones/${facilityToDelete.id}`, {
+      const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityToDelete.id}`, {
         method: "DELETE",
       })
       if (response.ok) {

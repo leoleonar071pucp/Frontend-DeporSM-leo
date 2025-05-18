@@ -48,7 +48,7 @@ export default function ObservacionesPage() {
   useEffect(() => {
     const fetchObservations = async () => {
       try {
-        const response = await fetch("${API_BASE_URL}/observaciones/all")
+        const response = await fetch('${API_BASE_URL}/observaciones/all')
         const data = await response.json()
 
         const mappedData: Observation[] = data.map((obs: any) => ({
