@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,10 +15,13 @@ import {
   ArrowLeft,
   ClipboardList,
   Phone,
+  XOctagon,
 } from "lucide-react"
 import Link from "next/link"
 import { Separator } from "@/components/ui/separator"
 import { API_BASE_URL } from "@/lib/config";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 
 // Eliminamos el array estático de instalaciones
@@ -61,18 +64,57 @@ interface Instalacion {
   observations?: Observation[];
 }
 
-export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params) as { id: string }
-  const [isLoading, setIsLoading] = useState(true)
-  const [facility, setFacility] = useState<Instalacion | null>(null)
-  const [error, setError] = useState<string | null>(null)
+export default function InstalacionDetalle({ params }: { params: { id: string } }) {
+  const { id } = params;
+  const [isLoading, setIsLoading] = useState(true);
+  const [facility, setFacility] = useState<Instalacion | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   
+  // Obtener el usuario del contexto de autenticación
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    const loadData = async () => {
+    const checkAccess = async () => {
+      // Si no hay usuario autenticado o no es coordinador, redirigir
+      if (!user || !user.rol || user.rol.nombre !== 'coordinador') {
+        setAuthorized(false);
+        setError("No tienes permisos para ver esta instalación");
+        setIsLoading(false);
+        return;
+      }
+      
       try {
+        // Verificar si el coordinador tiene acceso a esta instalación
+        const accessResponse = await fetch(
+          `${API_BASE_URL}/instalaciones/coordinador/${user.id}`, 
+          { credentials: 'include' }
+        );
+        
+        if (!accessResponse.ok) {
+          throw new Error(`Error HTTP: ${accessResponse.status}`);
+        }
+        
+        const assignedFacilities = await accessResponse.json();
+          // Verificar si la instalación solicitada está en las asignadas al coordinador
+        const hasAccess = assignedFacilities.some((facility: any) => 
+          facility.id === parseInt(id) || facility.instalacion_id === parseInt(id)
+        );
+        
+        setAuthorized(hasAccess);
+        
+        // Si no tiene acceso, no cargar los datos
+        if (!hasAccess) {
+          setError("No tienes permiso para ver esta instalación. Solo puedes acceder a las instalaciones asignadas a tu cuenta.");
+          setIsLoading(false);
+          return;
+        }
+        
         // Obtener los datos de la instalación desde el backend
-        const response = await fetch(`${API_BASE_URL}/instalaciones/${resolvedParams.id}`);
+        const response = await fetch(`${API_BASE_URL}/instalaciones/${id}`, {
+          credentials: 'include'
+        });
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
@@ -137,10 +179,11 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
       } finally {
         setIsLoading(false);
       }
-    };
-
-    loadData();
-  }, [resolvedParams.id])
+    };    // Solo verificar acceso y cargar datos si la autenticación ha terminado
+    if (!authLoading) {
+      checkAccess();
+    }
+  }, [id, user, authLoading, router])
 
   const getStatusBadge = (status: Instalacion['status'], maintenanceStatus: Instalacion['maintenanceStatus']) => {
     // Mostrar En Mantenimiento solo cuando está in-progress
@@ -181,11 +224,40 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
         return null
     }
   }
-
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (authorized === false) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center">
+          <Button variant="ghost" className="mr-2" asChild>
+            <Link href="/coordinador/instalaciones">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">Acceso Denegado</h1>
+        </div>
+
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <XOctagon className="h-12 w-12 text-red-500 mb-4" />
+            <h3 className="text-lg font-medium">No tienes acceso a esta instalación</h3>
+            <p className="text-gray-500 mt-2 text-center">
+              Esta instalación no está asignada a tu cuenta de coordinador.<br/>
+              Solo puedes ver los detalles de las instalaciones que te han sido asignadas.
+            </p>
+            <Button className="mt-6 bg-primary hover:bg-primary-light" asChild>
+              <Link href="/coordinador/instalaciones">Ver mis instalaciones asignadas</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -199,16 +271,15 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
               <ArrowLeft className="h-4 w-4 mr-2" />
               Volver
             </Link>
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Instalación no encontrada</h1>
+          </Button>          <h1 className="text-2xl font-bold tracking-tight">Instalación no encontrada</h1>
         </div>
 
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-medium">Instalación no encontrada</h3>
+            <h3 className="text-lg font-medium">Error al cargar la instalación</h3>
             <p className="text-gray-500 mt-2">
-              {error || "La instalación que estás buscando no existe o no está asignada a ti."}
+              {error || "La instalación que estás buscando no existe o no está disponible."}
             </p>
             <Button className="mt-6 bg-primary hover:bg-primary-light" asChild>
               <Link href="/coordinador/instalaciones">Ver todas las instalaciones</Link>

@@ -2,6 +2,7 @@
 import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 
 import { useState, useEffect, useCallback } from "react"
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -52,42 +53,80 @@ export default function MapaInstalaciones() {
   const [selectedFacility, setSelectedFacility] = useState<Instalacion | null>(null)
   const searchParams = useSearchParams()
   const selectedId = searchParams.get('id')
+  
+  // Obtener el usuario del contexto de autenticación
+  const { user, isLoading: authLoading } = useAuth();
 
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   })
-
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Obtener los datos de instalaciones desde el backend
-        const response = await fetch('${API_BASE_URL}/instalaciones');
+        // Si no hay usuario autenticado o no es coordinador, no cargar datos
+        if (!user || !user.rol || user.rol.nombre !== 'coordinador') {
+          console.log("No hay usuario coordinador autenticado");
+          setFacilities([]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Usar el endpoint específico para coordinadores que devuelve solo las instalaciones asignadas
+        const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${user.id}`, {
+          credentials: 'include', // Importante para enviar cookies de autenticación
+        });
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
         }
         
         const data = await response.json();
-        
-        // Procesar los datos para agregar propiedades adicionales para el frontend
-        const processedData = data.map((instalacion: Instalacion) => {
-          // Generar coordenadas aleatorias cerca de Lima (simulado)
-          // En un entorno real, estas coordenadas vendrían del backend
-          const latOffset = (Math.random() - 0.5) * 0.02;
-          const lngOffset = (Math.random() - 0.5) * 0.02;
-          
-          return {
-            ...instalacion,
-            status: instalacion.activo ? 'disponible' : 'mantenimiento',
-            maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
-            coordinates: {
-              lat: center.lat + latOffset,
-              lng: center.lng + lngOffset
-            },
-            isToday: Math.random() > 0.7 // Simulación para demo
-          };
-        });
+          // Obtener datos completos para cada instalación        // Procesar los datos para agregar propiedades adicionales para el frontend
+        const processedData = await Promise.all(data.map(async (instalacionBasica: any) => {
+          try {
+            const detailResponse = await fetch(`${API_BASE_URL}/instalaciones/${instalacionBasica.id}`);
+            
+            if (!detailResponse.ok) {
+              throw new Error(`Error al obtener detalles de instalación: ${detailResponse.status}`);
+            }
+            
+            const detailData = await detailResponse.json();
+            
+            // Generar coordenadas aleatorias cerca de Lima (simulado)
+            // En un entorno real, estas coordenadas vendrían del backend
+            const latOffset = (Math.random() - 0.5) * 0.02;
+            const lngOffset = (Math.random() - 0.5) * 0.02;
+            
+            // Agregar propiedades adicionales para el frontend
+            return {
+              ...detailData,
+              status: detailData.activo ? 'disponible' : 'mantenimiento',
+              maintenanceStatus: detailData.activo ? 'none' : 'in-progress',
+              coordinates: {
+                lat: center.lat + latOffset,
+                lng: center.lng + lngOffset
+              },
+              isToday: Math.random() > 0.7 // Simulación para demo
+            };
+          } catch (error) {
+            console.error(`Error al obtener detalles para instalación ${instalacionBasica.id}:`, error);
+            // Datos básicos en caso de error
+            const latOffset = (Math.random() - 0.5) * 0.02;
+            const lngOffset = (Math.random() - 0.5) * 0.02;
+            
+            return {
+              ...instalacionBasica,
+              status: 'disponible',
+              maintenanceStatus: 'none',
+              coordinates: {
+                lat: center.lat + latOffset,
+                lng: center.lng + lngOffset
+              },
+              isToday: false
+            };
+          }
+        }));
         
         setFacilities(processedData);
         
@@ -122,7 +161,7 @@ export default function MapaInstalaciones() {
     };
 
     loadData();
-  }, [selectedId])
+  }, [selectedId, user])
 
   const getStatusColor = (status: 'disponible' | 'mantenimiento') => {
     switch (status) {
@@ -173,8 +212,7 @@ export default function MapaInstalaciones() {
       map.fitBounds(bounds);
     }
   }, [facilities, userLocation])
-
-  if (isLoading || !isLoaded) {
+  if (authLoading || isLoading || !isLoaded) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -183,22 +221,20 @@ export default function MapaInstalaciones() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center">
+    <div className="space-y-6">      <div className="flex items-center">
         <Button variant="ghost" className="mr-2" asChild>
           <Link href="/coordinador/instalaciones">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Mapa de Instalaciones</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Mapa de Instalaciones Asignadas</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
+        <Card className="lg:col-span-2">          <CardHeader>
             <CardTitle>Ubicación de Instalaciones</CardTitle>
-            <CardDescription>Visualiza todas tus instalaciones asignadas en el mapa</CardDescription>
+            <CardDescription>Visualiza las instalaciones deportivas asignadas a tu cargo en el mapa</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="relative w-full h-[500px] rounded-md overflow-hidden">
@@ -266,10 +302,9 @@ export default function MapaInstalaciones() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card>          <CardHeader>
             <CardTitle>Instalaciones Asignadas</CardTitle>
-            <CardDescription>Lista de todas tus instalaciones asignadas</CardDescription>
+            <CardDescription>Lista de instalaciones deportivas a tu cargo</CardDescription>
           </CardHeader>
           <CardContent>
             {selectedFacility ? (
