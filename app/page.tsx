@@ -1,36 +1,95 @@
+"use client"
+
 import Link from "next/link"
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Calendar, Clock, MapPin, Users } from "lucide-react"
+import { Calendar, Clock, MapPin, Users, Loader2 } from "lucide-react"
+import { API_BASE_URL } from "@/lib/config"
+import { useAuth } from "@/context/AuthContext"
+
+// Interfaz para las instalaciones
+interface Facility {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  ubicacion: string;
+  tipo: string;
+  precio: number;
+  imagenUrl: string;
+  activo: boolean;
+}
 
 export default function Home() {
-  const facilities = [
-    {
-      id: 1,
-      name: "Piscina Municipal",
-      image: "/placeholder.svg?height=200&width=300",
-      description: "Piscina semiolímpica con carriles para natación y área recreativa",
-    },
-    {
-      id: 2,
-      name: "Cancha de Fútbol (Grass)",
-      image: "/placeholder.svg?height=200&width=300",
-      description: "Cancha de fútbol con grass sintético de última generación",
-    },
-    {
-      id: 3,
-      name: "Gimnasio Municipal",
-      image: "/placeholder.svg?height=200&width=300",
-      description: "Gimnasio equipado con máquinas modernas y área de pesas",
-    },
-    {
-      id: 4,
-      name: "Cancha de Fútbol (Loza)",
-      image: "/placeholder.svg?height=200&width=300",
-      description: "Cancha multifuncional de loza para fútbol y otros deportes",
-    },
-  ]
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+
+  // Cargar instalaciones destacadas desde el backend
+  useEffect(() => {
+    const fetchFeaturedFacilities = async () => {
+      try {
+        // Obtener instalaciones disponibles
+        const response = await fetch(`${API_BASE_URL}/instalaciones/disponibles`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al cargar instalaciones: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Obtener también las reservas para ordenar por popularidad
+        const reservasResponse = await fetch(`${API_BASE_URL}/reservas/recientes`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }).catch(() => null); // Si falla, continuamos sin esta información
+
+        // Crear un mapa de conteo de reservas por instalación
+        const instalacionesPopulares = new Map();
+
+        if (reservasResponse && reservasResponse.ok) {
+          const reservasData = await reservasResponse.json();
+
+          // Contar las reservas por instalación
+          reservasData.forEach((reserva: any) => {
+            const instalacionId = reserva.instalacionId || reserva.idInstalacion;
+            if (instalacionId) {
+              const count = instalacionesPopulares.get(instalacionId) || 0;
+              instalacionesPopulares.set(instalacionId, count + 1);
+            }
+          });
+        }
+
+        // Ordenar las instalaciones por popularidad (número de reservas)
+        const sortedFacilities = [...data].sort((a, b) => {
+          const countA = instalacionesPopulares.get(a.id) || 0;
+          const countB = instalacionesPopulares.get(b.id) || 0;
+          return countB - countA; // Orden descendente
+        });
+
+        // Tomar las 4 instalaciones más populares para mostrar en la página de inicio
+        setFacilities(sortedFacilities.slice(0, 4));
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error cargando instalaciones:", error);
+        setError("No se pudieron cargar las instalaciones. Por favor, inténtalo de nuevo más tarde.");
+        setIsLoading(false);
+      }
+    };
+
+    fetchFeaturedFacilities();
+  }, []);
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -40,13 +99,26 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div>
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-                Reserva tus instalaciones deportivas en San Miguel
-              </h1>
-              <p className="text-lg text-gray-700 mb-6">
-                Accede a todas las instalaciones deportivas del distrito de manera fácil y rápida. Reserva canchas,
-                piscina, gimnasio y más.
-              </p>
+              {isAuthenticated && user ? (
+                <>
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                    ¡Bienvenido, {user.nombre}!
+                  </h1>
+                  <p className="text-lg text-gray-700 mb-6">
+                    Continúa explorando y reservando tus instalaciones deportivas favoritas en San Miguel.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                    Reserva tus instalaciones deportivas en San Miguel
+                  </h1>
+                  <p className="text-lg text-gray-700 mb-6">
+                    Accede a todas las instalaciones deportivas del distrito de manera fácil y rápida. Reserva canchas,
+                    piscina, gimnasio y más.
+                  </p>
+                </>
+              )}
               <div className="flex flex-wrap gap-4">
                 <Button asChild size="lg" className="bg-primary hover:bg-primary-light">
                   <Link href="/instalaciones">Ver Instalaciones</Link>
@@ -55,9 +127,10 @@ export default function Home() {
               </div>
             </div>
             <div className="rounded-lg overflow-hidden shadow-xl">
+              {/* Imagen destacada fija del estadio futurista */}
               <img
-                src="/placeholder.svg?height=400&width=600"
-                alt="Instalaciones deportivas"
+                src="https://arquitecturas3d.com/wp-content/uploads/2024/01/image-63-1024x585.png"
+                alt="Estadio deportivo futurista"
                 className="w-full h-auto object-cover"
               />
             </div>
@@ -67,25 +140,49 @@ export default function Home() {
 
       <section className="py-12 px-4 md:px-8">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">Nuestras Instalaciones Deportivas</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {facilities.map((facility) => (
-              <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <img
-                  src={facility.image || "/placeholder.svg"}
-                  alt={facility.name}
-                  className="w-full h-48 object-cover"
-                />
-                <CardContent className="p-4">
-                  <h3 className="font-bold text-lg mb-2">{facility.name}</h3>
-                  <p className="text-gray-600 text-sm mb-4">{facility.description}</p>
-                  <Button asChild className="w-full bg-primary hover:bg-primary-light">
-                    <Link href={`/instalaciones/${facility.id}`}>Reservar</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-2">Instalaciones Destacadas</h2>
+          <p className="text-center text-gray-600 mb-8">Las instalaciones más populares entre nuestros usuarios</p>
+
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+          ) : error ? (
+            <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
+              <p>{error}</p>
+              <Button
+                onClick={() => window.location.reload()}
+                variant="outline"
+                className="mt-4"
+              >
+                Reintentar
+              </Button>
+            </div>
+          ) : facilities.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {facilities.map((facility) => (
+                <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <img
+                    src={facility.imagenUrl || "/placeholder.svg?height=200&width=300"}
+                    alt={facility.nombre}
+                    className="w-full h-48 object-cover"
+                  />
+                  <CardContent className="p-4">
+                    <h3 className="font-bold text-lg mb-2">{facility.nombre}</h3>
+                    <p className="text-gray-600 text-sm mb-4">{facility.descripcion}</p>
+                    <Button asChild className="w-full bg-primary hover:bg-primary-light">
+                      <Link href={`/instalaciones/${facility.id}`}>Reservar</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No se encontraron instalaciones disponibles.</p>
+            </div>
+          )}
+
           <div className="text-center mt-8">
             <Button asChild variant="outline" size="lg">
               <Link href="/instalaciones">Ver Todas las Instalaciones</Link>
