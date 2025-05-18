@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
 
 // Importar componentes personalizados
 import { StatCard } from "./components/StatCard"
@@ -72,7 +73,7 @@ export default function AdminDashboard() {
   const loadData = async () => {
     try {
       // Llamada al endpoint de estadísticas
-      const resStats = await fetch("${API_BASE_URL}/reservas/stats")
+      const resStats = await fetch(`${API_BASE_URL}/reservas/stats`)
       const dataStats = await resStats.json()
 
       setStats((prev) => ({
@@ -84,7 +85,7 @@ export default function AdminDashboard() {
       }))
 
       // Llamada al endpoint de reservas recientes
-      const resRecents = await fetch("${API_BASE_URL}/reservas/recientes")
+      const resRecents = await fetch(`${API_BASE_URL}/reservas/recientes`)
       const dataRecents = await resRecents.json()
 
       setRecentReservations(
@@ -99,7 +100,7 @@ export default function AdminDashboard() {
       )
 
       // Llamada al endpoint de observaciones recientes
-      const resAlerts = await fetch("${API_BASE_URL}/observaciones/recientes")
+      const resAlerts = await fetch(`${API_BASE_URL}/observaciones/recientes`)
       const dataAlerts = await resAlerts.json()
 
       setMaintenanceAlerts(
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
       )
 
       // Llamada al endpoint de estado actual de instalaciones
-      const resFacilities = await fetch("${API_BASE_URL}/instalaciones/estado-instalaciones")
+      const resFacilities = await fetch(`${API_BASE_URL}/instalaciones/estado-instalaciones`)
       const dataFacilities = await resFacilities.json()
 
       setFacilityStatus(

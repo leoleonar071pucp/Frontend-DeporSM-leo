@@ -54,7 +54,7 @@ export default function InstalacionesAdmin() {
   const fetchFacilities = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('${API_BASE_URL}/instalaciones')
+      const response = await fetch(`${API_BASE_URL}/instalaciones`)
       const data: Facility[] = await response.json()
       setFacilities(data)
     } catch (error) {

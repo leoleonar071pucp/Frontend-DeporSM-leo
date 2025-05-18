@@ -39,7 +39,7 @@ export default function Instalaciones() {
       setIsLoading(true)
       setError(null)
       try {
-        const response = await fetch('${API_BASE_URL}/instalaciones/disponibles')
+        const response = await fetch(`${API_BASE_URL}/instalaciones/disponibles`)
         if (!response.ok) {
           throw new Error(`Error al cargar instalaciones: ${response.status}`)
         }
