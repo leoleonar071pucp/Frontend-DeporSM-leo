@@ -290,7 +290,7 @@ export default function Contacto() {
                     <div>
                       <h3 className="font-medium">Dirección</h3>
                       <p className="text-gray-600">Av. Federico Gállese Nº 370</p>
-                      <p className="text-gray-600">San Miguel, Lima</p>
+                      <p className="text-gray-600">San Miguel, Lima 15086</p>
                     </div>
                   </div>
 
@@ -334,7 +334,7 @@ export default function Contacto() {
                 <CardFooter>
                   <div className="w-full">
                     <iframe
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3901.6540383027393!2d-77.08794492394823!3d-12.077731888074565!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9105c96c8bf00001%3A0xfd0bc0b76b5ccc2e!2sMunicipalidad%20de%20San%20Miguel!5e0!3m2!1ses-419!2spe!4v1712018018641!5m2!1ses-419!2spe"
+                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3901.6540383027393!2d-77.08794492394823!3d-12.077731888074565!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9105c96c8bf00001%3A0xfd0bc0b76b5ccc2e!2sAv.+Federico+G%C3%A1llese+370%2C+San+Miguel+15086!5e0!3m2!1ses-419!2spe!4v1712018018641!5m2!1ses-419!2spe"
                       width="100%"
                       height="200"
                       style={{ border: 0 }}
@@ -342,6 +342,7 @@ export default function Contacto() {
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"
                       className="rounded-md"
+                      title="Municipalidad de San Miguel - Av. Federico Gállese Nº 370"
                     ></iframe>
                   </div>
                 </CardFooter>
