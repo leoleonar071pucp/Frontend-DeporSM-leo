@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search, Calendar, Clock, MapPin, ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isMonday, isTuesday, isWednesday, isThursday, isFriday, isSaturday, isSunday } from "date-fns"
+import { format, eachDayOfInterval, isMonday, isTuesday, isWednesday, isThursday, isFriday, isSaturday, isSunday } from "date-fns"
 import { es } from "date-fns/locale"
 import { ScheduledVisit } from "../types"
 import { toast } from "@/components/ui/use-toast"
@@ -128,43 +128,88 @@ const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
         startTime: startTime,
         endTime: endTime
       });
-    });
+    });    // Generar visitas programadas para el día actual y los próximos 2 días
+    // Usamos una fecha fija para desarrollo (18 de mayo de 2025 - domingo)
+    const today = new Date('2025-05-18T00:00:00'); // Fecha actual forzada a domingo 18 de mayo
+    // Verificar que realmente sea domingo
+    console.log(`Día de la semana para la fecha fija: ${format(today, 'EEEE', { locale: es })}`);
     
-    // Generar visitas programadas para la semana actual
-    const today = new Date();
-    const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Comenzar semana en lunes
-    const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-    const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    // Crear explícitamente los tres días que necesitamos (domingo, lunes, martes)
+    const dayOne = new Date(today); // Domingo (18 de mayo)
+    const dayTwo = new Date(today); 
+    dayTwo.setDate(today.getDate() + 1); // Lunes (19 de mayo)
+    const dayThree = new Date(today);
+    dayThree.setDate(today.getDate() + 2); // Martes (20 de mayo)
     
-    // Función auxiliar para verificar si una fecha corresponde al día de la semana
+    // Usar estos tres días específicos
+    const threeDays = [dayOne, dayTwo, dayThree];
+    
+    // Verificar que las fechas generadas sean correctas
+    console.log("Fechas generadas para las visitas:");
+    threeDays.forEach((day, index) => {
+      console.log(`Día ${index}: ${format(day, 'yyyy-MM-dd')} (${format(day, 'EEEE', { locale: es })})`);
+    });    // Función auxiliar mejorada para verificar si una fecha corresponde al día de la semana
     const isDayOfWeek = (date: Date, day: string): boolean => {
-      switch (day) {
-        case 'lunes': return isMonday(date);
-        case 'martes': return isTuesday(date);
-        case 'miercoles': return isWednesday(date);
-        case 'jueves': return isThursday(date);
-        case 'viernes': return isFriday(date);
-        case 'sabado': return isSaturday(date);
-        case 'domingo': return isSunday(date);
-        default: return false;
+      // Direct day of week checks using date-fns functions for more reliability
+      const normalizedDay = day.toLowerCase().trim();
+      
+      if (normalizedDay.includes('lun') && isMonday(date)) return true;
+      if (normalizedDay.includes('mart') && isTuesday(date)) return true;
+      if (normalizedDay.includes('mier') && isWednesday(date)) return true;
+      if (normalizedDay.includes('juev') && isThursday(date)) return true;
+      if (normalizedDay.includes('vier') && isFriday(date)) return true;
+      if (normalizedDay.includes('sab') && isSaturday(date)) return true;
+      if (normalizedDay.includes('dom') && isSunday(date)) return true;
+      
+      // If direct check fails, use the string-based approach as backup
+      const dayOfWeekString = format(date, 'EEEE', { locale: es }).toLowerCase();
+      
+      // Mapa de conversión de días de la semana
+      const dayMap: Record<string, string[]> = {
+        'lunes': ['lunes'],
+        'martes': ['martes'],
+        'miercoles': ['miércoles', 'miercoles'],
+        'jueves': ['jueves'],
+        'viernes': ['viernes'],
+        'sabado': ['sábado', 'sabado'],
+        'domingo': ['domingo']
+      };
+      
+      // Buscar en el mapa de días
+      for (const [dayKey, variants] of Object.entries(dayMap)) {
+        if (normalizedDay === dayKey || variants.includes(normalizedDay)) {
+          // El día proporcionado es uno de los días válidos
+          return variants.includes(dayOfWeekString) || dayOfWeekString === dayKey;
+        }
       }
-    };
-    
-    // Generar visitas programadas para la semana basadas en los horarios asignados
+      
+      return false;
+    };    // Generar visitas programadas para los tres días específicos (domingo, lunes, martes)
     const visits: ScheduledVisit[] = [];
     
-    weekDays.forEach(date => {
+    // Asignar días específicos de la semana a cada fecha para debugging
+    const dayNames = ["domingo", "lunes", "martes"];
+    
+    threeDays.forEach((date, index) => {
+      const currentDayName = dayNames[index];
+      console.log(`Generando visitas para ${currentDayName} (${format(date, 'yyyy-MM-dd')})`);
+      
       // Revisar cada instalación y sus horarios
       Object.entries(processedSchedules).forEach(([facilityId, facilityData]) => {
-        const schedulesForDay = facilityData.schedules.filter(schedule => 
-          isDayOfWeek(date, schedule.day)
-        );
+        // Filtrar horarios para este día específico
+        const schedulesForDay = facilityData.schedules.filter(schedule => {
+          const matches = isDayOfWeek(date, schedule.day);
+          if (matches) {
+            console.log(`  - Coincidencia: Horario (${schedule.day}) coincide con ${currentDayName} para instalación ${facilityData.facilityName}`);
+          }
+          return matches;
+        });
         
         schedulesForDay.forEach(schedule => {
           // Crear un ID único usando una combinación de fecha, facilityId y día
           const uniqueId = parseInt(`${date.getFullYear()}${date.getMonth()}${date.getDate()}${facilityId}${schedule.id}`);
           
-          visits.push({
+          const visit = {
             id: uniqueId,
             facilityId: parseInt(facilityId),
             facilityName: facilityData.facilityName,
@@ -173,13 +218,65 @@ const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
             scheduledTime: schedule.startTime,
             scheduledEndTime: schedule.endTime,
             image: "/placeholder.svg" // La API actual no devuelve imagen
-          });
+          };
+          
+          visits.push(visit);
+          console.log(`    + Visita creada para ${currentDayName} en ${facilityData.facilityName}`);
         });
       });
+    });// Definir explícitamente los tres días que queremos mostrar: domingo, lunes y martes
+    const sundayDate = new Date('2025-05-18T00:00:00'); // Domingo 18 de mayo
+    const mondayDate = new Date('2025-05-19T00:00:00'); // Lunes 19 de mayo
+    const tuesdayDate = new Date('2025-05-20T00:00:00'); // Martes 20 de mayo
+    
+    // Formatear las fechas que queremos filtrar
+    const sundayStr = format(sundayDate, 'yyyy-MM-dd'); // Domingo
+    const mondayStr = format(mondayDate, 'yyyy-MM-dd'); // Lunes
+    const tuesdayStr = format(tuesdayDate, 'yyyy-MM-dd'); // Martes
+    
+    // Registrar los días para depuración
+    console.log(`Fechas de filtrado específicas:`);
+    console.log(`- Domingo: ${sundayStr} (${format(sundayDate, 'EEEE', { locale: es })})`);
+    console.log(`- Lunes: ${mondayStr} (${format(mondayDate, 'EEEE', { locale: es })})`);
+    console.log(`- Martes: ${tuesdayStr} (${format(tuesdayDate, 'EEEE', { locale: es })})`);
+    
+    // Imprimir todas las fechas en las visitas para debugging
+    console.log("Todas las fechas de visitas generadas:", visits.map(v => v.date));    // Filtrar visitas para asegurar que solo estén las de los tres días específicos (domingo, lunes, martes)
+    // Si no hay visitas para algún día específico, esto puede indicar un problema con la generación
+    if (!visits.some(visit => visit.date === sundayStr)) {
+      console.warn(`ADVERTENCIA: No se encontraron visitas para domingo (${sundayStr})`);
+    }
+    if (!visits.some(visit => visit.date === mondayStr)) {
+      console.warn(`ADVERTENCIA: No se encontraron visitas para lunes (${mondayStr})`);
+    }
+    if (!visits.some(visit => visit.date === tuesdayStr)) {
+      console.warn(`ADVERTENCIA: No se encontraron visitas para martes (${tuesdayStr})`);
+    }
+    
+    // Forzar la inclusión explícita de solo estos tres días
+    const filteredVisits = visits.filter(visit => {
+      // Compara directamente con las cadenas de fecha generadas anteriormente para domingo, lunes y martes
+      const isMatch = visit.date === sundayStr || visit.date === mondayStr || visit.date === tuesdayStr;
+      
+      // Registrar fechas descartadas para debugging
+      if (!isMatch) {
+        console.log(`Descartando visita con fecha incorrecta: ${visit.date}`);
+      }
+      
+      // Registrar cualquier visita para el martes para verificar
+      if (visit.date === tuesdayStr) {
+        console.log(`Encontrada visita para el martes (${tuesdayStr}):`, visit);
+      }
+      
+      return isMatch;
     });
+      // Log de las visitas filtradas por día
+    console.log("Visitas filtradas para domingo:", filteredVisits.filter(v => v.date === sundayStr).length);
+    console.log("Visitas filtradas para lunes:", filteredVisits.filter(v => v.date === mondayStr).length);
+    console.log("Visitas filtradas para martes:", filteredVisits.filter(v => v.date === tuesdayStr).length);
     
     // Ordenar las visitas por fecha y hora
-    visits.sort((a, b) => {
+    filteredVisits.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
       
@@ -188,7 +285,7 @@ const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
       return a.scheduledTime.localeCompare(b.scheduledTime);
     });
     
-    return visits;
+    return filteredVisits;
     
   } catch (error) {
     console.error("Error al obtener visitas programadas:", error);
@@ -197,6 +294,9 @@ const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
 };
 
 export default function ProgramadasPage() {
+  // Fecha fija para desarrollo y pruebas - Domingo 18 Mayo 2025
+  // Esta fecha debe coincidir con la fecha definida en fetchProgrammedVisits
+  const today = new Date('2025-05-18T00:00:00');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
@@ -207,9 +307,12 @@ export default function ProgramadasPage() {
     const loadData = async () => {
       try {
         setIsLoading(true);
+          const data = await fetchProgrammedVisits();
         
-        const data = await fetchProgrammedVisits();
-        
+        // Verificar los datos para debugging
+        console.log(`Recibidas ${data.length} visitas desde fetchProgrammedVisits`);
+        console.log("Fechas de visitas recibidas:", data.map(v => `${v.date} (${format(new Date(v.date), 'EEEE', { locale: es })})`));
+
         setScheduledVisits(data);
         setFilteredVisits(data);
       } catch (error) {
@@ -311,12 +414,10 @@ export default function ProgramadasPage() {
             </Button>
           </form>
         </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Próximas Visitas</CardTitle>
-          <CardDescription>Visitas programadas para esta semana según tu horario asignado</CardDescription>
+      </Card>      <Card>        <CardHeader>          <CardTitle>Próximas Visitas</CardTitle>          <CardDescription>
+            Visitas programadas para domingo, lunes y martes según tu horario asignado
+            (domingo 18, lunes 19 y martes 20 de mayo de 2025)
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {filteredVisits.length > 0 ? (
@@ -330,12 +431,11 @@ export default function ProgramadasPage() {
                   </div>
                   <p className="text-sm text-gray-500 flex items-center gap-1 mb-4">
                     <MapPin className="h-4 w-4" /> {visit.location}
-                  </p>
-                  <div className="flex items-center gap-2 mb-2">
+                  </p>                  <div className="flex items-center gap-2 mb-2">
                     <Calendar className="h-4 w-4 text-primary" />
                     <div>
                       <p className="text-sm text-gray-500">Fecha</p>
-                      <p className="font-medium">{format(new Date(visit.date), 'dd/MM/yyyy')}</p>
+                      <p className="font-medium">{format(new Date(visit.date), "EEEE, d 'de' MMMM", { locale: es })}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mb-4">
@@ -358,11 +458,10 @@ export default function ProgramadasPage() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-12">
+          ) : (            <div className="text-center py-12">
               <Clock className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium">No hay visitas programadas</h3>
-              <p className="text-gray-500 mt-2">No tienes visitas programadas para esta semana.</p>
+              <p className="text-gray-500 mt-2">No tienes visitas programadas para domingo, lunes ni martes.</p>
             </div>
           )}
         </CardContent>
