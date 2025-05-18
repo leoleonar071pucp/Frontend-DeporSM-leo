@@ -15,6 +15,10 @@ import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/config";
+import { createClient } from '@supabase/supabase-js';
+
+// Create a single supabase client for interacting with your database
+const supabase = createClient('https://goajrdpkfhunnfuqtoub.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYWpyZHBrZmh1bm5mdXF0b3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MTU1NTQsImV4cCI6MjA2MjI5MTU1NH0.-_GxSWv-1UZNsXcSwIcFUKlprJ5LMX_0iz5VbesGgPQ');
 
 // Componente de carga para el Suspense
 function ObservacionLoading() {
@@ -194,9 +198,33 @@ function NuevaObservacionForm() {
       }
     }
   };
-
   const removePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImageToSupabase = async (file: File): Promise<string | null> => {
+    const filePath = `instalaciones/observaciones/${Date.now()}_${file.name}`;
+  
+    const { data, error } = await supabase
+      .storage
+      .from('instalaciones')  // nombre del bucket en Supabase
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type
+      });
+  
+    if (error) {
+      console.error("Error al subir imagen:", error.message);
+      return null;
+    }
+  
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('instalaciones')
+      .getPublicUrl(filePath);
+  
+    return publicUrlData.publicUrl;
   };
 
   const validateForm = () => {
@@ -222,7 +250,6 @@ function NuevaObservacionForm() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -235,9 +262,21 @@ function NuevaObservacionForm() {
     setFormError("");
 
     try {
-      // Preparar los datos para la API
-      // Primero subir las fotos a algún servicio de almacenamiento (simulamos URLs)
-      const fotoUrls = photos.map(photo => URL.createObjectURL(photo));
+      // Subir las fotos a Supabase y obtener las URLs
+      const uploadedUrls: string[] = [];
+      
+      if (photos.length > 0) {
+        for (const photo of photos) {
+          const url = await uploadImageToSupabase(photo);
+          if (url) {
+            uploadedUrls.push(url);
+          }
+        }
+        
+        if (uploadedUrls.length < photos.length) {
+          throw new Error("No se pudieron subir todas las imágenes");
+        }
+      }
 
       const observacionData = {
         usuarioId: 4, // Aquí deberías obtener el ID del usuario autenticado
@@ -247,7 +286,7 @@ function NuevaObservacionForm() {
         prioridad: formData.priority,
         ubicacionLat: userLocation?.lat.toString(),
         ubicacionLng: userLocation?.lng.toString(),
-        fotos: fotoUrls // Agregar las URLs de las fotos
+        fotos: uploadedUrls // Agregar las URLs de Supabase
       };
 
       // Llamada a la API para crear la observación

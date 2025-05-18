@@ -26,7 +26,12 @@ import {
 } from "@/components/ui/dialog"
 import { FormEvent } from "react"
 import { API_BASE_URL } from "@/lib/config";
+import { useAuth } from '@/context/AuthContext';
 
+type User = {
+  id: string;
+  [key: string]: any;
+};
 
 // Definimos la interfaz para un objeto de observación
 interface Observation {
@@ -110,6 +115,9 @@ const observationsData: Observation[] = [
 ]
 
 export default function ObservacionesCoordinador() {
+  // Use the proper hook instead of direct context access
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [observations, setObservations] = useState<Observation[]>([])
   const [allObservations, setAllObservations] = useState<Observation[]>([])
@@ -144,7 +152,6 @@ export default function ObservacionesCoordinador() {
     
     return filtered;
   }
-
   // Función para mapear el estado de la API al formato del frontend
   const mapApiStatusToFrontend = (apiStatus: string): string => {
     switch (apiStatus.toLowerCase()) {
@@ -158,13 +165,15 @@ export default function ObservacionesCoordinador() {
         return apiStatus.toLowerCase();
     }
   }
+  
   useEffect(() => {
     // Cargar datos desde la API
     const loadData = async () => {
       try {
-        // ID de coordinador para pruebas
-        const userId = 4;
+        // Usamos el ID del usuario autenticado (o 4 como fallback)
+        const userId = user?.id ? parseInt(user.id) : 4;
         
+        console.log(`Cargando observaciones para coordinador con ID: ${userId}`);
         const response = await fetch(`${API_BASE_URL}/observaciones/coordinador/${userId}`, {
           credentials: 'include',
         });
@@ -172,26 +181,58 @@ export default function ObservacionesCoordinador() {
         if (!response.ok) {
           throw new Error('Error al cargar observaciones');
         }
+          const data = await response.json();
         
-        const data = await response.json();
+        // Depurar la respuesta API
+        console.log('API Response data:', data);
         
-        // Transformamos los datos de la API al formato necesario para nuestro componente
-        const mappedData = data.map((obs: any) => ({
-          id: obs.idObservacion,
-          facilityId: obs.idObservacion, // Como no tenemos el ID de la instalación, usamos el de la observación
-          facilityName: obs.instalacion,
-          description: obs.descripcion,
-          status: mapApiStatusToFrontend(obs.estado),
-          date: obs.fecha,
-          createdAt: obs.fecha,
-          photos: ["/placeholder.svg?height=100&width=100"], // Imágenes de placeholder
-          priority: obs.prioridad.toLowerCase(),
-          completedAt: obs.estado === "resuelta" ? obs.fecha : undefined,
-          location: obs.ubicacion
-        }));
+      // Transformamos los datos de la API al formato necesario para nuestro componente
+        const mappedData = data.map((obs: any) => {
+          // Procesar URLs de imágenes (puede ser null o contener múltiples URLs separadas por comas)
+          const photoUrls: string[] = [];
+          
+          if (obs.fotosUrl) {
+            try {
+              if (typeof obs.fotosUrl === 'string') {
+                // Intentar ambos separadores (coma y pipe) para mayor compatibilidad
+                const urlsArray = obs.fotosUrl.includes(',') 
+                  ? obs.fotosUrl.split(',').filter((url: string) => url && url.trim())
+                  : obs.fotosUrl.split('|').filter((url: string) => url && url.trim());
+                
+                photoUrls.push(...urlsArray);
+              }
+            } catch (error) {
+              console.error(`Error processing fotosUrl for observation ${obs.idObservacion}:`, error);
+            }
+          }
+          
+          // Si no hay URLs, usar un placeholder
+          if (photoUrls.length === 0) {
+            photoUrls.push("/placeholder.svg?height=100&width=100");
+          }
+          
+          return {            id: obs.idObservacion,
+            facilityId: obs.idObservacion,
+            facilityName: obs.instalacion,
+            description: obs.descripcion,
+            status: mapApiStatusToFrontend(obs.estado),
+            date: obs.fecha,
+            createdAt: obs.fecha,
+            photos: photoUrls,
+            priority: obs.prioridad.toLowerCase(),
+            completedAt: obs.estado === "resuelta" ? obs.fecha : undefined,
+            // Si no hay ubicación, usamos el nombre de la instalación como ubicación
+            location: obs.ubicacion || obs.instalacion || "Sin ubicación",
+            fotosUrl: obs.fotosUrl // Mantener el valor original para debugging
+          }
+        });        
+        console.log('Observaciones mapeadas:', mappedData);
+        console.log(`Se encontraron ${mappedData.length} observaciones para el coordinador`);
         
         setAllObservations(mappedData);
-        setObservations(applyFilters(mappedData));
+        const filtradas = applyFilters(mappedData);
+        console.log(`Después de aplicar filtros quedan ${filtradas.length} observaciones`);
+        setObservations(filtradas);
       } catch (error) {
         console.error("Error al cargar las observaciones:", error);
         // Si hay un error, cargamos los datos de ejemplo como fallback
@@ -199,12 +240,11 @@ export default function ObservacionesCoordinador() {
         setObservations(applyFilters(observationsData));
       } finally {
         setIsLoading(false);
-      }
-    };
-
+      }    };
+    
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [user])
   const handleSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setObservations(applyFilters(allObservations, activeTab, activePriority, searchQuery))
