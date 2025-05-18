@@ -58,7 +58,7 @@ export default function InstalacionesCoordinador() {
     const loadData = async () => {
       try {
         // Reemplazamos axios por fetch
-        const response = await fetch('${API_BASE_URL}/instalaciones');
+        const response = await fetch(`${API_BASE_URL}/instalaciones`);
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
@@ -423,7 +423,7 @@ export default function InstalacionesCoordinador() {
                   const loadAllData = async () => {
                     try {
                       setIsLoading(true);
-                      const response = await fetch('${API_BASE_URL}/instalaciones');
+                      const response = await fetch(`${API_BASE_URL}/instalaciones`);
                       
                       if (!response.ok) {
                         throw new Error(`Error HTTP: ${response.status}`);

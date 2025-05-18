@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Calendar } from "lucide-react"
+import { API_BASE_URL } from "@/lib/config";
 
 interface Maintenance {
   id: number

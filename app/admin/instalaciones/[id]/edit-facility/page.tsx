@@ -19,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { API_BASE_URL } from "@/lib/config";
+
 
 // Estructura para representar un horario disponible
 interface AvailableTimeSlot {

@@ -18,6 +18,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { Separator } from "@/components/ui/separator"
+import { API_BASE_URL } from "@/lib/config";
+
 
 // Eliminamos el array estático de instalaciones
 
@@ -64,6 +66,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const [isLoading, setIsLoading] = useState(true)
   const [facility, setFacility] = useState<Instalacion | null>(null)
   const [error, setError] = useState<string | null>(null)
+  
 
   useEffect(() => {
     const loadData = async () => {

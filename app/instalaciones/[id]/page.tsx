@@ -12,6 +12,8 @@ import { CalendarIcon, Clock, Info, MapPin, Users, Droplets, Dumbbell, Timer, Ch
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { API_BASE_URL } from "@/lib/config";
+
 
 // Definir mapeo de tipos a iconos
 const getIconForType = (type: string) => {

@@ -10,6 +10,8 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
+import { API_BASE_URL } from "@/lib/config";
+
 
 interface FormData {
   nombre: string;

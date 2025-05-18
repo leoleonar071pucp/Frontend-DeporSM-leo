@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import MantenimientoDetails from "./components/MantenimientoDetails"
+import { API_BASE_URL } from "@/lib/config";
 
 export default function MantenimientoPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -39,12 +40,12 @@ export default function MantenimientoPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const resMaintenances = await fetch("${API_BASE_URL}/mantenimientos/filtrar")
+        const resMaintenances = await fetch(`${API_BASE_URL}/mantenimientos/filtrar`)
         const maintenanceData = await resMaintenances.json()
         setMaintenances(maintenanceData)
         setFilteredMaintenances(maintenanceData)
 
-        const resFacilities = await fetch("${API_BASE_URL}/instalaciones")
+        const resFacilities = await fetch(`${API_BASE_URL}/instalaciones`)
         const facilitiesData = await resFacilities.json()
         setFacilities(facilitiesData)
       } catch (error) {

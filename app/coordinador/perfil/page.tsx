@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { User, Mail, Phone, Shield, Key, Save, Building2, MapPin, Clock, CheckCircle, Loader2 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
+import { API_BASE_URL } from "@/lib/config";
+
 
 // Interfaz para las instalaciones asignadas
 interface Instalacion {

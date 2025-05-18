@@ -242,7 +242,7 @@ export default function NuevaInstalacion() {
         horaFin: `${slot.endTime}:00`
       }))
   
-      const response = await fetch("${API_BASE_URL}/instalaciones", {
+      const response = await fetch('${API_BASE_URL}/instalaciones', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { API_BASE_URL } from "@/lib/config";
+
 
 export default function CoordinadoresPage() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -28,7 +30,7 @@ export default function CoordinadoresPage() {
   useEffect(() => {
     const fetchCoordinators = async () => {
       try {
-        const response = await fetch("${API_BASE_URL}/usuarios/allCoordinadores")
+        const response = await fetch(`${API_BASE_URL}/usuarios/allCoordinadores`)
         const data = await response.json()
 
         // Procesar instalacionesAsignadas separadas por comas

@@ -25,6 +25,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { FormEvent } from "react"
+import { API_BASE_URL } from "@/lib/config";
+
 
 // Definimos la interfaz para un objeto de observación
 interface Observation {

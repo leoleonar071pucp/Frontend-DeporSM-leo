@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertTriangle, Calendar, Clock, MapPin, Loader2, RefreshCw } from "lucide-react" // Add Loader2 and RefreshCw
 import Link from "next/link"
 import { differenceInHours } from 'date-fns' // Importar date-fns
+import { API_BASE_URL } from "@/lib/config";
 
 // Define la interfaz para una reserva adaptada al formato del backend
 interface Reservation {
@@ -65,7 +66,7 @@ export default function MisReservas() {
       console.log("Obteniendo reservas del usuario...");
       
       // Llamada al endpoint del backend para obtener las reservas
-      const response = await fetch('${API_BASE_URL}/reservas/historial', {
+      const response = await fetch(`${API_BASE_URL}/reservas/historial`, {
         method: 'GET',
         credentials: 'include', // Importante para enviar cookies de sesión
         headers: {

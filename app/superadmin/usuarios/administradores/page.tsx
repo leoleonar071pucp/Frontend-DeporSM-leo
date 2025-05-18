@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { API_BASE_URL } from "@/lib/config";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Definición de tipos
@@ -44,7 +46,7 @@ export default function AdministradoresPage() {
   useEffect(() => {
     const fetchAdministradores = async () => {
       try {
-        const response = await fetch('${API_BASE_URL}/usuarios/allAdministradores', {
+        const response = await fetch(`${API_BASE_URL}/usuarios/allAdministradores`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'

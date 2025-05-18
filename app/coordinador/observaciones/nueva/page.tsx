@@ -14,6 +14,8 @@ import { ArrowLeft, Upload, Loader2, CheckCircle, AlertCircle, MapPin } from "lu
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { API_BASE_URL } from "@/lib/config";
+
 
 export default function NuevaObservacion() {
   const searchParams = useSearchParams();
@@ -240,7 +242,7 @@ export default function NuevaObservacion() {
       };
 
       // Llamada a la API para crear la observación
-      const response = await fetch('${API_BASE_URL}/observaciones', {
+      const response = await fetch(`${API_BASE_URL}/observaciones`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

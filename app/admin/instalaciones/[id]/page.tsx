@@ -9,6 +9,8 @@ import { ArrowLeft, Loader2, CheckCircle, AlertCircle, Calendar, Clock, MapPin, 
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Edit } from "lucide-react";
+import { API_BASE_URL } from "@/lib/config";
+
 
 
 import { facilitiesDB, Facility } from "@/data/facilities"

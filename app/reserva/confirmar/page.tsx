@@ -18,6 +18,7 @@ import Link from "next/link"
 import { useNotification } from "@/context/NotificationContext" // Importar useNotification
 import { useAuth } from "@/context/AuthContext" // Importar useAuth
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { API_BASE_URL } from "@/lib/config";
 
 // Interfaz para la instalación de la API
 interface ApiFacility {
@@ -284,7 +285,7 @@ export default function ConfirmarReserva() {
         console.log('Enviando reserva al backend:', reservaDTO);
         
         // Realizar la petición al backend
-        const response = await fetch('${API_BASE_URL}/reservas', {
+        const response = await fetch(`${API_BASE_URL}/reservas`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -339,7 +340,7 @@ export default function ConfirmarReserva() {
             formData.append('monto', facility ? facility.price.replace('S/. ', '') : '0');
             formData.append('comprobante', voucherFile);
 
-            const pagoResponse = await fetch('${API_BASE_URL}/pagos/deposito', {
+            const pagoResponse = await fetch(`${API_BASE_URL}/pagos/deposito`, {
               method: 'POST',
               credentials: 'include',
               body: formData

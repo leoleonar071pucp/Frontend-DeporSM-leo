@@ -20,6 +20,7 @@ import { AlertTriangle, Calendar, Clock, Download, MapPin, User, CreditCard, Che
 import Link from "next/link"
 import { useNotification } from "@/context/NotificationContext" // Importar useNotification
 import { differenceInHours, parse } from 'date-fns' // Importar date-fns
+import { API_BASE_URL } from "@/lib/config";
 
 // Definir interfaz para Reserva (mejor práctica)
 interface ReservationDetails {
