@@ -10,7 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle, Loader2, Mail, MapPin, Phone } from "lucide-react"
+import { CheckCircle, Loader2, Mail, MapPin, Phone, AlertCircle } from "lucide-react"
+import { API_BASE_URL } from "@/lib/config"
+import { useToast } from "@/components/ui/use-toast"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function Contacto() {
   const [formState, setFormState] = useState({
@@ -23,6 +26,8 @@ export default function Contacto() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -78,16 +83,35 @@ export default function Contacto() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setApiError(null)
 
     if (validateForm()) {
       setIsSubmitting(true)
 
-      // Simulación de envío
-      setTimeout(() => {
-        setIsSubmitting(false)
-        setIsSuccess(true)
+      try {
+        // Enviar datos al backend
+        const response = await fetch(`${API_BASE_URL}/contacto/enviar`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formState),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.message || `Error ${response.status}: No se pudo enviar el mensaje`);
+        }
+
+        // Mostrar mensaje de éxito
+        setIsSuccess(true);
+        toast({
+          title: "Mensaje enviado",
+          description: "Hemos recibido tu mensaje. Te responderemos a la brevedad.",
+          duration: 5000,
+        });
 
         // Resetear formulario después de 3 segundos
         setTimeout(() => {
@@ -97,10 +121,21 @@ export default function Contacto() {
             telefono: "",
             asunto: "",
             mensaje: "",
-          })
-          setIsSuccess(false)
-        }, 3000)
-      }, 1500)
+          });
+          setIsSuccess(false);
+        }, 3000);
+      } catch (error) {
+        console.error("Error al enviar mensaje:", error);
+        setApiError(error instanceof Error ? error.message : "Error al enviar el mensaje. Inténtalo de nuevo más tarde.");
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudo enviar el mensaje. Por favor, inténtalo de nuevo más tarde.",
+          duration: 5000,
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   }
 
@@ -122,6 +157,14 @@ export default function Contacto() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {apiError && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>{apiError}</AlertDescription>
+                    </Alert>
+                  )}
+
                   <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="space-y-2">
@@ -135,6 +178,7 @@ export default function Contacto() {
                           value={formState.nombre}
                           onChange={handleChange}
                           className={errors.nombre ? "border-red-500" : ""}
+                          disabled={isSubmitting || isSuccess}
                         />
                         {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
                       </div>
@@ -150,6 +194,7 @@ export default function Contacto() {
                           value={formState.email}
                           onChange={handleChange}
                           className={errors.email ? "border-red-500" : ""}
+                          disabled={isSubmitting || isSuccess}
                         />
                         {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
                       </div>
@@ -163,13 +208,18 @@ export default function Contacto() {
                           placeholder="Ingresa tu número de teléfono"
                           value={formState.telefono}
                           onChange={handleChange}
+                          disabled={isSubmitting || isSuccess}
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="asunto">
                           Asunto <span className="text-red-500">*</span>
                         </Label>
-                        <Select value={formState.asunto} onValueChange={handleSelectChange}>
+                        <Select
+                          value={formState.asunto}
+                          onValueChange={handleSelectChange}
+                          disabled={isSubmitting || isSuccess}
+                        >
                           <SelectTrigger id="asunto" className={errors.asunto ? "border-red-500" : ""}>
                             <SelectValue placeholder="Selecciona un asunto" />
                           </SelectTrigger>
@@ -196,6 +246,7 @@ export default function Contacto() {
                         value={formState.mensaje}
                         onChange={handleChange}
                         className={errors.mensaje ? "border-red-500" : ""}
+                        disabled={isSubmitting || isSuccess}
                       />
                       {errors.mensaje && <p className="text-red-500 text-sm">{errors.mensaje}</p>}
                     </div>
