@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
+import { useAuth } from "@/context/AuthContext";
 
 // Eliminamos la importación de axios
 import { Card, CardContent } from "@/components/ui/card"
@@ -47,18 +48,32 @@ interface Instalacion {
 }
 
 export default function InstalacionesCoordinador() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [facilities, setFacilities] = useState<Instalacion[]>([])
-  const [originalFacilities, setOriginalFacilities] = useState<Instalacion[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("todas")
-  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null)
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [facilities, setFacilities] = useState<Instalacion[]>([]);
+  const [originalFacilities, setOriginalFacilities] = useState<Instalacion[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("todas");
+  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
+    // Obtener el usuario del contexto de autenticación
+  const { user, isLoading: authLoading } = useAuth();
+  
   useEffect(() => {
+    
     const loadData = async () => {
       try {
-        // Reemplazamos axios por fetch
-        const response = await fetch(`${API_BASE_URL}/instalaciones`);
+        // Si no hay usuario autenticado o no es coordinador, no cargar datos
+        if (!user || !user.rol || user.rol.nombre !== 'coordinador') {
+          console.log("No hay usuario coordinador autenticado");
+          setFacilities([]);
+          setOriginalFacilities([]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Usar el endpoint específico para coordinadores que devuelve solo las instalaciones asignadas
+        const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${user.id}`, {
+          credentials: 'include', // Importante para enviar cookies de autenticación
+        });
         
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
@@ -66,34 +81,53 @@ export default function InstalacionesCoordinador() {
         
         const data = await response.json();
         
-        // Procesamos los datos para agregarles propiedades adicionales para el frontend
-        const processedData = data.map((instalacion: Instalacion) => {
-          // Valores simulados para propiedades adicionales del frontend
-          // Normalmente estos valores vendrían de endpoints adicionales
-          return {
-            ...instalacion,
-            status: instalacion.activo ? 'disponible' : 'mantenimiento',
-            maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
-            lastVisit: "15/04/2023",
-            nextVisit: "15/05/2023",
-            isToday: Math.random() > 0.7, // Simulación para demo
-            observations: Math.floor(Math.random() * 10),
-            pendingObservations: Math.floor(Math.random() * 5),
-          };
-        });
+        // Obtener datos completos para cada instalación
+        const detailedFacilities = await Promise.all(data.map(async (instalacionBasica: any) => {
+          try {
+            const detailResponse = await fetch(`${API_BASE_URL}/instalaciones/${instalacionBasica.id}`);
+            
+            if (!detailResponse.ok) {
+              throw new Error(`Error al obtener detalles de instalación: ${detailResponse.status}`);
+            }
+            
+            const detailData = await detailResponse.json();
+            
+            // Agregar propiedades adicionales para el frontend
+            return {
+              ...detailData,
+              status: detailData.activo ? 'disponible' : 'mantenimiento',
+              maintenanceStatus: detailData.activo ? 'none' : 'in-progress',
+              lastVisit: "15/04/2023",
+              nextVisit: "15/05/2023",
+              isToday: Math.random() > 0.7, // Simulación para demo
+              observations: Math.floor(Math.random() * 10),
+              pendingObservations: Math.floor(Math.random() * 5),
+            };
+          } catch (error) {
+            console.error(`Error al obtener detalles para instalación ${instalacionBasica.id}:`, error);
+            // Devolver datos básicos en caso de error
+            return {
+              ...instalacionBasica,
+              status: 'disponible',
+              maintenanceStatus: 'none',
+              lastVisit: "15/04/2023",
+              nextVisit: "15/05/2023",
+              isToday: false,
+              observations: 0,
+              pendingObservations: 0,
+            };
+          }
+        }));
         
-        setFacilities(processedData);
-        setOriginalFacilities(processedData);
+        setFacilities(detailedFacilities);
+        setOriginalFacilities(detailedFacilities);
       } catch (error) {
         console.error("Error al cargar instalaciones:", error);
       } finally {
         setIsLoading(false);
       }
-    };
-
-    loadData();
-  }, [])
-
+    };    loadData();
+  }, [user])
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -106,30 +140,16 @@ export default function InstalacionesCoordinador() {
     setIsLoading(true);
     
     try {
-      // Usar el endpoint de búsqueda del backend
-      const response = await fetch(`${API_BASE_URL}/instalaciones/buscar?nombre=${encodeURIComponent(searchQuery)}`);
+      // Filtrar las instalaciones originales que ya están asignadas al coordinador
+      // Esto garantiza que solo se busque entre las instalaciones que el coordinador tiene asignadas
+      const filteredFacilities = originalFacilities.filter(
+        facility => facility.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    facility.descripcion?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    facility.ubicacion.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    facility.tipo.toLowerCase().includes(searchQuery.toLowerCase())
+      );
       
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Procesar los datos igual que en loadData
-      const processedData = data.map((instalacion: Instalacion) => {
-        return {
-          ...instalacion,
-          status: instalacion.activo ? 'disponible' : 'mantenimiento',
-          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
-          lastVisit: "15/04/2023",
-          nextVisit: "15/05/2023",
-          isToday: Math.random() > 0.7,
-          observations: Math.floor(Math.random() * 10),
-          pendingObservations: Math.floor(Math.random() * 5),
-        };
-      });
-      
-      setFacilities(processedData);
+      setFacilities(filteredFacilities);
     } catch (error) {
       console.error("Error al buscar instalaciones:", error);
       // Si hay un error, mostrar un mensaje y mantener los datos actuales
@@ -149,70 +169,34 @@ export default function InstalacionesCoordinador() {
       setFacilities(originalFacilities.filter((f) => f.pendingObservations && f.pendingObservations > 0))
     }
   }
-  
-  const handleFilterByType = async (tipo: string) => {
+    const handleFilterByType = async (tipo: string) => {
     setIsLoading(true);
     
     try {
-      // Usar el endpoint de filtrado por tipo
-      const response = await fetch(`${API_BASE_URL}/instalaciones/tipo?tipo=${encodeURIComponent(tipo)}`);
+      // Filtrar de las instalaciones originales que ya están asignadas al coordinador
+      // Solo aquellas que coinciden con el tipo seleccionado
+      const filteredFacilities = originalFacilities.filter(
+        facility => facility.tipo.toLowerCase() === tipo.toLowerCase()
+      );
       
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Procesar los datos igual que en loadData
-      const processedData = data.map((instalacion: Instalacion) => {
-        return {
-          ...instalacion,
-          status: instalacion.activo ? 'disponible' : 'mantenimiento',
-          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
-          lastVisit: "15/04/2023",
-          nextVisit: "15/05/2023",
-          isToday: Math.random() > 0.7,
-          observations: Math.floor(Math.random() * 10),
-          pendingObservations: Math.floor(Math.random() * 5),
-        };
-      });
-      
-      setFacilities(processedData);
+      setFacilities(filteredFacilities);
     } catch (error) {
       console.error("Error al filtrar instalaciones por tipo:", error);
     } finally {
       setIsLoading(false);
     }
   }
-  
-  const handleFilterByStatus = async (activo: boolean) => {
+    const handleFilterByStatus = async (activo: boolean) => {
     setIsLoading(true);
     
     try {
-      // Usar el endpoint de filtrado por estado activo
-      const response = await fetch(`${API_BASE_URL}/instalaciones/activo?activo=${activo}`);
+      // Filtrar de las instalaciones originales que ya están asignadas al coordinador
+      // Solo aquellas que coinciden con el estado activo seleccionado
+      const filteredFacilities = originalFacilities.filter(
+        facility => facility.activo === activo
+      );
       
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Procesar los datos igual que en loadData
-      const processedData = data.map((instalacion: Instalacion) => {
-        return {
-          ...instalacion,
-          status: instalacion.activo ? 'disponible' : 'mantenimiento',
-          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
-          lastVisit: "15/04/2023",
-          nextVisit: "15/05/2023",
-          isToday: Math.random() > 0.7,
-          observations: Math.floor(Math.random() * 10),
-          pendingObservations: Math.floor(Math.random() * 5),
-        };
-      });
-      
-      setFacilities(processedData);
+      setFacilities(filteredFacilities);
     } catch (error) {
       console.error("Error al filtrar instalaciones por estado:", error);
     } finally {
@@ -244,8 +228,7 @@ export default function InstalacionesCoordinador() {
         return null
     }
   }
-
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -293,10 +276,9 @@ export default function InstalacionesCoordinador() {
                   Filtrar
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
+              <DropdownMenuContent align="end">                <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => loadData()}>
+                <DropdownMenuItem onClick={() => setFacilities(originalFacilities)}>
                   Todos
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleFilterByStatus(true)}>
@@ -329,10 +311,12 @@ export default function InstalacionesCoordinador() {
           <TabsTrigger value="todas">Todas</TabsTrigger>
           <TabsTrigger value="hoy">Visitas Hoy</TabsTrigger>
           <TabsTrigger value="pendientes">Observaciones Pendientes</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeTab} className="mt-4">
-          {facilities.length > 0 ? (
+        </TabsList>        <TabsContent value={activeTab} className="mt-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : facilities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {facilities.map((facility) => (
                 <Card 
@@ -409,6 +393,14 @@ export default function InstalacionesCoordinador() {
                   </CardContent>
                 </Card>
               ))}
+            </div>          ) : originalFacilities.length === 0 ? (
+            <div className="text-center py-12">
+              <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium">No tienes instalaciones asignadas</h3>
+              <p className="text-gray-500 mt-2">
+                No hay instalaciones asignadas a tu cuenta de coordinador.
+                Contacta con un administrador para solicitar acceso a instalaciones.
+              </p>
             </div>
           ) : (
             <div className="text-center py-12">
@@ -418,12 +410,25 @@ export default function InstalacionesCoordinador() {
               <Button
                 variant="outline"
                 className="mt-4"
-                onClick={() => {
-                  setSearchQuery("")
-                  const loadAllData = async () => {
+                onClick={() => {                  setSearchQuery("");
+                  setActiveTab("todas");
+                  
+                  const loadData = async () => {
                     try {
                       setIsLoading(true);
-                      const response = await fetch(`${API_BASE_URL}/instalaciones`);
+                        // Si no hay usuario autenticado o no es coordinador, no cargar datos
+                      if (!user || !user.rol || user.rol.nombre !== 'coordinador') {
+                        console.log("No hay usuario coordinador autenticado");
+                        setFacilities([]);
+                        setOriginalFacilities([]);
+                        setIsLoading(false);
+                        return;
+                      }
+                      
+                      // Usar el endpoint específico para coordinadores
+                      const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${user.id}`, {
+                        credentials: 'include', // Importante para enviar cookies de autenticación// Importante para enviar cookies de autenticación
+                      });
                       
                       if (!response.ok) {
                         throw new Error(`Error HTTP: ${response.status}`);
@@ -431,22 +436,39 @@ export default function InstalacionesCoordinador() {
                       
                       const data = await response.json();
                       
-                      // Procesar los datos
-                      const processedData = data.map((instalacion: Instalacion) => {
+                      // Obtener datos completos para cada instalación
+                      const detailedFacilities = await Promise.all(data.map(async (instalacionBasica: any) => {
+                        const detailResponse = await fetch(`${API_BASE_URL}/instalaciones/${instalacionBasica.id}`);
+                        
+                        if (!detailResponse.ok) {
+                          return {
+                            ...instalacionBasica,
+                            status: 'disponible',
+                            maintenanceStatus: 'none',
+                            lastVisit: "15/04/2023",
+                            nextVisit: "15/05/2023",
+                            isToday: false,
+                            observations: 0,
+                            pendingObservations: 0,
+                          };
+                        }
+                        
+                        const detailData = await detailResponse.json();
+                        
                         return {
-                          ...instalacion,
-                          status: instalacion.activo ? 'disponible' : 'mantenimiento',
-                          maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
+                          ...detailData,
+                          status: detailData.activo ? 'disponible' : 'mantenimiento',
+                          maintenanceStatus: detailData.activo ? 'none' : 'in-progress',
                           lastVisit: "15/04/2023",
                           nextVisit: "15/05/2023",
                           isToday: Math.random() > 0.7,
                           observations: Math.floor(Math.random() * 10),
                           pendingObservations: Math.floor(Math.random() * 5),
                         };
-                      });
+                      }));
                       
-                      setFacilities(processedData);
-                      setOriginalFacilities(processedData);
+                      setFacilities(detailedFacilities);
+                      setOriginalFacilities(detailedFacilities);
                     } catch (error) {
                       console.error("Error al recargar instalaciones:", error);
                     } finally {
