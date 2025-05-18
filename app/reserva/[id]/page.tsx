@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { use } from "react"
+import React from "react"
+import { useParams } from 'next/navigation'
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -119,23 +120,26 @@ const reservationsDB: ReservationDetails[] = [
   },
 ]
 
-export default function ReservaDetalle({ params }: { params: { id: string } }) {
-  // Obtener id directamente de params
-  const id = params.id;
+// Importar el hook useParams de next/navigation
+
+export default function ReservaDetalle() {
+  // Usar el hook useParams para obtener los parámetros de la ruta de forma segura
+  const params = useParams();
+  const reservaId = params.id as string;
 
   // Usar tipo específico y estado para cancelación
-  const [reservation, setReservation] = useState<ReservationDetails | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [showCancelDialog, setShowCancelDialog] = useState(false)
-  const [isCancelling, setIsCancelling] = useState(false)
-  const { addNotification } = useNotification() // Obtener función del contexto
-
+  const [reservation, setReservation] = useState<ReservationDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const { addNotification } = useNotification(); // Obtener función del contexto
   useEffect(() => {
+    // No cargar nada si el ID no está disponible aún
+    if (!reservaId) return;
+
     // Cargar datos reales del backend
     const fetchReservationDetails = async () => {
       setLoading(true)
-      // Usar el id que ya fue extraído con React.use()
-      const reservaId = id;
       try {
         const response = await fetch(`${API_BASE_URL}/reservas/${reservaId}`, {
           method: 'GET',
@@ -152,7 +156,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
 
         const reservaData = await response.json();
         console.log('Datos de reserva obtenidos:', reservaData);
-        
+
         // También obtener detalles de pago si existe
         let pagoData = null;        try {
           const pagoResponse = await fetch(`${API_BASE_URL}/pagos/reserva/${reservaId}`, {
@@ -163,7 +167,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
               'Origin': FRONTEND_URL
             }
           });
-          
+
           if (pagoResponse.ok) {
             pagoData = await pagoResponse.json();
             console.log('Datos de pago obtenidos:', pagoData);
@@ -177,17 +181,17 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
         } catch (error) {
           console.warn('No se pudieron obtener datos de pago:', error);
         }
-        
+
         // Formatear los datos obtenidos al formato que necesita la interfaz
         const fechaReserva = new Date(reservaData.fecha);
         const horaInicio = reservaData.horaInicio.substring(0, 5);
         const horaFin = reservaData.horaFin.substring(0, 5);
-        
+
         // Crear el objeto dateTime para cálculos
         const [horaI, minI] = horaInicio.split(':').map(Number);
         const dateTime = new Date(fechaReserva);
         dateTime.setHours(horaI, minI, 0);
-        
+
         const formattedReservation: ReservationDetails = {
           id: reservaData.id,
           reservationNumber: `RES-${reservaData.id}`,
@@ -195,9 +199,9 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
           facilityName: reservaData.instalacionNombre,
           facilityImage: reservaData.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
           date: new Intl.DateTimeFormat('es-ES', {
-            weekday: 'long', 
-            day: 'numeric', 
-            month: 'long', 
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
             year: 'numeric'
           }).format(fechaReserva),
           time: `${horaInicio} - ${horaFin}`,
@@ -205,13 +209,13 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
           location: reservaData.instalacionUbicacion || "Instalación Deportiva Municipal",
           status: reservaData.estado as ReservationDetails['status'],
           canCancel: false, // Se calculará con la función checkCancellationEligibility
-          paymentMethod: pagoData 
-            ? (pagoData.metodo === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito') 
-            : reservaData.metodoPago 
+          paymentMethod: pagoData
+            ? (pagoData.metodo === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito')
+            : reservaData.metodoPago
               ? (reservaData.metodoPago === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito')
               : 'Pendiente',
           paymentStatus: pagoData ? pagoData.estado.charAt(0).toUpperCase() + pagoData.estado.slice(1).toLowerCase() : (reservaData.estadoPago ? reservaData.estadoPago.charAt(0).toUpperCase() + reservaData.estadoPago.slice(1).toLowerCase() : 'Pendiente'),
-          paymentAmount: pagoData ? `S/. ${pagoData.monto}` : 'Pendiente',          paymentDate: pagoData && pagoData.createdAt 
+          paymentAmount: pagoData ? `S/. ${pagoData.monto}` : 'Pendiente',          paymentDate: pagoData && pagoData.createdAt
                         ? new Intl.DateTimeFormat('es-ES', {
                             day: 'numeric',
                             month: 'long',
@@ -229,8 +233,8 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                             }).format(new Date(reservaData.createdAt))
                           : 'Pendiente',          paymentReference: pagoData ? pagoData.referenciaTransaccion || 'No disponible' : 'Pendiente',
           // Asegurarse de que la URL del comprobante sea válida
-          paymentReceiptUrl: pagoData && (pagoData.urlComprobante || pagoData.url_comprobante) 
-                            ? (pagoData.urlComprobante || pagoData.url_comprobante) 
+          paymentReceiptUrl: pagoData && (pagoData.urlComprobante || pagoData.url_comprobante)
+                            ? (pagoData.urlComprobante || pagoData.url_comprobante)
                             : null,
           userDetails: {
             name: reservaData.usuarioNombre || 'Usuario',
@@ -240,7 +244,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
           additionalInfo: reservaData.comentarios || 'Sin comentarios adicionales',
           createdAt: new Date(reservaData.createdAt || Date.now()).toLocaleString('es-ES'),
         };
-        
+
         setReservation(formattedReservation);
       } catch (error) {
         console.error('Error al cargar los detalles de la reserva:', error);
@@ -255,8 +259,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
       }
     };
 
-    fetchReservationDetails();
-  }, [id])
+    fetchReservationDetails();  }, [reservaId])
 
   const getStatusBadge = (status: ReservationDetails['status']) => {
     if (status === "confirmada") {
@@ -313,7 +316,6 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
           message: reservation ? `Tu reserva para ${reservation.facilityName} (${reservation.time} el ${reservation.date}) ha sido cancelada.` : "Tu reserva ha sido cancelada.",
           type: "reserva",
       });
-      // Aquí podrías mostrar un toast de éxito
     }, 1500);
   }
 
@@ -375,36 +377,36 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                   </CardTitle>
                   <CardDescription>Creada el {reservation.createdAt}</CardDescription>
                 </div>                <div className="flex gap-2">
-                  {/* Botones de acción en orden: 
-                      1. Descargar comprobante (izquierda) - Aparece solo cuando hay comprobante 
+                  {/* Botones de acción en orden:
+                      1. Descargar comprobante (izquierda) - Aparece solo cuando hay comprobante
                       2. Cancelar reserva (derecha) - Aparece solo cuando es elegible para cancelar */}
-                  
+
                   {/* Primer botón: "Descargar comprobante" */}
                   {reservation.paymentReceiptUrl && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex items-center gap-1"                      
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
                       onClick={() => {                        // Iniciar la descarga del archivo usando la API de descarga del navegador
                         const url = `${API_BASE_URL.replace('/api', '')}${reservation.paymentReceiptUrl}`;
                         const fileName = reservation.paymentReceiptUrl?.split('/').pop() || 'comprobante.jpg';
-                        
+
                         // Usar fetch para obtener el archivo como blob
                         fetch(url)
                           .then(response => response.blob())
                           .then(blob => {
                             // Crear una URL para el blob
                             const blobUrl = window.URL.createObjectURL(blob);
-                            
+
                             // Crear un enlace temporal para la descarga
                             const link = document.createElement('a');
                             link.href = blobUrl;
                             link.download = fileName;
-                            
+
                             // Simular clic para iniciar la descarga
                             document.body.appendChild(link);
                             link.click();
-                            
+
                             // Limpiar después de la descarga
                             window.URL.revokeObjectURL(blobUrl);
                             document.body.removeChild(link);
@@ -419,7 +421,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                       Descargar comprobante
                     </Button>
                   )}
-                  
+
                   {/* Segundo botón: "Cancelar Reserva" */}
                   {checkCancellationEligibility(reservation) && (
                     <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
@@ -553,9 +555,9 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                   <h3 className="text-lg font-medium mb-4">Comprobante de pago</h3>
                   {reservation.paymentReceiptUrl ? (
                     <div className="bg-white p-4 rounded-lg shadow-sm border">
-                      <div className="flex flex-col items-center">                        <img 
+                      <div className="flex flex-col items-center">                        <img
                           src={`${API_BASE_URL.replace('/api', '')}${reservation.paymentReceiptUrl}`}
-                          alt="Comprobante de depósito bancario" 
+                          alt="Comprobante de depósito bancario"
                           className="max-w-full max-h-96 object-contain rounded-md mb-4"
                           onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                             const target = e.target as HTMLImageElement;
