@@ -120,9 +120,8 @@ const reservationsDB: ReservationDetails[] = [
 ]
 
 export default function ReservaDetalle({ params }: { params: { id: string } }) {
-  // Usar React.use() para desenvolver params y obtener id de manera segura
-  const unwrappedParams = use(params);
-  const id = unwrappedParams.id;
+  // Obtener id directamente de params
+  const id = params.id;
 
   // Usar tipo específico y estado para cancelación
   const [reservation, setReservation] = useState<ReservationDetails | null>(null)
@@ -260,18 +259,16 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
   }, [id])
 
   const getStatusBadge = (status: ReservationDetails['status']) => {
-    switch (status) {      case "confirmada":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Confirmada</Badge>
-      case "pendiente":
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pendiente</Badge>
-      case "completada":
-        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Completada</Badge>
-      case "cancelada":
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Cancelada</Badge>
-      default:
-        // Capitalizar el primer caracter del string
-        const capitalizedStatus = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : '';
-        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{capitalizedStatus}</Badge>
+    if (status === "confirmada") {
+      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Confirmada</Badge>;
+    } else if (status === "pendiente") {
+      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pendiente</Badge>;
+    } else if (status === "completada") {
+      return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Completada</Badge>;
+    } else if (status === "cancelada") {
+      return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Cancelada</Badge>;
+    } else {
+      return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Desconocido</Badge>;
     }
   }
 
@@ -310,11 +307,10 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
       });
       setIsCancelling(false);
       setShowCancelDialog(false); // Cerrar el diálogo
-      console.log("Cancelación simulada completada.");
-      // Añadir notificación de cancelación usando los detalles de la reserva actual
+      console.log("Cancelación simulada completada.");    // Añadir notificación de cancelación usando los detalles de la reserva actual
       addNotification({
           title: "Reserva Cancelada",
-          message: `Tu reserva para ${reservation.facilityName} (${reservation.time} el ${reservation.date}) ha sido cancelada.`,
+          message: reservation ? `Tu reserva para ${reservation.facilityName} (${reservation.time} el ${reservation.date}) ha sido cancelada.` : "Tu reserva ha sido cancelada.",
           type: "reserva",
       });
       // Aquí podrías mostrar un toast de éxito
@@ -389,10 +385,9 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                       variant="outline" 
                       size="sm" 
                       className="flex items-center gap-1"                      
-                      onClick={() => {
-                        // Iniciar la descarga del archivo usando la API de descarga del navegador
-                        const url = `http://localhost:8080${reservation.paymentReceiptUrl}`;
-                        const fileName = reservation.paymentReceiptUrl.split('/').pop() || 'comprobante.jpg';
+                      onClick={() => {                        // Iniciar la descarga del archivo usando la API de descarga del navegador
+                        const url = `${API_BASE_URL.replace('/api', '')}${reservation.paymentReceiptUrl}`;
+                        const fileName = reservation.paymentReceiptUrl?.split('/').pop() || 'comprobante.jpg';
                         
                         // Usar fetch para obtener el archivo como blob
                         fetch(url)
@@ -420,7 +415,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                           });
                       }}
                     >
-                      <Download className="h-4 w-4" />
+                      <Download className="h-4 w-4" aria-hidden="true" />
                       Descargar comprobante
                     </Button>
                   )}
@@ -440,7 +435,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                         </DialogHeader>
                         <div className="flex items-center gap-4 py-4">
                           <div className="bg-red-100 p-3 rounded-full">
-                            <AlertTriangle className="h-6 w-6 text-red-600" />
+                            <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
                           </div>
                           <div>
                             <p className="font-medium">Política de cancelación</p>
@@ -461,7 +456,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                           >
                             {isCancelling ? (
                               <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                                 Cancelando...
                               </>
                             ) : (
@@ -488,28 +483,27 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                   <h3 className="text-xl font-bold mb-4">{reservation.facilityName}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-primary" />
+                      <Calendar className="h-5 w-5 text-primary" aria-hidden="true" />
                       <div>
                         <p className="text-sm text-gray-500">Fecha</p>
                         <p>{reservation.date}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />
+                      <Clock className="h-5 w-5 text-primary" aria-hidden="true" />
                       <div>
                         <p className="text-sm text-gray-500">Horario</p>
                         <p>{reservation.time}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-primary" />
+                    <div className="flex items-center gap-2">                      <MapPin className="h-5 w-5 text-primary" aria-hidden="true" />
                       <div>
                         <p className="text-sm text-gray-500">Ubicación</p>
                         <p>{reservation.location}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" />
+                      <User className="h-5 w-5 text-primary" aria-hidden="true" />
                       <div>
                         <p className="text-sm text-gray-500">Reservado por</p>
                         <p>{reservation.userDetails.name}</p>
@@ -525,15 +519,14 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                 <h3 className="text-lg font-medium mb-4">Detalles del pago</h3>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-primary" />
+                    <div className="flex items-center gap-2">                      <CreditCard className="h-5 w-5 text-primary" aria-hidden="true" />
                       <div>
                         <p className="text-sm text-gray-500">Método de pago</p>
                         <p>{reservation.paymentMethod}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-primary" />
+                      <CheckCircle className="h-5 w-5 text-primary" aria-hidden="true" />
                       <div>
                         <p className="text-sm text-gray-500">Estado del pago</p>
                         <p>{reservation.paymentStatus}</p>
@@ -556,18 +549,16 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                     </div>
                 </div>
               </div>              {/* Mostrar comprobante de pago si es método depósito y tiene URL de comprobante (en cualquier estado) */}
-              {(reservation.paymentMethod === "Depósito bancario" || reservation.paymentMethod === "deposito") && (
-                <div className="mt-6">
+              {(reservation.paymentMethod === "Depósito bancario" || reservation.paymentMethod === "deposito") && (                <div className="mt-6">
                   <h3 className="text-lg font-medium mb-4">Comprobante de pago</h3>
-                  {console.log("Intentando mostrar comprobante:", reservation.paymentMethod, reservation.paymentReceiptUrl)}                  {reservation.paymentReceiptUrl ? (
+                  {reservation.paymentReceiptUrl ? (
                     <div className="bg-white p-4 rounded-lg shadow-sm border">
                       <div className="flex flex-col items-center">                        <img 
-                          src={`http://localhost:8080${reservation.paymentReceiptUrl}`}
+                          src={`${API_BASE_URL.replace('/api', '')}${reservation.paymentReceiptUrl}`}
                           alt="Comprobante de depósito bancario" 
                           className="max-w-full max-h-96 object-contain rounded-md mb-4"
                           onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                             const target = e.target as HTMLImageElement;
-                            console.error("Error al cargar imagen:", reservation.paymentReceiptUrl);
                             target.src = "/placeholder.svg?text=Comprobante+no+disponible";
                             target.alt = "Comprobante no disponible";
                           }}
@@ -575,9 +566,8 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                      <p className="text-yellow-700 flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5" />
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">                      <p className="text-yellow-700 flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5" aria-hidden="true" />
                         No se encontró el comprobante de pago. Contacta a soporte si realizaste el depósito.
                       </p>
                     </div>
@@ -594,17 +584,16 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
 
               <div className="bg-primary-pale p-4 rounded-lg">
                 <h3 className="text-lg font-medium mb-2">Información importante</h3>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-start gap-2">
-                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <ul className="space-y-2 text-gray-700">                  <li className="flex items-start gap-2">
+                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
                     <span>Presenta tu comprobante de reserva al llegar a la instalación.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
                     <span>Llega con al menos 10 minutos de anticipación.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
                     <span>Respeta las normas de uso de la instalación.</span>
                   </li>
                 </ul>
