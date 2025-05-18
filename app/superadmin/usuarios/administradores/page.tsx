@@ -49,18 +49,24 @@ export default function AdministradoresPage() {
         const response = await fetch(`${API_BASE_URL}/usuarios/allAdministradores`, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          cache: 'no-store'
         })
-        if (!response.ok) throw new Error('Error al cargar los administradores')
-        const data = await response.json()
         
-        setAdmins(data.map((admin: { id: number; nombre: string; email: string; telefono: string; estado: number }) => ({
+        if (!response.ok) throw new Error('Error al cargar los administradores');
+        
+        const data = await response.json();
+        console.log('Admins data:', data)  // Para ver los datos que llegan del backend
+        
+        setAdmins(data.map((admin: { id: number; nombre: string; email: string; telefono: string; activo: boolean }) => ({
           id: admin.id,
           name: admin.nombre,
           email: admin.email,
           phone: admin.telefono,
-          status: admin.estado === 1 ? 'activo' : 'inactivo',
+          status: admin.activo ? 'activo' : 'inactivo',
           lastLogin: '---', 
           role: 'Administrador'
         })))

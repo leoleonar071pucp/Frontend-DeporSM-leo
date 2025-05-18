@@ -109,59 +109,56 @@ export default function NuevoVecinoPage() {
     return errors
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const errors = validateForm()
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
-      toast({
-        title: "Error de validación",
-        description: "Por favor, revise los campos del formulario",
-        variant: "destructive",
-      })
       return
     }
     
     setIsSubmitting(true)
     
     try {
-      // Preparar datos para el backend
-      const userData = {
-        nombre: formData.nombre,
-        apellidos: formData.apellidos,
-        email: formData.email,
-        telefono: formData.telefono,
-        direccion: formData.direccion,
-        dni: formData.dni,
-        password: formData.password,
-        rol: 4 // Rol de vecino
-      }
-
-      // Enviar datos al backend
-      const response = await fetch('${API_BASE_URL}/usuarios/register', {
-        method: "POST",
+      const response = await fetch(`${API_BASE_URL}/usuarios/register`, {
+        method: 'POST',
+        credentials: 'include',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          apellidos: formData.apellidos,
+          email: formData.email,
+          telefono: formData.telefono,
+          direccion: formData.direccion,
+          dni: formData.dni,
+          password: formData.password,
+          rol: {
+            id: 4,
+            nombre: "vecino"
+          },
+          activo: true
+        })
       })
 
-      if (response.ok) {
-        toast({
-          title: "Vecino registrado",
-          description: `${formData.nombre} ${formData.apellidos} ha sido registrado como vecino.`,
-        })
-        router.push("/superadmin/usuarios/vecinos")
-      } else {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Error al registrar el vecino")
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(error || 'Error al registrar el vecino')
       }
+
+      toast({
+        title: "Vecino registrado",
+        description: `El vecino ${formData.nombre} ${formData.apellidos} ha sido registrado exitosamente.`,
+      })
+      
+      router.push("/superadmin/usuarios/vecinos")
     } catch (error) {
-      console.error("Error al registrar vecino:", error)
+      console.error('Error:', error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Ocurrió un error al registrar el vecino",
+        description: error instanceof Error ? error.message : "No se pudo registrar el vecino",
         variant: "destructive",
       })
     } finally {

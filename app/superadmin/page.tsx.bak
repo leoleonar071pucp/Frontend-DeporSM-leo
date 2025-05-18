@@ -150,7 +150,7 @@ const UserActivity = ({ activity }: UserActivityProps) => {
   )
 }
 
-export default function Page() {
+export default function SuperadminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState<StatsData>({
     totalUsers: 0,

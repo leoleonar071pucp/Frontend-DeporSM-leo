@@ -65,35 +65,46 @@ export default function NuevoCoordinadorPage() {
   const validateForm = () => {
     const errors: FormErrors = {}
     
+    // Validate nombre
     if (!formData.nombre.trim()) {
       errors.nombre = "El nombre es obligatorio"
     }
     
+    // Validate apellidos
     if (!formData.apellidos.trim()) {
       errors.apellidos = "Los apellidos son obligatorios"
     }
     
+    // Validate email
     if (!formData.email.trim()) {
       errors.email = "El correo electrónico es obligatorio"
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)) {
       errors.email = "El formato de correo electrónico no es válido"
     }
     
+    // Validate telefono
     if (!formData.telefono.trim()) {
       errors.telefono = "El teléfono es obligatorio"
+    } else if (!/^[0-9]{9}$/.test(formData.telefono.replace(/[-\s]/g, ''))) {
+      errors.telefono = "El teléfono debe tener 9 dígitos"
     }
     
+    // Validate direccion
     if (!formData.direccion.trim()) {
       errors.direccion = "La dirección es obligatoria"
     }
 
+    // Validate password
     if (!formData.password) {
       errors.password = "La contraseña es obligatoria"
     } else if (formData.password.length < 6) {
       errors.password = "La contraseña debe tener al menos 6 caracteres"
     }
-    
-    if (formData.password !== formData.confirmPassword) {
+
+    // Validate confirmPassword
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = "Debes confirmar la contraseña"
+    } else if (formData.password !== formData.confirmPassword) {
       errors.confirmPassword = "Las contraseñas no coinciden"
     }
     
@@ -103,27 +114,33 @@ export default function NuevoCoordinadorPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     
+    // Run form validation
     const errors = validateForm()
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
+      toast({
+        title: "Error",
+        description: "Por favor, corrige los errores en el formulario",
+        variant: "destructive",
+      })
       return
     }
     
     setIsSubmitting(true)
     
     try {
-      const response = await fetch('${API_BASE_URL}/usuarios/coordinadores', {
+      const response = await fetch(`${API_BASE_URL}/usuarios/coordinadores`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          nombre: formData.nombre,
-          apellidos: formData.apellidos,
-          email: formData.email,
-          telefono: formData.telefono,
-          direccion: formData.direccion,
+          nombre: formData.nombre.trim(),
+          apellidos: formData.apellidos.trim(),
+          email: formData.email.trim().toLowerCase(),
+          telefono: formData.telefono.trim(),
+          direccion: formData.direccion.trim(),
           password: formData.password,
           rol: {
             id: 3, // ID para el rol de coordinador
@@ -148,7 +165,7 @@ export default function NuevoCoordinadorPage() {
       console.error('Error:', error)
       toast({
         title: "Error",
-        description: "No se pudo crear el coordinador",
+        description: "No se pudo crear el coordinador. Por favor, intenta de nuevo.",
         variant: "destructive",
       })
     } finally {

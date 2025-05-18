@@ -18,6 +18,12 @@ import { PieChart } from "./components/charts/PieChart"
 import { LineChart } from "./components/charts/LineChart"
 
 // Interfaces para el estado
+interface MonthlyChanges {
+  totalReservations?: number;
+  activeReservations?: number;
+  maintenanceAlerts?: number;
+}
+
 interface StatsState {
   totalReservations: number;
   activeReservations: number;
@@ -25,14 +31,33 @@ interface StatsState {
   maintenanceAlerts: number;
   totalIncome: number;
   averageUsageTime: number;
+  monthlyChanges?: MonthlyChanges;
 }
 
 interface FacilityStatusData {
   id: number;
   name: string;
-  status: "disponible" | "mantenimiento";
+  status: string;
+  lastUpdate: string;
   reservations: number;
   maintenance: boolean;
+}
+
+interface RecentReservationData {
+  id: number;
+  userName: string;
+  facilityName: string;
+  date: string;
+  time: string;
+  status: "confirmada" | "pendiente" | "cancelada";
+}
+
+interface MaintenanceAlertData {
+  id: number;
+  facilityName: string;
+  description: string;
+  date: string;
+  priority: "baja" | "media" | "alta" | "completada";
 }
 
 interface ChartDataState {
@@ -70,98 +95,108 @@ export default function AdminDashboard() {
   })
 
   useEffect(() => {
-  const loadData = async () => {
-    try {
-      // Llamada al endpoint de estadísticas
-      const resStats = await fetch(`${API_BASE_URL}/reservas/stats`)
-      const dataStats = await resStats.json()
+    const loadData = async () => {
+      try {
+        // Llamada al endpoint de estadísticas
+        const resStats = await fetch(`${API_BASE_URL}/reservas/stats`);
+        const dataStats: {
+          totalReservas: number;
+          reservasActivas: number;
+          totalInstalaciones: number;
+          totalObservaciones: number;
+          monthlyChangeTotalReservas: number;
+          monthlyChangeReservasActivas: number;
+          monthlyChangeTotalObservaciones: number;
+        } = await resStats.json();
 
-      setStats((prev) => ({
-        ...prev,
-        totalReservations: dataStats.totalReservas ?? 0,
-        activeReservations: dataStats.reservasActivas ?? 0,
-        totalFacilities: dataStats.totalInstalaciones ?? 0,
-        maintenanceAlerts: dataStats.totalObservaciones ?? 0,
-      }))
+        setStats((prev: StatsState) => ({
+          ...prev,
+          totalReservations: dataStats.totalReservas ?? 0,
+          activeReservations: dataStats.reservasActivas ?? 0,
+          totalFacilities: dataStats.totalInstalaciones ?? 0,
+          maintenanceAlerts: dataStats.totalObservaciones ?? 0,
+          monthlyChanges: {
+            totalReservations: dataStats.monthlyChangeTotalReservas ?? 0,
+            activeReservations: dataStats.monthlyChangeReservasActivas ?? 0,
+            maintenanceAlerts: dataStats.monthlyChangeTotalObservaciones ?? 0,
+          }
+        }));
 
-      // Llamada al endpoint de reservas recientes
-      const resRecents = await fetch(`${API_BASE_URL}/reservas/recientes`)
-      const dataRecents = await resRecents.json()
+        // Llamada al endpoint de reservas recientes
+        const resRecents = await fetch(`${API_BASE_URL}/reservas/recientes`)
+        const dataRecents = await resRecents.json()
 
-      setRecentReservations(
-        dataRecents.map((r: any) => ({
-          id: r.idReserva,
-          userName: r.nombreUsuario,
-          facilityName: r.nombreInstalacion,
-          status: r.estado,
-          date: r.fecha,
-          time: `${r.horaInicio} - ${r.horaFin}`,
-        }))
-      )
+        setRecentReservations(
+          dataRecents.map((r: any) => ({
+            id: r.idReserva,
+            userName: r.nombreUsuario,
+            facilityName: r.nombreInstalacion,
+            status: r.estado,
+            date: r.fecha,
+            time: `${r.horaInicio} - ${r.horaFin}`,
+          }))
+        )
 
-      // Llamada al endpoint de observaciones recientes
-      const resAlerts = await fetch(`${API_BASE_URL}/observaciones/recientes`)
-      const dataAlerts = await resAlerts.json()
+        // Llamada al endpoint de observaciones recientes
+        const resAlerts = await fetch(`${API_BASE_URL}/observaciones/recientes`)
+        const dataAlerts = await resAlerts.json()
 
-      setMaintenanceAlerts(
-        dataAlerts.map((o: any) => ({
-          id: o.idObservacion,
-          facilityName: o.nombreInstalacion,
-          description: o.descripcion,
-          priority: o.prioridad,
-          date: o.fecha,
-        }))
-      )
+        setMaintenanceAlerts(
+          dataAlerts.map((o: any) => ({
+            id: o.idObservacion,
+            facilityName: o.nombreInstalacion,
+            description: o.descripcion,
+            priority: o.prioridad,
+            date: o.fecha,
+          }))
+        )
 
-      // Llamada al endpoint de estado actual de instalaciones
-      const resFacilities = await fetch(`${API_BASE_URL}/instalaciones/estado-instalaciones`)
-      const dataFacilities = await resFacilities.json()
+        // Llamada al endpoint de estado actual de instalaciones
+        const resFacilities = await fetch(`${API_BASE_URL}/instalaciones/estado-instalaciones`)
+        const dataFacilities = await resFacilities.json()
 
-      setFacilityStatus(
-        dataFacilities.map((f: any) => ({
-          id: f.idInstalacion,
-          name: f.nombreInstalacion,
-          status: f.estado,
-          reservations: f.reservasHoy,
-          maintenance: f.estado === "mantenimiento",
-        }))
-      )
-    } catch (error) {
-      console.error("Error al cargar datos del dashboard:", error)
+        setFacilityStatus(
+          dataFacilities.map((f: any) => ({
+            id: f.idInstalacion,
+            name: f.nombreInstalacion,
+            status: f.estado,
+            reservations: f.reservasHoy,
+            maintenance: f.estado === "mantenimiento",
+          }))
+        )
+      } catch (error) {
+        console.error("Error al cargar datos del dashboard:", error)
+      }
+
+      setChartData({
+        reservationsByFacility: [
+          { name: "Piscina Municipal", value: 65 },
+          { name: "Cancha de Fútbol (Grass)", value: 85 },
+          { name: "Gimnasio Municipal", value: 45 },
+          { name: "Cancha de Fútbol (Loza)", value: 35 },
+          { name: "Pista de Atletismo", value: 18 },
+        ],
+        incomeByMonth: [
+          { name: "Ene", value: 1200 }, { name: "Feb", value: 1350 }, { name: "Mar", value: 1500 },
+          { name: "Abr", value: 1650 }, { name: "May", value: 1800 }, { name: "Jun", value: 1950 },
+        ],
+        reservationsByDay: [
+          { name: "Lun", value: 35 }, { name: "Mar", value: 28 }, { name: "Mié", value: 32 },
+          { name: "Jue", value: 30 }, { name: "Vie", value: 42 }, { name: "Sáb", value: 50 }, { name: "Dom", value: 45 },
+        ],
+        usageByHour: [
+          { name: "8:00", value: 15 }, { name: "9:00", value: 20 }, { name: "10:00", value: 25 },
+          { name: "11:00", value: 30 }, { name: "12:00", value: 20 }, { name: "13:00", value: 15 },
+          { name: "14:00", value: 10 }, { name: "15:00", value: 15 }, { name: "16:00", value: 25 },
+          { name: "17:00", value: 35 }, { name: "18:00", value: 45 }, { name: "19:00", value: 40 }, { name: "20:00", value: 30 },
+        ],
+      })
+
+      setIsLoading(false)
     }
 
-    setChartData({
-      reservationsByFacility: [
-        { name: "Piscina Municipal", value: 65 },
-        { name: "Cancha de Fútbol (Grass)", value: 85 },
-        { name: "Gimnasio Municipal", value: 45 },
-        { name: "Cancha de Fútbol (Loza)", value: 35 },
-        { name: "Pista de Atletismo", value: 18 },
-      ],
-      incomeByMonth: [
-        { name: "Ene", value: 1200 }, { name: "Feb", value: 1350 }, { name: "Mar", value: 1500 },
-        { name: "Abr", value: 1650 }, { name: "May", value: 1800 }, { name: "Jun", value: 1950 },
-      ],
-      reservationsByDay: [
-        { name: "Lun", value: 35 }, { name: "Mar", value: 28 }, { name: "Mié", value: 32 },
-        { name: "Jue", value: 30 }, { name: "Vie", value: 42 }, { name: "Sáb", value: 50 }, { name: "Dom", value: 45 },
-      ],
-      usageByHour: [
-        { name: "8:00", value: 15 }, { name: "9:00", value: 20 }, { name: "10:00", value: 25 },
-        { name: "11:00", value: 30 }, { name: "12:00", value: 20 }, { name: "13:00", value: 15 },
-        { name: "14:00", value: 10 }, { name: "15:00", value: 15 }, { name: "16:00", value: 25 },
-        { name: "17:00", value: 35 }, { name: "18:00", value: 45 }, { name: "19:00", value: 40 }, { name: "20:00", value: 30 },
-      ],
-    })
-
-    setIsLoading(false)
-  }
-
-  loadData()
-}, [])
-
-
-
+    loadData()
+  }, [])
 
   const handleTabChange = (value: string) => { // Tipar 'value'
     setActiveTab(value)
@@ -183,21 +218,20 @@ export default function AdminDashboard() {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">        <StatCard
           title="Total de Reservas"
           value={stats.totalReservations}
           icon={<CalendarIcon className="h-4 w-4" />}
-          change="+12% desde el mes pasado"
-          isIncrease={true}
+          change={stats.monthlyChanges?.totalReservations ? `${stats.monthlyChanges.totalReservations >= 0 ? '+' : ''}${stats.monthlyChanges.totalReservations}% desde el mes pasado` : ''}
+          isIncrease={stats.monthlyChanges?.totalReservations ? stats.monthlyChanges.totalReservations >= 0 : undefined}
           description="Total acumulado"
         />
         <StatCard
           title="Reservas Activas"
           value={stats.activeReservations}
           icon={<Activity className="h-4 w-4" />}
-          change="+5% desde la semana pasada"
-          isIncrease={true}
+          change={stats.monthlyChanges?.activeReservations ? `${stats.monthlyChanges.activeReservations >= 0 ? '+' : ''}${stats.monthlyChanges.activeReservations}% desde el mes pasado` : ''}
+          isIncrease={stats.monthlyChanges?.activeReservations ? stats.monthlyChanges.activeReservations >= 0 : undefined}
           description="Pendientes y confirmadas"
         />
         <StatCard
@@ -210,8 +244,8 @@ export default function AdminDashboard() {
           title="Observaciones"
           value={stats.maintenanceAlerts}
           icon={<AlertTriangle className="h-4 w-4" />}
-          change="-2 desde la semana pasada"
-          isIncrease={false}
+          change={stats.monthlyChanges?.maintenanceAlerts ? `${stats.monthlyChanges.maintenanceAlerts >= 0 ? '+' : ''}${stats.monthlyChanges.maintenanceAlerts}% desde el mes pasado` : ''}
+          isIncrease={stats.monthlyChanges?.maintenanceAlerts ? stats.monthlyChanges.maintenanceAlerts >= 0 : undefined}
           description="Observaciones de los coordinadores"
         />
       </div>

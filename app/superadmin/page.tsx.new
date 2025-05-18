@@ -150,7 +150,7 @@ const UserActivity = ({ activity }: UserActivityProps) => {
   )
 }
 
-export default function Page() {
+export default function SuperadminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState<StatsData>({
     totalUsers: 0,
@@ -161,6 +161,7 @@ export default function Page() {
   })
   const [userStats, setUserStats] = useState<ChartItem[]>([])
   const [recentActivity, setRecentActivity] = useState<UserActivityItem[]>([])
+  
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -176,6 +177,7 @@ export default function Page() {
         }
 
         const data = await response.json();
+        console.log('Dashboard data:', data); // Debug log
 
         // Update stats
         setStats({
@@ -231,32 +233,33 @@ export default function Page() {
         <StatCard
           title="Total de Usuarios"
           value={stats.totalUsers}
-          icon={<Users className="h-4 w-4" />}          change={stats.monthlyChanges !== undefined ? `${stats.monthlyChanges.totalUsers >= 0 ? '+' : ''}${stats.monthlyChanges.totalUsers}% desde el mes pasado` : ''}
-          isIncrease={stats.monthlyChanges?.totalUsers >= 0}
+          icon={<Users className="h-4 w-4" />}
+          change={typeof stats.monthlyChanges?.totalUsers === 'number' ? `${stats.monthlyChanges.totalUsers >= 0 ? '+' : ''}${stats.monthlyChanges.totalUsers}% desde el mes pasado` : ''}
+          isIncrease={typeof stats.monthlyChanges?.totalUsers === 'number' ? stats.monthlyChanges.totalUsers >= 0 : undefined}
           description="Usuarios registrados en el sistema"
         />
         <StatCard
           title="Administradores"
           value={stats.adminUsers}
           icon={<Shield className="h-4 w-4" />}
-          change={stats.monthlyChanges !== undefined ? `${stats.monthlyChanges.adminUsers >= 0 ? '+' : ''}${stats.monthlyChanges.adminUsers}% desde el mes pasado` : ''}
-          isIncrease={stats.monthlyChanges?.adminUsers >= 0}
+          change={typeof stats.monthlyChanges?.adminUsers === 'number' ? `${stats.monthlyChanges.adminUsers >= 0 ? '+' : ''}${stats.monthlyChanges.adminUsers}% desde el mes pasado` : ''}
+          isIncrease={typeof stats.monthlyChanges?.adminUsers === 'number' ? stats.monthlyChanges.adminUsers >= 0 : undefined}
           description="Administradores activos en el sistema"
         />
         <StatCard
           title="Coordinadores"
           value={stats.coordUsers}
           icon={<User className="h-4 w-4" />}
-          change={stats.monthlyChanges !== undefined ? `${stats.monthlyChanges.coordUsers >= 0 ? '+' : ''}${stats.monthlyChanges.coordUsers}% desde el mes pasado` : ''}
-          isIncrease={stats.monthlyChanges?.coordUsers >= 0}
+          change={typeof stats.monthlyChanges?.coordUsers === 'number' ? `${stats.monthlyChanges.coordUsers >= 0 ? '+' : ''}${stats.monthlyChanges.coordUsers}% desde el mes pasado` : ''}
+          isIncrease={typeof stats.monthlyChanges?.coordUsers === 'number' ? stats.monthlyChanges.coordUsers >= 0 : undefined}
           description="Coordinadores activos en el sistema"
         />
         <StatCard
           title="Vecinos"
           value={stats.vecinoUsers}
           icon={<Users className="h-4 w-4" />}
-          change={stats.monthlyChanges?.vecinoUsers ? `${stats.monthlyChanges.vecinoUsers >= 0 ? '+' : ''}${stats.monthlyChanges.vecinoUsers}% desde el mes pasado` : ''}
-          isIncrease={stats.monthlyChanges?.vecinoUsers >= 0}
+          change={typeof stats.monthlyChanges?.vecinoUsers === 'number' ? `${stats.monthlyChanges.vecinoUsers >= 0 ? '+' : ''}${stats.monthlyChanges.vecinoUsers}% desde el mes pasado` : ''}
+          isIncrease={typeof stats.monthlyChanges?.vecinoUsers === 'number' ? stats.monthlyChanges.vecinoUsers >= 0 : undefined}
           description="Vecinos registrados en el sistema"
         />
       </div>
@@ -369,4 +372,3 @@ export default function Page() {
     </div>
   )
 }
-
