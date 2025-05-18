@@ -75,8 +75,7 @@ export default function ConfiguracionPage() {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validatePasswordForm()) {
@@ -85,22 +84,60 @@ export default function ConfiguracionPage() {
 
     setIsSaving(true)
 
-    // Simulación de cambio de contraseña
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
+    try {
+      // Llamar al nuevo endpoint de API para cambiar contraseña
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        }),
+        credentials: 'include'
+      });
 
-      // Resetear formulario y mensaje de éxito
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      })
+      if (response.ok) {
+        // Contraseña cambiada exitosamente
+        setIsSaving(false);
+        setIsSuccess(true);
 
-      setTimeout(() => {
-        setIsSuccess(false)
-      }, 3000)
-    }, 1500)
+        // Resetear formulario
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+
+        toast({
+          title: "Contraseña actualizada",
+          description: "Tu contraseña ha sido actualizada correctamente.",
+        });
+
+        // Ocultar mensaje de éxito después de 3 segundos
+        setTimeout(() => {
+          setIsSuccess(false);
+        }, 3000);
+      } else {
+        // Error al cambiar la contraseña
+        const errorData = await response.json();
+        setIsSaving(false);
+        toast({
+          title: "Error al cambiar la contraseña",
+          description: errorData.error || "La contraseña actual es incorrecta",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      setIsSaving(false);
+      toast({
+        title: "Error de conexión",
+        description: "No pudimos conectar con el servidor. Intenta nuevamente.",
+        variant: "destructive"
+      });
+      console.error("Error al cambiar contraseña:", error);
+    }
   }
 
   const handleSaveNotifications = () => {
@@ -122,53 +159,7 @@ export default function ConfiguracionPage() {
       }, 3000)
     }, 1500)
   }
-
-  // Estado para sesiones activas (simuladas)
-  const [activeSessions, setActiveSessions] = useState([
-    {
-      id: "session-1",
-      device: "Windows PC - Chrome",
-      location: "Lima, Peru",
-      lastActive: "Ahora",
-      current: true
-    },
-    {
-      id: "session-2",
-      device: "iPhone - Safari",
-      location: "Lima, Peru",
-      lastActive: "Hace 2 días"
-    }
-  ]);
-
-  const handleTerminateSession = (sessionId: string) => {
-    setIsSaving(true);
-    
-    // Simulación de cierre de sesión
-    setTimeout(() => {
-      setActiveSessions(prev => prev.filter(session => session.id !== sessionId));
-      setIsSaving(false);
-      
-      toast({
-        title: "Sesión cerrada",
-        description: "La sesión ha sido cerrada exitosamente.",
-      });
-    }, 1000);
-  };
-
-  const handleTerminateAllSessions = () => {
-    setIsSaving(true);
-    
-    // Simulación de cierre de todas las sesiones excepto la actual
-    setTimeout(() => {
-      setActiveSessions(prev => prev.filter(session => session.current));
-      setIsSaving(false);
-      
-      toast({
-        title: "Sesiones cerradas",
-        description: "Todas las otras sesiones han sido cerradas exitosamente.",
-      });
-    }, 1500);
-  };
+  // Las variables de estado y funciones relacionadas con sesiones activas han sido eliminadas ya que esta sección fue ocultada
 
   return (
     <div className="space-y-6">
@@ -263,9 +254,8 @@ export default function ConfiguracionPage() {
                 </div>
               </form>
             </CardContent>
-          </Card>
-
-          {/* Sesiones Activas */}
+          </Card>          {/* Sesiones Activas - Comentado/oculto según requerimiento */}
+          {/* 
           <Card className="mt-6">
             <CardHeader>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -338,6 +328,7 @@ export default function ConfiguracionPage() {
               </Button>
             </CardFooter>
           </Card>
+          */}
         </TabsContent>
 
         <TabsContent value="notificaciones" className="mt-6">
