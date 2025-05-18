@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,8 @@ import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
 import { API_BASE_URL, FRONTEND_URL } from "@/lib/config"
 
-export default function Login() {
+// Componente interno que usa searchParams
+function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -199,6 +200,27 @@ export default function Login() {
         </Card>
       </div>
     </div>
+  )
+}
+
+// Componente de carga para el Suspense
+function LoginLoading() {
+  return (
+    <div className="min-h-screen bg-primary-background flex items-center justify-center p-4">
+      <div className="max-w-md w-full flex flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p>Cargando...</p>
+      </div>
+    </div>
+  )
+}
+
+// Componente principal que exportamos
+export default function Login() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginForm />
+    </Suspense>
   )
 }
 
