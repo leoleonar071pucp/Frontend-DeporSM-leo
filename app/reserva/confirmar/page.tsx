@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
@@ -45,7 +45,17 @@ interface Facility {
   location?: string;
 }
 
-export default function ConfirmarReserva() {
+// Componente de carga para el Suspense
+function ReservaLoading() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    </div>
+  );
+}
+
+// Componente interno que usa searchParams
+function ConfirmarReservaForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const facilityId = searchParams.get("id")
@@ -1083,5 +1093,14 @@ export default function ConfirmarReserva() {
         </div>
       </div>
     </main>
+  )
+}
+
+// Componente principal que exportamos
+export default function ConfirmarReserva() {
+  return (
+    <Suspense fallback={<ReservaLoading />}>
+      <ConfirmarReservaForm />
+    </Suspense>
   )
 }

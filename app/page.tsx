@@ -31,8 +31,8 @@ export default function Home() {
   useEffect(() => {
     const fetchFeaturedFacilities = async () => {
       try {
-        // Obtener instalaciones disponibles
-        const response = await fetch(`${API_BASE_URL}/instalaciones/disponibles`, {
+        // Obtener directamente las instalaciones más populares
+        const response = await fetch(`${API_BASE_URL}/instalaciones/populares`, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -41,45 +41,16 @@ export default function Home() {
         });
 
         if (!response.ok) {
-          throw new Error(`Error al cargar instalaciones: ${response.status}`);
+          throw new Error(`Error al cargar instalaciones populares: ${response.status}`);
         }
 
         const data = await response.json();
-
-        // Obtener también las reservas para ordenar por popularidad
-        const reservasResponse = await fetch(`${API_BASE_URL}/reservas/recientes`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }).catch(() => null); // Si falla, continuamos sin esta información
-
-        // Crear un mapa de conteo de reservas por instalación
-        const instalacionesPopulares = new Map();
-
-        if (reservasResponse && reservasResponse.ok) {
-          const reservasData = await reservasResponse.json();
-
-          // Contar las reservas por instalación
-          reservasData.forEach((reserva: any) => {
-            const instalacionId = reserva.instalacionId || reserva.idInstalacion;
-            if (instalacionId) {
-              const count = instalacionesPopulares.get(instalacionId) || 0;
-              instalacionesPopulares.set(instalacionId, count + 1);
-            }
-          });
-        }
-
-        // Ordenar las instalaciones por popularidad (número de reservas)
-        const sortedFacilities = [...data].sort((a, b) => {
-          const countA = instalacionesPopulares.get(a.id) || 0;
-          const countB = instalacionesPopulares.get(b.id) || 0;
-          return countB - countA; // Orden descendente
-        });
+        console.log("Instalaciones populares obtenidas:", data.map((f: any) => f.nombre));
 
         // Tomar las 4 instalaciones más populares para mostrar en la página de inicio
-        setFacilities(sortedFacilities.slice(0, 4));
+        const topFacilities = data.slice(0, 4);
+        console.log("Top 4 instalaciones:", topFacilities.map((f: any) => f.nombre));
+        setFacilities(topFacilities);
         setIsLoading(false);
       } catch (error) {
         console.error("Error cargando instalaciones:", error);

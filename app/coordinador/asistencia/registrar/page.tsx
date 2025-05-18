@@ -183,9 +183,8 @@ export default function RegistrarAsistenciaPage() {
         router.push("/coordinador/asistencia/programadas")
         return
       }
-      setVisit(foundVisit)
-
-      // Establecer la hora actual como hora de llegada por defecto
+      setVisit(foundVisit)      // Comentado: No mostrar hora actual por defecto
+      /* 
       const now = new Date()
       const hours = now.getHours().toString().padStart(2, "0")
       const minutes = now.getMinutes().toString().padStart(2, "0")
@@ -193,6 +192,7 @@ export default function RegistrarAsistenciaPage() {
         ...prev,
         arrivalTime: `${hours}:${minutes}`,
       }))
+      */
 
       setIsLoading(false)
     }
@@ -208,7 +208,6 @@ export default function RegistrarAsistenciaPage() {
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
-
   const checkLocation = () => {
     setIsCheckingLocation(true)
     setLocationError(null)
@@ -227,8 +226,9 @@ export default function RegistrarAsistenciaPage() {
         }
         setUserLocation(userCoords)
 
-        // Simulación de validación de ubicación
-        const isValid = Math.random() > 0.3 // 70% de probabilidad de éxito para la demo
+        // Para etapa de pruebas: siempre validar la ubicación del coordinador
+        // Independientemente de dónde se encuentre
+        const isValid = true; // En lugar de validación aleatoria, siempre es válida
 
         setIsLocationValid(isValid)
         setIsCheckingLocation(false)
@@ -254,6 +254,8 @@ export default function RegistrarAsistenciaPage() {
             description: "Tu ubicación ha sido validada correctamente.",
           })
         } else {
+          // Esta parte nunca debería ejecutarse durante la fase de pruebas
+          // pero lo dejamos por si se cambia la validación en el futuro
           toast({
             title: "Ubicación no válida",
             description: "Debes estar físicamente en la instalación para registrar tu asistencia.",
@@ -288,10 +290,12 @@ export default function RegistrarAsistenciaPage() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     )
   }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Durante fase de pruebas: omitimos la validación de ubicación
+    // La siguiente validación está temporalmente comentada
+    /*
     if (!isLocationValid && formData.status !== "no-asistio") {
       toast({
         title: "Ubicación no validada",
@@ -300,6 +304,7 @@ export default function RegistrarAsistenciaPage() {
       })
       return
     }
+    */
 
     // Validación básica
     if (!formData.arrivalTime && formData.status !== "no-asistio") {
@@ -497,13 +502,13 @@ export default function RegistrarAsistenciaPage() {
                       </>
                     )}
                   </div>
-                </div>
-
-                {formData.status !== "no-asistio" && (
+                </div>                {formData.status !== "no-asistio" && (
                   <div className="space-y-2">
+                    {/* Comentado por ser redundante
                     <Label htmlFor="arrivalTime">
                       Hora de llegada <span className="text-red-500">*</span>
                     </Label>
+                    */}                    {/* Comentado: Ocultar input de tiempo
                     <Input
                       id="arrivalTime"
                       name="arrivalTime"
@@ -519,11 +524,13 @@ export default function RegistrarAsistenciaPage() {
                       }}
                       required
                     />
+                    */}                    {/* Comentado: Mensaje relacionado con el input de tiempo
                     {!isLocationValid && formData.arrivalTime && (
                       <p className="text-amber-600 text-sm">
                         Valida tu ubicación para determinar el estado de la visita
                       </p>
                     )}
+                    */}
                   </div>
                 )}
 

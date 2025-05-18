@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,22 @@ import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/config";
+import { createClient } from '@supabase/supabase-js';
 
+// Create a single supabase client for interacting with your database
+const supabase = createClient('https://goajrdpkfhunnfuqtoub.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYWpyZHBrZmh1bm5mdXF0b3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MTU1NTQsImV4cCI6MjA2MjI5MTU1NH0.-_GxSWv-1UZNsXcSwIcFUKlprJ5LMX_0iz5VbesGgPQ');
 
-export default function NuevaObservacion() {
+// Componente de carga para el Suspense
+function ObservacionLoading() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    </div>
+  );
+}
+
+// Componente interno que usa searchParams
+function NuevaObservacionForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const facilityId = searchParams.get("id");
@@ -30,7 +43,7 @@ export default function NuevaObservacion() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLocationValid, setIsLocationValid] = useState(false);
   const [isCheckingLocation, setIsCheckingLocation] = useState(false);
-  
+
   // Estado para almacenar las instalaciones cargadas del backend
   const [facilitiesData, setFacilitiesData] = useState<Array<{id: number, nombre: string, tipo?: string, ubicacion?: string}>>([]);
 
@@ -50,19 +63,19 @@ export default function NuevaObservacion() {
         // Obtener el ID del usuario actual (podría obtenerse de un contexto de autenticación)
         // Para pruebas, usamos el ID 4 que es un coordinador según los datos de ejemplo
         const coordinadorId = 4; // En una implementación real, esto vendría de la sesión o un contexto de autenticación
-        
+
         // Obtener las instalaciones asignadas al coordinador
         const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${coordinadorId}`, {
           credentials: 'include'
         });
-        
+
         if (!response.ok) {
           throw new Error('Error al cargar las instalaciones');
         }
-        
+
         const data = await response.json();
         setFacilitiesData(data);
-        
+
         // Si hay un ID de instalación en la URL, preseleccionarlo
         if (facilityId) {
           setFormData((prev) => ({
@@ -77,10 +90,10 @@ export default function NuevaObservacion() {
         setIsLoading(false);
       }
     };
-    
+
     loadData();
   }, [facilityId]);
-  
+
   const checkUserLocation = () => {
     setIsCheckingLocation(true);
 
@@ -91,17 +104,17 @@ export default function NuevaObservacion() {
         lat: -12.077, // Coordenadas de prueba (Cancha de Futbol)
         lng: -77.083,
       });
-      
+
       // Marcar la ubicación como válida
       setIsLocationValid(true);
-      
+
       // Eliminar cualquier error de ubicación que pueda existir
       setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors.location;
         return newErrors;
       });
-      
+
       // Finalizar verificación
       setIsCheckingLocation(false);
     }, 1000);
@@ -185,9 +198,33 @@ export default function NuevaObservacion() {
       }
     }
   };
-
   const removePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImageToSupabase = async (file: File): Promise<string | null> => {
+    const filePath = `instalaciones/observaciones/${Date.now()}_${file.name}`;
+  
+    const { data, error } = await supabase
+      .storage
+      .from('instalaciones')  // nombre del bucket en Supabase
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type
+      });
+  
+    if (error) {
+      console.error("Error al subir imagen:", error.message);
+      return null;
+    }
+  
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('instalaciones')
+      .getPublicUrl(filePath);
+  
+    return publicUrlData.publicUrl;
   };
 
   const validateForm = () => {
@@ -200,7 +237,7 @@ export default function NuevaObservacion() {
     if (!formData.description.trim()) {
       newErrors.description = "La descripción es obligatoria";
     }
-    
+
     if (!formData.priority) {
       newErrors.priority = "Debes seleccionar una prioridad";
     }
@@ -213,7 +250,6 @@ export default function NuevaObservacion() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -226,11 +262,21 @@ export default function NuevaObservacion() {
     setFormError("");
 
     try {
-      // Preparar los datos para la API
-      // Primero subir las fotos a algún servicio de almacenamiento (simulamos URLs)
-      const fotoUrls = photos.map(photo => URL.createObjectURL(photo));
+      // Subir las fotos a Supabase y obtener las URLs
+      const uploadedUrls: string[] = [];
       
-      const observacionData = {
+      if (photos.length > 0) {
+        for (const photo of photos) {
+          const url = await uploadImageToSupabase(photo);
+          if (url) {
+            uploadedUrls.push(url);
+          }
+        }
+        
+        if (uploadedUrls.length < photos.length) {
+          throw new Error("No se pudieron subir todas las imágenes");
+        }
+      }      const observacionData = {
         usuarioId: 4, // Aquí deberías obtener el ID del usuario autenticado
         instalacionId: parseInt(formData.facilityId),
         titulo: "Observación de instalación", // Título por defecto
@@ -238,7 +284,8 @@ export default function NuevaObservacion() {
         prioridad: formData.priority,
         ubicacionLat: userLocation?.lat.toString(),
         ubicacionLng: userLocation?.lng.toString(),
-        fotos: fotoUrls // Agregar las URLs de las fotos
+        fotos: uploadedUrls, // Agregar las URLs de Supabase
+        fotosUrl: uploadedUrls.join(',') // Añadir también como string separado por comas
       };
 
       // Llamada a la API para crear la observación
@@ -492,5 +539,14 @@ export default function NuevaObservacion() {
         </form>
       </Card>
     </div>
+  );
+}
+
+// Componente principal que exportamos
+export default function NuevaObservacion() {
+  return (
+    <Suspense fallback={<ObservacionLoading />}>
+      <NuevaObservacionForm />
+    </Suspense>
   );
 }
