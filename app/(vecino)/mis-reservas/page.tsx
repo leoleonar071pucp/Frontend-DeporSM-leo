@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertTriangle, Calendar, Clock, MapPin, Loader2, RefreshCw } from "lucide-react" // Add Loader2 and RefreshCw
 import Link from "next/link"
 import { differenceInHours } from 'date-fns' // Importar date-fns
-import { API_BASE_URL } from "@/lib/config";
+import { API_BASE_URL,FRONTEND_URL } from "@/lib/config";
 
 // Define la interfaz para una reserva adaptada al formato del backend
 interface Reservation {
@@ -71,7 +71,7 @@ export default function MisReservas() {
         credentials: 'include', // Importante para enviar cookies de sesión
         headers: {
           'Accept': 'application/json',
-          'Origin': 'http://localhost:3000' // Asegurar que se envíe el origen correcto
+          'Origin': FRONTEND_URL // Asegurar que se envíe el origen correcto
         }
       });
       
@@ -205,7 +205,7 @@ export default function MisReservas() {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Origin': 'http://localhost:3000' // Asegurar que se envíe el origen correcto
+          'Origin': FRONTEND_URL // Asegurar que se envíe el origen correcto
         }
       });
 

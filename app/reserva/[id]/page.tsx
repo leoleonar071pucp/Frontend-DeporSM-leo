@@ -20,7 +20,8 @@ import { AlertTriangle, Calendar, Clock, Download, MapPin, User, CreditCard, Che
 import Link from "next/link"
 import { useNotification } from "@/context/NotificationContext" // Importar useNotification
 import { differenceInHours, parse } from 'date-fns' // Importar date-fns
-import { API_BASE_URL } from "@/lib/config";
+import { API_BASE_URL,FRONTEND_URL } from "@/lib/config";
+
 
 // Definir interfaz para Reserva (mejor práctica)
 interface ReservationDetails {
@@ -142,7 +143,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
           credentials: 'include', // Para enviar cookies de sesión
           headers: {
             'Accept': 'application/json',
-            'Origin': 'http://localhost:3000'
+            'Origin': FRONTEND_URL
           }
         });
 
@@ -160,7 +161,7 @@ export default function ReservaDetalle({ params }: { params: { id: string } }) {
             credentials: 'include',
             headers: {
               'Accept': 'application/json',
-              'Origin': 'http://localhost:3000'
+              'Origin': FRONTEND_URL
             }
           });
           
