@@ -19,6 +19,7 @@ import { useNotification } from "@/context/NotificationContext" // Importar useN
 import { useAuth } from "@/context/AuthContext" // Importar useAuth
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { API_BASE_URL } from "@/lib/config";
+import { calculateAndFormatPrice, formatPriceWithUnit } from "@/lib/price-utils";
 
 // Interfaz para la instalación de la API
 interface ApiFacility {
@@ -38,6 +39,8 @@ interface Facility {
   name: string;
   image: string;
   price: string;
+  pricePerHour: number; // Precio por hora para cálculos
+  tipo: string; // Tipo de instalación
   description?: string;
   location?: string;
 }
@@ -110,12 +113,17 @@ export default function ConfirmarReserva() {
         const apiFacility: ApiFacility = await response.json();
         console.log("Instalación obtenida de la API:", apiFacility);
 
+        // Calcular el precio total basado en la duración
+        const timeRange = timeParam || "00:00 - 00:00";
+
         // Adaptar el formato de la respuesta al formato que espera nuestro componente
         const adaptedFacility: Facility = {
           id: apiFacility.id,
           name: apiFacility.nombre,
           image: apiFacility.imagenUrl || "/placeholder.svg?height=200&width=300",
-          price: `S/. ${apiFacility.precio.toFixed(2)}`,
+          price: calculateAndFormatPrice(apiFacility.precio, timeRange),
+          pricePerHour: apiFacility.precio,
+          tipo: apiFacility.tipo,
           description: apiFacility.descripcion,
           location: apiFacility.ubicacion
         };
@@ -624,7 +632,9 @@ export default function ConfirmarReserva() {
           try {
             const formData = new FormData();
             formData.append('reservaId', reservationId.toString());
-            formData.append('monto', facility ? facility.price.replace('S/. ', '') : '0');
+            // Extraer solo el valor numérico del precio calculado
+            const precioNumerico = facility ? facility.price.replace('S/. ', '').trim() : '0';
+            formData.append('monto', precioNumerico);
             formData.append('comprobante', voucherFile);
 
             const pagoResponse = await fetch(`${API_BASE_URL}/pagos/deposito`, {
@@ -686,7 +696,8 @@ export default function ConfirmarReserva() {
             facilityName: facility?.name || "Instalación Desconocida",
             date: date.toISOString(), // Pasar fecha completa
             time: timeParam || "Horario Desconocido",
-            id: facilityId || "" // Incluir el ID de la instalación
+            id: facilityId || "", // Incluir el ID de la instalación
+            price: facility?.pricePerHour.toString() || "0" // Incluir el precio por hora para cálculos
           });
 
           // Redirigir a la página de confirmación con los detalles
@@ -808,6 +819,10 @@ export default function ConfirmarReserva() {
                   <div>
                     <p className="font-medium">{facility.name}</p>
                     <p className="text-primary font-bold">{facility.price}</p>
+                    <p className="text-sm text-gray-600">
+                      {formatPriceWithUnit(facility.pricePerHour, facility.tipo)}
+                      {timeParam && <span> × {timeParam.split(' - ').map(t => t.trim()).join(' a ')}</span>}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -983,7 +998,10 @@ export default function ConfirmarReserva() {
                             <strong>Titular:</strong> Municipalidad de San Miguel
                           </li>
                           <li>
-                            <strong>Monto:</strong> {facility.price}
+                            <strong>Monto:</strong> {facility.price} {/* Precio calculado basado en la duración */}
+                          </li>
+                          <li>
+                            <strong>Precio por hora:</strong> {formatPriceWithUnit(facility.pricePerHour, facility.tipo)}
                           </li>
                           <li>
                             <strong>Referencia:</strong> Reserva {facility.name}

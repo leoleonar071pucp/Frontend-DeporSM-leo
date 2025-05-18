@@ -1,6 +1,6 @@
 "use client"
 
-import React, { Suspense, useEffect } from "react"
+import React, { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,8 @@ import { CheckCircle, Clock } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { calculateAndFormatPrice } from "@/lib/price-utils"
+import { API_BASE_URL } from "@/lib/config"
 
 function ConfirmacionReservaContent() {
   const searchParams = useSearchParams()
@@ -17,6 +19,19 @@ function ConfirmacionReservaContent() {
   const facilityName = searchParams.get("facilityName")
   const dateParam = searchParams.get("date")
   const time = searchParams.get("time")
+  const price = searchParams.get("price")
+  const [facilityPrice, setFacilityPrice] = useState<string | null>(null)
+
+  // Calcular el precio basado en la duración si tenemos el precio por hora
+  useEffect(() => {
+    if (price && time) {
+      const pricePerHour = parseFloat(price)
+      if (!isNaN(pricePerHour)) {
+        const calculatedPrice = calculateAndFormatPrice(pricePerHour, time)
+        setFacilityPrice(calculatedPrice)
+      }
+    }
+  }, [price, time])
 
   // Guardar información de la reserva completada en sessionStorage
   // para prevenir volver a la página de confirmación
@@ -101,6 +116,11 @@ function ConfirmacionReservaContent() {
                   <li>
                     <strong>Estado:</strong> <span className={`${statusColor} font-medium`}>{statusText}</span>
                   </li>
+                  {facilityPrice && (
+                    <li>
+                      <strong>Precio:</strong> {facilityPrice}
+                    </li>
+                  )}
                 </ul>
               </div>
 

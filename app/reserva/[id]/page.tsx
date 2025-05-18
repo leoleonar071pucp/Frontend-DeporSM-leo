@@ -22,6 +22,7 @@ import Link from "next/link"
 import { useNotification } from "@/context/NotificationContext" // Importar useNotification
 import { differenceInHours, parse } from 'date-fns' // Importar date-fns
 import { API_BASE_URL,FRONTEND_URL } from "@/lib/config";
+import { calculateTotalPrice, formatPrice } from "@/lib/price-utils";
 
 
 // Definir interfaz para Reserva (mejor práctica)
@@ -575,6 +576,11 @@ export default function ReservaDetalle() {
                     <div>
                       <p className="text-sm text-gray-500">Monto</p>
                       <p className="font-medium">{reservation.paymentAmount}</p>
+                      {reservation.time && (
+                        <p className="text-xs text-gray-500">
+                          Calculado según duración: {reservation.time}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Fecha de pago</p>
