@@ -30,6 +30,7 @@ const nextConfig = {
   },
   async rewrites() {
     return [
+      // Instalaciones
       {
         source: '/api/instalaciones/:path*',
         destination: `${API_BASE_URL}/instalaciones/:path*`,
@@ -38,6 +39,7 @@ const nextConfig = {
         source: '/api/instalaciones',
         destination: `${API_BASE_URL}/instalaciones`,
       },
+      // Mantenimientos
       {
         source: '/api/mantenimientos/:path*',
         destination: `${API_BASE_URL}/mantenimientos/:path*`,
@@ -46,6 +48,7 @@ const nextConfig = {
         source: '/api/mantenimientos',
         destination: `${API_BASE_URL}/mantenimientos`,
       },
+      // Usuarios
       {
         source: '/api/usuarios/:path*',
         destination: `${API_BASE_URL}/usuarios/:path*`,
@@ -54,6 +57,7 @@ const nextConfig = {
         source: '/api/usuarios',
         destination: `${API_BASE_URL}/usuarios`,
       },
+      // Reservas
       {
         source: '/api/reservas/:path*',
         destination: `${API_BASE_URL}/reservas/:path*`,
@@ -61,6 +65,15 @@ const nextConfig = {
       {
         source: '/api/reservas',
         destination: `${API_BASE_URL}/reservas`,
+      },
+      // Autenticación
+      {
+        source: '/api/auth/:path*',
+        destination: `${API_BASE_URL}/auth/:path*`,
+      },
+      {
+        source: '/api/auth',
+        destination: `${API_BASE_URL}/auth`,
       },
     ]
   },

@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { API_BASE_URL, AUTH_CONFIG } from '@/lib/config';
+import { API_BASE_URL, FRONTEND_URL } from '@/lib/config';
 
 // Define la forma de los datos del usuario (ajustar según necesidad)
 interface User {
@@ -48,11 +48,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     try {
       console.log("Verificando estado de autenticación...");
-      
+
       // Verificar si hay un cierre de sesión reciente
       const logoutTimestamp = localStorage.getItem('logoutTimestamp');
       const currentTime = Date.now();
-      
+
       // Si se cerró sesión hace menos de 10 segundos, no verificar la autenticación
       // Extendemos el tiempo para evitar reconexiones inmediatas después de logout
       if (logoutTimestamp && (currentTime - parseInt(logoutTimestamp)) < 10000) {
@@ -63,15 +63,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
         method: "GET",
-        credentials: AUTH_CONFIG.INCLUDE_CREDENTIALS ? "include" : "same-origin", // Importante para enviar las cookies
+        credentials: "include", // Siempre incluir credenciales para enviar cookies
         headers: {
           "Accept": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate", // Evitar caché en la petición
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Origin": FRONTEND_URL // Añadir origen explícitamente para CORS
         },
-        // Configuración para evitar problemas de CORS y cache
         cache: "no-store"
       });
-  
+
       if (response.ok) {
         const userData = await response.json();
         console.log("Usuario autenticado:", userData);
@@ -90,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     }
   };
-  
+
   // Verificar sesión al montar el componente
   useEffect(() => {
     checkAuthStatus();
@@ -107,41 +108,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log("Cerrando sesión...");
       setIsLoggingOut(true); // Iniciar estado de carga
-      
+
       // Intentar hacer la petición al backend para cerrar sesión
       try {
-        const response = await fetch('${API_BASE_URL}/auth/logout', {
+        const response = await fetch(`${API_BASE_URL}/auth/logout`, {
           method: "POST",
           credentials: "include",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Origin": FRONTEND_URL
           },
-          // Establecer un timeout para evitar bloqueos prolongados
           signal: AbortSignal.timeout(3000)
         });
-        
+
         console.log("Respuesta del servidor al cerrar sesión:", response.status);
       } catch (error) {
         // Si hay un error CORS o de red, lo manejamos silenciosamente
         console.warn("No se pudo completar la petición al servidor:", error);
       }
-      
+
       // Sin importar la respuesta del servidor, siempre limpiamos el estado local
       setUser(null);
-      
+
       // Guardar timestamp del logout para evitar reconexiones inmediatas
       localStorage.setItem('logoutTimestamp', Date.now().toString());
-      
+
       // Limpiar todas las cookies del navegador (enfoque radical pero efectivo)
       document.cookie.split(";").forEach(function(c) {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
-      
+
       // Redirigir a página principal con una recarga completa
       window.location.href = '/';
-      
+
     } catch (error) {
       console.error("Error general al cerrar sesión:", error);
       // Aún así, limpiar estado local y redirigir

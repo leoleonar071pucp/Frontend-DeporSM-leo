@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
-import { API_BASE_URL, AUTH_CONFIG } from "@/lib/config"
+import { API_BASE_URL, FRONTEND_URL } from "@/lib/config"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -31,8 +31,11 @@ export default function Login() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Origin": FRONTEND_URL
         },
-        credentials: AUTH_CONFIG.INCLUDE_CREDENTIALS ? "include" : "same-origin", // Importante para recibir y enviar cookies
+        credentials: "include", // Siempre incluir credenciales para enviar cookies
         body: JSON.stringify({
           email: email,
           password: password,
@@ -42,7 +45,7 @@ export default function Login() {
       if (!response.ok) {
         const errorText = await response.text()
         console.error("Error en inicio de sesión:", response.status, errorText)
-        
+
         if (response.status === 401) {
           setError("Correo electrónico o contraseña incorrectos")
         } else {
