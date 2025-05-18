@@ -28,7 +28,9 @@ interface Notification {
     message: string;
     date: string;
     read: boolean;
-    type: "success" | "info" | "warning"; // Tipos definidos
+    type: "success" | "info" | "warning" | "reserva" | "mantenimiento" | "pago" | "reporte"; // Tipos definidos
+    category?: string;
+    feedback?: string;
 }
 
 // Datos de ejemplo eliminados, ahora vienen del contexto
@@ -41,7 +43,9 @@ export default function Notificaciones() {
     deleteNotification,
     markAllAsRead,
     deleteAllRead,
-    unreadCount // Podríamos usarlo si quisiéramos mostrarlo aquí también
+    isLoading: isNotificationsLoading,
+    error: notificationsError,
+    refreshNotifications
   } = useNotification();
 
   const [activeTab, setActiveTab] = useState("todas")
@@ -55,6 +59,14 @@ export default function Notificaciones() {
         return <CheckCircle className="h-6 w-6 text-green-500" />
       case "warning":
         return <Info className="h-6 w-6 text-yellow-500" />
+      case "reserva":
+        return <Calendar className="h-6 w-6 text-blue-500" />
+      case "mantenimiento":
+        return <Info className="h-6 w-6 text-orange-500" />
+      case "pago":
+        return <CheckCircle className="h-6 w-6 text-green-600" />
+      case "reporte":
+        return <Info className="h-6 w-6 text-purple-500" />
       case "info":
       default:
         return <Calendar className="h-6 w-6 text-primary" />
@@ -94,6 +106,13 @@ export default function Notificaciones() {
       </main>
     );
   }
+
+  // Actualizar notificaciones al cambiar de pestaña
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshNotifications();
+    }
+  }, [activeTab, isAuthenticated, refreshNotifications]);
 
   // --- Renderizado Principal (Solo si está autenticado) ---
   return (
@@ -150,7 +169,23 @@ export default function Notificaciones() {
                 </TabsList>
 
                 <TabsContent value={activeTab} className="mt-0">
-                  {filteredNotifications().length > 0 ? (
+                  {isNotificationsLoading ? (
+                    <div className="flex justify-center items-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : notificationsError ? (
+                    <div className="text-center py-8">
+                      <p className="text-red-500">{notificationsError}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => refreshNotifications()}
+                      >
+                        Reintentar
+                      </Button>
+                    </div>
+                  ) : filteredNotifications().length > 0 ? (
                     <div className="space-y-4">
                       {filteredNotifications().map((notification) => (
                         <div
@@ -205,7 +240,11 @@ export default function Notificaciones() {
                                 </div>
                               </div>
                               <p className="text-gray-600 mt-1">{notification.message}</p>
-                              {/* No es necesario el botón explícito "Marcar como leída" si se marca al hacer clic */}
+                              {notification.feedback && (
+                                <div className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-600">
+                                  <strong>Feedback:</strong> {notification.feedback}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

@@ -325,7 +325,7 @@ export default function ReservaDetalle() {
       });
 
       // Añadir notificación de cancelación usando los detalles de la reserva actual
-      addNotification({
+      await addNotification({
         title: reservation.status === "pendiente" ? "Solicitud Cancelada" : "Reserva Cancelada",
         message: `Tu ${reservation.status === "pendiente" ? "solicitud de reserva" : "reserva"} para ${reservation.facilityName} (${reservation.time} el ${reservation.date}) ha sido cancelada.`,
         type: "reserva",
@@ -342,7 +342,7 @@ export default function ReservaDetalle() {
       console.error("Error al cancelar la reserva:", error);
 
       // Notificar al usuario sobre el error
-      addNotification({
+      await addNotification({
         title: "Error al cancelar",
         message: "No se pudo cancelar la reserva. Por favor, intenta de nuevo más tarde.",
         type: "reserva",

@@ -137,7 +137,7 @@ export default function MisReservas() {
       console.error('Error al cargar las reservas:', error);
 
       // Notificar al usuario sobre el problema
-      addNotification({
+      await addNotification({
         title: "Error de conexión",
         message: "No se pudieron cargar tus reservas. Por favor, intenta de nuevo más tarde.",
         type: "info", // Cambiado de "error" a uno de los tipos válidos
@@ -228,7 +228,7 @@ export default function MisReservas() {
       );
 
       // 5. Añadir notificación
-      addNotification({
+      await addNotification({
         title: "Reserva Cancelada",
         message: `Tu reserva para ${reservationDetails.facilityName} (${reservationDetails.time} el ${reservationDetails.date}) ha sido cancelada.`,
         type: "reserva",

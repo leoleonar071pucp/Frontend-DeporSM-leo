@@ -2,6 +2,8 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '@/lib/config';
+import { toast } from 'sonner';
 
 // Interfaces
 interface Notification {
@@ -10,9 +12,21 @@ interface Notification {
     message: string;
     date: string;
     read: boolean;
-    type: "success" | "info" | "warning" | "reserva" | "mantenimiento" | "pago" | "reporte"; // Actualizar tipos
+    type: "success" | "info" | "warning" | "reserva" | "mantenimiento" | "pago" | "reporte"; // Tipos de notificaciones
     category?: string; // Propiedad opcional para categorizar notificaciones
     feedback?: string; // Propiedad opcional para retroalimentación
+}
+
+// Interfaz para la respuesta de la API
+interface ApiNotification {
+    id: number;
+    titulo: string;
+    mensaje: string;
+    fechaEnvio: string;
+    leida: boolean;
+    tipo: string;
+    categoria?: string;
+    feedback?: string;
 }
 
 type NewNotificationData = Omit<Notification, 'id' | 'read' | 'date'>;
@@ -20,193 +34,271 @@ type NewNotificationData = Omit<Notification, 'id' | 'read' | 'date'>;
 interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
-  addNotification: (notificationData: NewNotificationData) => void;
+  addNotification: (notificationData: NewNotificationData) => Promise<void>;
   markAsRead: (id: number) => void;
   deleteNotification: (id: number) => void;
   markAllAsRead: () => void;
   deleteAllRead: () => void;
+  isLoading: boolean;
+  error: string | null;
+  refreshNotifications: () => Promise<void>;
 }
 
 interface NotificationProviderProps {
   children: ReactNode;
 }
 
-// Datos de ejemplo específicos para cada rol
-const vecinoNotifications: Notification[] = [
-  { id: 1, title: "Reserva confirmada", message: "Tu reserva para Cancha de Fútbol (Grass) ha sido confirmada.", date: "Hoy, 14:30", read: false, type: "reserva" },
-  { id: 2, title: "Recordatorio", message: "Tu reserva para Piscina Municipal es mañana a las 10:00.", date: "Hoy, 11:15", read: false, type: "reserva" },
-  { id: 3, title: "Mantenimiento programado", message: "El Gimnasio Municipal estará cerrado por mantenimiento el próximo lunes.", date: "Ayer, 16:45", read: true, type: "warning" },
-  { id: 4, title: "Reserva cancelada", message: "Tu reserva para Pista de Atletismo ha sido cancelada exitosamente.", date: "12/04/2025", read: true, type: "success" },
-];
-
-const adminNotifications: Notification[] = [
-  { 
-    id: 1, 
-    title: "Nueva reserva", 
-    message: "Se ha realizado una nueva reserva para Cancha de Fútbol (Grass)", 
-    date: "Hace 10 minutos", 
-    read: false, 
-    type: "reserva" 
-  },
-  { 
-    id: 2, 
-    title: "Mantenimiento programado", 
-    message: "Recordatorio: Mantenimiento de Piscina Municipal mañana", 
-    date: "Hace 2 horas", 
-    read: false, 
-    type: "mantenimiento" 
-  },
-  { 
-    id: 3, 
-    title: "Pago confirmado", 
-    message: "Se ha confirmado el pago de la reserva #12345", 
-    date: "Hace 5 horas", 
-    read: true, 
-    type: "pago" 
-  },
-  { 
-    id: 4, 
-    title: "Solicitud de mantenimiento", 
-    message: "El coordinador ha solicitado mantenimiento para la Pista de Atletismo", 
-    date: "Hace 1 día", 
-    read: false, 
-    type: "mantenimiento" 
-  },
-  { 
-    id: 5, 
-    title: "Reserva cancelada", 
-    message: "La reserva #12346 ha sido cancelada por el usuario", 
-    date: "Hace 1 día", 
-    read: true, 
-    type: "reserva" 
-  },
-  { 
-    id: 6, 
-    title: "Reporte generado", 
-    message: "El reporte mensual de ingresos está disponible para su descarga", 
-    date: "Hace 2 días", 
-    read: true, 
-    type: "reporte" 
-  },
-  { 
-    id: 7, 
-    title: "Nueva solicitud de reserva", 
-    message: "Hay una nueva solicitud de reserva pendiente de aprobación", 
-    date: "Hace 3 días", 
-    read: true, 
-    type: "reserva" 
-  },
-];
-
-const coordinadorNotifications: Notification[] = [
-  {
-    id: 1,
-    title: "Nueva instalación asignada",
-    message: "Se te ha asignado la Cancha de Fútbol (Grass)",
-    date: "05/04/2025, 10:15",
-    read: false,
-    type: "info",
-    category: "asignacion"
-  },
-  {
-    id: 2,
-    title: "Observación aprobada",
-    message: "Tu observación sobre la Piscina Municipal ha sido aprobada",
-    date: "04/04/2025, 14:30",
-    read: false,
-    type: "success",
-    category: "observacion"
-  },
-  {
-    id: 3,
-    title: "Recordatorio de inspección",
-    message: "Tienes una inspección programada para la Pista de Atletismo mañana",
-    date: "03/04/2025, 09:45",
-    read: false,
-    type: "warning",
-    category: "recordatorio"
-  },
-  {
-    id: 4,
-    title: "Observación rechazada",
-    message: "Tu observación sobre el Gimnasio Municipal ha sido rechazada",
-    date: "02/04/2025, 16:20",
-    read: true,
-    type: "warning",
-    category: "observacion",
-    feedback: "Ya se ha reportado anteriormente y está en proceso de reparación."
-  },
-  {
-    id: 5,
-    title: "Mantenimiento programado",
-    message: "Se ha programado mantenimiento para la Piscina Municipal",
-    date: "01/04/2025, 11:10",
-    read: true,
-    type: "info",
-    category: "mantenimiento"
-  }
-];
-
 // Crear el contexto
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
-  const { user } = useAuth();
-  
-  // Seleccionar las notificaciones iniciales según el rol del usuario
-  const getInitialNotifications = () => {
-    switch (user?.role) {
-      case 'admin':
-        return adminNotifications;
-      case 'coordinador':
-        return coordinadorNotifications;
-      case 'vecino':
-        return vecinoNotifications;
-      default:
-        return [];
+  const { user, isAuthenticated } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Convertir notificación de la API al formato del frontend
+  const mapApiToNotification = (apiNotification: ApiNotification): Notification => {
+    return {
+      id: apiNotification.id,
+      title: apiNotification.titulo,
+      message: apiNotification.mensaje,
+      date: apiNotification.fechaEnvio,
+      read: apiNotification.leida,
+      type: apiNotification.tipo as any, // Convertir el tipo
+      category: apiNotification.categoria,
+      feedback: apiNotification.feedback
+    };
+  };
+
+  // Cargar notificaciones desde la API
+  const fetchNotifications = async () => {
+    if (!isAuthenticated) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      console.log('Cargando notificaciones para el usuario:', user?.email);
+
+      const response = await fetch(`${API_BASE_URL}/notificaciones`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      console.log('Respuesta del servidor:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error del servidor:', errorText);
+        throw new Error(`Error al cargar notificaciones: ${response.status} ${errorText}`);
+      }
+
+      const data: ApiNotification[] = await response.json();
+      console.log('Notificaciones recibidas:', data.length);
+
+      const mappedNotifications = data.map(mapApiToNotification);
+      setNotifications(mappedNotifications);
+    } catch (err) {
+      console.error('Error al cargar notificaciones:', err);
+      setError('No se pudieron cargar las notificaciones');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const [notifications, setNotifications] = useState<Notification[]>(getInitialNotifications());
-
-  // Actualizar notificaciones cuando cambia el rol del usuario
+  // Cargar notificaciones cuando el usuario está autenticado
   useEffect(() => {
-    setNotifications(getInitialNotifications());
-  }, [user?.role]);
+    if (isAuthenticated) {
+      fetchNotifications();
+    } else {
+      setNotifications([]);
+    }
+  }, [isAuthenticated]);
 
+  // Calcular el número de notificaciones no leídas
   const unreadCount = useMemo(() => {
     return notifications.filter(n => !n.read).length;
   }, [notifications]);
 
-  const markAsRead = useCallback((id: number) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  }, []);
+  // Marcar una notificación como leída
+  const markAsRead = useCallback(async (id: number) => {
+    if (!isAuthenticated) return;
 
-  const deleteNotification = useCallback((id: number) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+    try {
+      const response = await fetch(`${API_BASE_URL}/notificaciones/${id}/leer`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
 
-  const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+      if (!response.ok) {
+        throw new Error('Error al marcar notificación como leída');
+      }
 
-  const deleteAllRead = useCallback(() => {
-    setNotifications(prev => prev.filter(n => !n.read));
-  }, []);
+      // Actualizar el estado local
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, read: true } : n))
+      );
+    } catch (err) {
+      console.error('Error al marcar notificación como leída:', err);
+      toast.error('No se pudo marcar la notificación como leída');
+    }
+  }, [isAuthenticated]);
 
-  const addNotification = useCallback((notificationData: NewNotificationData) => {
-    const newNotification: Notification = {
-      ...notificationData,
-      id: Date.now(),
-      read: false,
-      date: new Date().toLocaleString("es-PE", {
+  // Eliminar una notificación
+  const deleteNotification = useCallback(async (id: number) => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/notificaciones/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar notificación');
+      }
+
+      // Actualizar el estado local
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error('Error al eliminar notificación:', err);
+      toast.error('No se pudo eliminar la notificación');
+    }
+  }, [isAuthenticated]);
+
+  // Marcar todas las notificaciones como leídas
+  const markAllAsRead = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/notificaciones/marcar-todas-leidas`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al marcar todas las notificaciones como leídas');
+      }
+
+      // Actualizar el estado local
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error('Error al marcar todas las notificaciones como leídas:', err);
+      toast.error('No se pudieron marcar todas las notificaciones como leídas');
+    }
+  }, [isAuthenticated]);
+
+  // Eliminar todas las notificaciones leídas
+  const deleteAllRead = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/notificaciones/eliminar-leidas`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar notificaciones leídas');
+      }
+
+      // Actualizar el estado local
+      setNotifications(prev => prev.filter(n => !n.read));
+    } catch (err) {
+      console.error('Error al eliminar notificaciones leídas:', err);
+      toast.error('No se pudieron eliminar las notificaciones leídas');
+    }
+  }, [isAuthenticated]);
+
+  // Añadir una nueva notificación y guardarla en el backend
+  const addNotification = useCallback(async (notificationData: NewNotificationData) => {
+    if (!isAuthenticated) {
+      console.warn('No se puede crear notificación: usuario no autenticado');
+      return;
+    }
+
+    try {
+      // Crear notificación en el backend
+      const response = await fetch(`${API_BASE_URL}/notificaciones/crear`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        body: JSON.stringify({
+          titulo: notificationData.title,
+          mensaje: notificationData.message,
+          tipo: notificationData.type,
+          categoria: notificationData.category || null,
+          feedback: notificationData.feedback || null
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al crear notificación en el backend');
+      }
+
+      // Obtener la notificación creada desde la respuesta
+      const createdNotification = await response.json();
+
+      // Crear objeto de notificación para el frontend
+      const newNotification: Notification = {
+        id: createdNotification.id,
+        title: createdNotification.titulo,
+        message: createdNotification.mensaje,
+        date: createdNotification.fechaEnvio,
+        read: false,
+        type: createdNotification.tipo as any,
+        category: createdNotification.categoria,
+        feedback: createdNotification.feedback
+      };
+
+      // Actualizar el estado local
+      setNotifications(prev => [newNotification, ...prev]);
+
+      console.log('Notificación creada exitosamente:', newNotification);
+    } catch (error) {
+      console.error('Error al crear notificación:', error);
+
+      // Crear notificación local temporal (fallback)
+      const tempNotification: Notification = {
+        ...notificationData,
+        id: Date.now(),
+        read: false,
+        date: new Date().toLocaleString("es-PE", {
           day: 'numeric', month: 'numeric', year: 'numeric',
           hour: '2-digit', minute: '2-digit'
-      })
-    };
-    setNotifications(prev => [newNotification, ...prev]);
+        })
+      };
+
+      // Actualizar el estado local con la notificación temporal
+      setNotifications(prev => [tempNotification, ...prev]);
+    }
+  }, [isAuthenticated]);
+
+  // Función para actualizar manualmente las notificaciones
+  const refreshNotifications = useCallback(async () => {
+    await fetchNotifications();
   }, []);
 
   const value = {
@@ -217,6 +309,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     deleteNotification,
     markAllAsRead,
     deleteAllRead,
+    isLoading,
+    error,
+    refreshNotifications
   };
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
