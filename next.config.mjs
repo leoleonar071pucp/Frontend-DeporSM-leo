@@ -1,3 +1,12 @@
+/** @type {import('next').NextConfig} */
+
+// Cargar variable directamente desde process.env
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'
+
+// DEBUG opcional para verificar si se carga bien en tiempo de build
+if (!API_BASE_URL) {
+  throw new Error("Falta la variable de entorno NEXT_PUBLIC_API_BASE_URL")
+}
 
 let userConfig = undefined
 
@@ -11,9 +20,6 @@ try {
   }
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'
-
-/** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
@@ -63,6 +69,14 @@ const nextConfig = {
       {
         source: '/api/usuarios',
         destination: `${API_BASE_URL}/usuarios`,
+      },
+      {
+        source: '/api/reservas/:path*',
+        destination: `${API_BASE_URL}/reservas/:path*`,
+      },
+      {
+        source: '/api/reservas',
+        destination: `${API_BASE_URL}/reservas`,
       },
     ]
   },
