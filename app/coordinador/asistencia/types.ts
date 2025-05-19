@@ -1,5 +1,6 @@
 export interface AttendanceRecord {
   id: number
+  visitId?: number // ID de la visita programada (para tracking)
   facilityId: number
   scheduleId?: number
   facilityName: string

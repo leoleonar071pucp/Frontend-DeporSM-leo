@@ -343,10 +343,10 @@ export default function RegistrarAsistenciaPage() {
 
     setIsSaving(true)
     
-    try {
-      // Construir el objeto de registro de asistencia
+    try {      // Construir el objeto de registro de asistencia
       const attendanceRecord = {
         id: 0, // El backend asignará el ID real
+        visitId: visit.id, // ID de la visita programada (importante para tracking)
         facilityId: visit.facilityId,
         scheduleId: visit.scheduleId,
         facilityName: visit.facilityName,
@@ -358,10 +358,23 @@ export default function RegistrarAsistenciaPage() {
         status: formData.status,
         notes: "",
         departureTime: null,
-      }
-
-      // Usar el servicio para registrar la asistencia
+      }      // Usar el servicio para registrar la asistencia
       await recordAttendance(attendanceRecord)
+      
+      // También guardar directamente el ID de la visita para asegurar su almacenamiento
+      try {
+        const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
+        const registeredVisits = JSON.parse(registeredVisitsJson);
+        
+        // Asegurar que el ID de la visita se guarde correctamente
+        if (visit.id && !registeredVisits.includes(visit.id)) {
+          registeredVisits.push(visit.id);
+          console.log(`Guardando visita ID=${visit.id} como registrada (desde componente)`);
+          localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
+        }
+      } catch (err) {
+        console.error("Error al guardar en localStorage (componente):", err);
+      }
 
       toast({
         title: "Asistencia registrada",
@@ -499,17 +512,16 @@ export default function RegistrarAsistenciaPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-primary" />
+                  <div className="flex items-center gap-2">                    <Clock className="h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Horario programado</p>
                       <p className="text-sm text-gray-600">
-                        {new Date(visit.date).toLocaleDateString('es-ES', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
+                        {(() => {
+                          // Crear fecha en zona horaria de Perú (GMT-5)
+                          const dateObj = new Date(visit.date + 'T12:00:00Z');
+                          dateObj.setHours(dateObj.getHours() - 5); // Ajustar a GMT-5 (Perú)
+                          return format(dateObj, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
+                        })()}
                       </p>
                       <p className="text-sm text-gray-600">
                         {visit.scheduledTime} - {visit.scheduledEndTime}

@@ -71,34 +71,51 @@ export async function getScheduledVisit(visitId: number, facilityId: number): Pr
       return data;
     }
     
-    // Si no hay respuesta del backend, devolver datos de desarrollo
+    // Si no hay respuesta del backend, buscar la visita en datos de desarrollo
     console.warn("Usando datos de desarrollo para visita programada");
+    
+    // Primero intentamos recuperar todas las visitas programadas
+    const allProgrammedVisits = await getScheduledVisits("4");  // ID de coordinador hardcodeado para demo
+    
+    // Buscamos la visita específica por su ID
+    const foundVisit = allProgrammedVisits.find(visit => visit.id === visitId);
+    
+    // Si encontramos la visita, la devolvemos
+    if (foundVisit) {
+      console.log("Encontrada visita específica:", foundVisit);
+      return foundVisit;
+    }
+    
+    // Como plan B (si no encontramos la visita), generamos datos basados en facilityId
+    console.warn("No se encontró la visita específica, generando datos básicos");
     
     // Mapeo de IDs de instalaciones para datos de desarrollo
     const facilityNames: Record<number, string> = {
       1: "Cancha de Fútbol (Grass)",
-      2: "Piscina Municipal"
-    };
-    
-    // Generar fecha según día de la semana (para demo)
-    const today = new Date('2025-05-18');
+      2: "Piscina Municipal",
+      3: "Gimnasio Municipal"
+    };      // Usar la fecha actual para los datos dinámicos, forzando a que sea el 18 de mayo de 2025
+    // Crear fecha en zona horaria de Perú (GMT-5)
+    const today = new Date(Date.UTC(2025, 4, 18, 12, 0, 0)); // Mayo es el mes 4 (0-indexado) y 18 es el día (domingo)
+    // Ajustar para la zona horaria de Perú (GMT-5)
+    today.setHours(today.getHours() - 5);
     let dateToUse: Date;
     let scheduleTime: string;
     let scheduleEndTime: string;
     
     // Determinar fecha y horario según el ID de la instalación
     if (facilityId === 1) {
-      // Para instalación 1: Lunes (19 Mayo 2025)
       dateToUse = new Date(today);
-      dateToUse.setDate(today.getDate() + 1); // Lunes
       scheduleTime = "08:00";
       scheduleEndTime = "12:00";
-    } else {
-      // Para instalación 2: Martes (20 Mayo 2025)
+    } else if (facilityId === 2) {
       dateToUse = new Date(today);
-      dateToUse.setDate(today.getDate() + 2); // Martes
       scheduleTime = "14:00";
       scheduleEndTime = "18:00";
+    } else {
+      dateToUse = new Date(today);
+      scheduleTime = "09:00";
+      scheduleEndTime = "13:00";
     }
     
     // Crear objeto de visita
@@ -132,47 +149,38 @@ export async function getScheduledVisits(userId: string, filters?: any): Promise
     if (response.ok) {
       const data = await response.json();
       return data;
-    }
-    
-    // Si no hay respuesta del backend, devolver datos de desarrollo
+    }    // Si no hay respuesta del backend, devolver datos de desarrollo
     console.warn("Usando datos de desarrollo para visitas programadas");
+      // Usar solo la fecha actual para cumplir con el requerimiento de mostrar solo horarios del día actual
+    // Crear fecha en zona horaria de Perú (GMT-5)
+    const today = new Date(Date.UTC(2025, 4, 18, 12, 0, 0)); // Mayo es el mes 4 (0-indexado) y 18 es el día (domingo)
+    // Ajustar para la zona horaria de Perú (GMT-5)
+    today.setHours(today.getHours() - 5);
     
-    // Generar fechas para los próximos 3 días
-    const today = new Date('2025-05-18'); // Domingo 18 de mayo
-    const dayOne = new Date(today);
-    const dayTwo = new Date(today);
-    dayTwo.setDate(today.getDate() + 1); // Lunes 19 de mayo
-    const dayThree = new Date(today);
-    dayThree.setDate(today.getDate() + 2); // Martes 20 de mayo
-    
-    // Datos de ejemplo para desarrollo
+    // Generar un ID único basado en la fecha para evitar conflictos
+    const generateIdFromDate = (date: Date, facilityId: number): number => {
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      return parseInt(`${year}${month}${day}${facilityId}01`);
+    };
+      // Datos de ejemplo para desarrollo - solo para el día actual (domingo)
     return [
       {
-        id: 2025518101,
+        id: generateIdFromDate(today, 3),
+        facilityId: 3,
+        facilityName: "Gimnasio Municipal",
+        location: "Sin ubicación registrada",
+        date: today.toISOString().split('T')[0], // Hoy (domingo, 18 de mayo)
+        scheduledTime: "09:00",
+        scheduledEndTime: "13:00",
+        image: "/placeholder.svg"
+      },      {
+        id: generateIdFromDate(today, 1),
         facilityId: 1,
         facilityName: "Cancha de Fútbol (Grass)",
         location: "Parque Juan Pablo II",
-        date: dayOne.toISOString().split('T')[0], // Domingo 18 de mayo
-        scheduledTime: "10:00",
-        scheduledEndTime: "14:00",
-        image: "/placeholder.svg"
-      },
-      {
-        id: 2025519101,
-        facilityId: 1,
-        facilityName: "Cancha de Fútbol (Grass)",
-        location: "Parque Juan Pablo II",
-        date: dayTwo.toISOString().split('T')[0], // Lunes 19 de mayo
-        scheduledTime: "08:00",
-        scheduledEndTime: "12:00",
-        image: "/placeholder.svg"
-      },
-      {
-        id: 2025520201,
-        facilityId: 2,
-        facilityName: "Piscina Municipal",
-        location: "Complejo Deportivo Municipal",
-        date: dayThree.toISOString().split('T')[0], // Martes 20 de mayo
+        date: today.toISOString().split('T')[0], // Hoy (domingo, 18 de mayo)
         scheduledTime: "14:00",
         scheduledEndTime: "18:00",
         image: "/placeholder.svg"
@@ -194,17 +202,45 @@ export async function recordAttendance(attendanceRecord: AttendanceRecord): Prom
     // Intentar enviar datos al backend
     const response = await apiPost('asistencias', attendanceRecord);
     
+    let result;
     if (response.ok) {
       const data = await response.json();
-      return data;
+      result = data;
+    } else {
+      // Si no hay respuesta del backend, simular una respuesta exitosa
+      console.warn("Simulando registro de asistencia exitoso");
+      result = {
+        ...attendanceRecord,
+        id: Math.floor(Math.random() * 10000) // Asignar ID aleatorio para desarrollo
+      };
+    }    // Guardar el ID de visita programada como registrada en localStorage
+    const visitIdToSave = attendanceRecord.visitId;
+    console.log("Intentando guardar visitId:", visitIdToSave);
+    
+    if (visitIdToSave) {
+      try {
+        // Obtener las visitas ya registradas
+        const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
+        const registeredVisits = JSON.parse(registeredVisitsJson);
+        
+        // Añadir la nueva visita registrada si no existe ya
+        if (!registeredVisits.includes(visitIdToSave)) {
+          registeredVisits.push(visitIdToSave);
+          console.log(`Guardando visita ${visitIdToSave} como registrada (services.ts)`);
+          localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
+          console.log("Estado actualizado de localStorage:", localStorage.getItem('registeredVisits'));
+        } else {
+          console.log(`Visita ${visitIdToSave} ya estaba registrada`);
+        }
+      } catch (e) {
+        console.error("Error al guardar en localStorage:", e);
+        // Continuar el flujo aunque falle el localStorage
+      }
+    } else {
+      console.warn("No se pudo guardar la visita como registrada: falta visitId");
     }
     
-    // Si no hay respuesta del backend, simular una respuesta exitosa
-    console.warn("Simulando registro de asistencia exitoso");
-    return {
-      ...attendanceRecord,
-      id: Math.floor(Math.random() * 10000) // Asignar ID aleatorio para desarrollo
-    };
+    return result;
   } catch (error) {
     console.error("Error registrando asistencia:", error);
     throw error;
