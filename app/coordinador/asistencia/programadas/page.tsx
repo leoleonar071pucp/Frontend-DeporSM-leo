@@ -154,11 +154,10 @@ export default function ProgramadasPage() {
                     <div>
                       <p className="text-sm text-gray-500">Fecha</p>
                       <p className="font-medium">
-                        {(() => {
-                          // Crear fecha en zona horaria de Perú (GMT-5)
+                        {(() => {                          // Crear fecha en zona horaria de Perú (GMT-5)
                           const dateObj = new Date(visit.date + 'T12:00:00Z');
                           dateObj.setHours(dateObj.getHours() - 5); // Ajustar a GMT-5 (Perú)
-                          return format(dateObj, "EEEE, d 'de' MMMM", { locale: es });
+                          return format(dateObj, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
                         })()}
                       </p>
                     </div>

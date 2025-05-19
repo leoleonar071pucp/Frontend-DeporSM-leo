@@ -499,17 +499,16 @@ export default function RegistrarAsistenciaPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-primary" />
+                  <div className="flex items-center gap-2">                    <Clock className="h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Horario programado</p>
                       <p className="text-sm text-gray-600">
-                        {new Date(visit.date).toLocaleDateString('es-ES', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
+                        {(() => {
+                          // Crear fecha en zona horaria de Perú (GMT-5)
+                          const dateObj = new Date(visit.date + 'T12:00:00Z');
+                          dateObj.setHours(dateObj.getHours() - 5); // Ajustar a GMT-5 (Perú)
+                          return format(dateObj, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
+                        })()}
                       </p>
                       <p className="text-sm text-gray-600">
                         {visit.scheduledTime} - {visit.scheduledEndTime}
