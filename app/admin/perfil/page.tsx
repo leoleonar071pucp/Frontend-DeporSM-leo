@@ -1,10 +1,10 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-
+import { useToast } from "@/hooks/use-toast"
+import { API_BASE_URL } from "@/lib/config"
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,22 +13,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { CheckCircle, Loader2, Mail, Phone, User, Shield, Calendar, MapPin } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 
 export default function PerfilAdmin() {
+  const { user, checkAuthStatus } = useAuth()
+  const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Estado para los datos del perfil
   const [profileData, setProfileData] = useState({
-    nombre: "Juan Pérez",
-    apellidos: "García López",
-    email: "admin@munisanmiguel.gob.pe",
-    telefono: "987-654-321",
+    nombre: "",
+    apellidos: "",
+    email: "",
+    telefono: "",
     cargo: "Administrador",
-    departamento: "Deportes",
-    direccion: "Av. Principal 123, San Miguel",
+    departamento: "",
+    direccion: "",
   })
+
+  // Cargar datos del perfil desde el backend
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (user) {
+        setProfileData({
+          nombre: user.nombre || "",
+          apellidos: user.apellidos || "",
+          email: user.email || "",
+          telefono: user.telefono || "",
+          cargo: "Administrador",
+          departamento: "",
+          direccion: user.direccion || "",
+        })
+        setIsLoading(false)
+      }
+    }
+
+    fetchProfileData()
+  }, [user])
 
   // Estado para errores de validación
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -65,7 +89,7 @@ export default function PerfilAdmin() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
@@ -74,15 +98,56 @@ export default function PerfilAdmin() {
 
     setIsSaving(true)
 
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
-      setIsEditing(false)
+    try {
+      const response = await fetch(`${API_BASE_URL}/usuarios/actualizar-perfil`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          telefono: profileData.telefono,
+          direccion: profileData.direccion
+        })
+      });
 
+      if (response.status === 401) {
+        toast({
+          variant: "destructive",
+          title: "Sesión expirada",
+          description: "Por favor, inicia sesión nuevamente.",
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Error al actualizar el perfil: ${response.status}`);
+      }
+
+      // Actualizar el contexto de autenticación para reflejar los cambios
+      await checkAuthStatus();
+
+      setIsSuccess(true);
+      setIsEditing(false);
+
+      toast({
+        title: "Perfil actualizado",
+        description: "Tu información ha sido actualizada correctamente.",
+      });
+
+      // Ocultar mensaje de éxito después de 3 segundos
       setTimeout(() => {
         setIsSuccess(false)
       }, 3000)
-    }, 1500)
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al actualizar el perfil",
+      });
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -91,19 +156,28 @@ export default function PerfilAdmin() {
         <h1 className="text-2xl font-bold tracking-tight">Mi Perfil</h1>
       </div>
 
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
           <Card>
             <CardContent className="pt-6 flex flex-col items-center">
               <Avatar className="h-32 w-32 mb-4">
-                <AvatarImage src="/placeholder.svg?height=128&width=128" alt="@admin" />
-                <AvatarFallback className="text-4xl bg-primary text-white">JP</AvatarFallback>
+                {user?.avatarUrl && (
+                  <AvatarImage src={user.avatarUrl} alt={`@${profileData.nombre}`} />
+                )}
+                <AvatarFallback className="text-4xl bg-[#0cb7f2] text-white">
+                  {user?.nombre?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
               </Avatar>
               <h2 className="text-xl font-bold">
                 {profileData.nombre} {profileData.apellidos}
               </h2>
               <p className="text-gray-500">{profileData.cargo}</p>
-              <p className="text-sm text-gray-500 mt-1">{profileData.departamento}</p>
 
               <Separator className="my-4" />
 
@@ -242,6 +316,7 @@ export default function PerfilAdmin() {
           </Card>
         </div>
       </div>
+      )}
     </div>
   )
 }

@@ -272,7 +272,9 @@ export default function AdminLayout({
                     <Button variant="ghost" className="relative rounded-full">
                       <Avatar>
                         <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || "Admin"} />
-                        <AvatarFallback className="bg-primary-light text-white">AD</AvatarFallback>
+                        <AvatarFallback className="bg-primary-light text-white">
+                          {user?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || "AD"}
+                        </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
