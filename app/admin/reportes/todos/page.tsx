@@ -10,129 +10,77 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { obtenerTodosLosReportes, buscarReportes, ReporteDTO } from "@/lib/api-reports"
+import { useNotification } from "@/context/NotificationContext"
 
-// Datos de ejemplo para los reportes
-const reportsData = [
-  {
-    id: 1,
-    name: "Reporte de Reservas",
-    type: "reservas",
-    format: "excel",
-    dateRange: "01/04/2025 - 30/04/2025",
-    createdAt: "2025-04-30",
-    createdBy: "Admin",
-    size: "1.2 MB",
-    description: "Información detallada de reservas: usuarios, horarios, pagos"
-  },
-  {
-    id: 2,
-    name: "Reporte de Ingresos",
-    type: "ingresos",
-    format: "pdf",
-    dateRange: "01/03/2025 - 31/03/2025",
-    createdAt: "2025-04-01",
-    createdBy: "Admin",
-    size: "850 KB",
-    description: "Resumen de ingresos por reservas y servicios"
-  },
-  {
-    id: 3,
-    name: "Uso de Instalaciones",
-    type: "instalaciones",
-    format: "excel",
-    dateRange: "01/01/2025 - 31/03/2025",
-    createdAt: "2025-04-01",
-    createdBy: "Admin",
-    size: "1.5 MB",
-    description: "Métricas de utilización: frecuencia, horarios populares, capacidad"
-  },
-  {
-    id: 4,
-    name: "Reporte de Mantenimiento",
-    type: "mantenimiento",
-    format: "pdf",
-    dateRange: "01/02/2025 - 28/02/2025",
-    createdAt: "2025-03-01",
-    createdBy: "Admin",
-    size: "950 KB",
-    description: "Registro de mantenimientos realizados y programados"
-  },
-  {
-    id: 5,
-    name: "Reporte de Reservas",
-    type: "reservas",
-    format: "excel",
-    dateRange: "01/01/2025 - 31/03/2025",
-    createdAt: "2025-04-02",
-    createdBy: "Admin",
-    size: "1.8 MB",
-    description: "Detalle de reservas segmentado por instalación"
-  },
-  {
-    id: 6,
-    name: "Reporte de Ingresos",
-    type: "ingresos",
-    format: "pdf",
-    dateRange: "01/01/2024 - 31/12/2024",
-    createdAt: "2025-01-05",
-    createdBy: "Admin",
-    size: "2.1 MB",
-    description: "Resumen anual de ingresos y análisis financiero"
-  },
-  {
-    id: 8,
-    name: "Reporte de Mantenimiento",
-    type: "mantenimiento",
-    format: "pdf",
-    dateRange: "01/01/2024 - 31/12/2024",
-    createdAt: "2025-01-10",
-    createdBy: "Admin",
-    size: "1.7 MB",
-    description: "Historial anual de mantenimientos y costos"
-  },
-]
+// Mapeo de tipos de reportes para las pestañas
+const reportTypes = {
+  reservas: "Reservas",
+  ingresos: "Ingresos",
+  instalaciones: "Instalaciones",
+  mantenimiento: "Mantenimiento"
+}
 
 export default function TodosLosReportes() {
+  const { addNotification } = useNotification()
   const [isLoading, setIsLoading] = useState(true)
-  const [reports, setReports] = useState([])
+  const [reports, setReports] = useState<ReporteDTO[]>([])
+  const [allReports, setAllReports] = useState<ReporteDTO[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("todos")
 
   useEffect(() => {
-    // Simulación de carga de datos
+    // Cargar datos reales
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setReports(reportsData)
-      setIsLoading(false)
+      try {
+        const reportesData = await obtenerTodosLosReportes()
+        setReports(reportesData)
+        setAllReports(reportesData)
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Error al cargar reportes:", error)
+        addNotification({
+          title: "Error",
+          message: "No se pudieron cargar los reportes. Intente nuevamente.",
+          type: "warning"
+        })
+        setIsLoading(false)
+      }
     }
 
     loadData()
   }, [])
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault()
-    // Filtrar reportes por nombre o tipo
-    const filtered = reportsData.filter(
-      (report) =>
-        report.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.type.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    setReports(filtered)
+
+    if (!searchQuery.trim()) {
+      // Si la búsqueda está vacía, mostrar todos los reportes
+      setReports(allReports)
+      return
+    }
+
+    try {
+      // Buscar reportes en el backend
+      const resultados = await buscarReportes(searchQuery)
+      setReports(resultados)
+    } catch (error) {
+      console.error("Error al buscar reportes:", error)
+      addNotification({
+        title: "Error",
+        message: "No se pudo realizar la búsqueda. Intente nuevamente.",
+        type: "error"
+      })
+    }
   }
 
   const handleTabChange = (value) => {
     setActiveTab(value)
 
     if (value === "todos") {
-      setReports(reportsData)
-    } else if (value === "reservas") {
-      setReports(reportsData.filter((r) => r.type === "reservas"))
-    } else if (value === "ingresos") {
-      setReports(reportsData.filter((r) => r.type === "ingresos"))
-    } else if (value === "instalaciones") {
-      setReports(reportsData.filter((r) => r.type === "instalaciones"))
-    } else if (value === "mantenimiento") {
-      setReports(reportsData.filter((r) => r.type === "mantenimiento"))
+      setReports(allReports)
+    } else {
+      setReports(allReports.filter((r) => r.tipo === value))
     }
   }
 
@@ -159,6 +107,15 @@ export default function TodosLosReportes() {
         return <Badge className="bg-yellow-100 text-yellow-800">Mantenimiento</Badge>
       default:
         return null
+    }
+  }
+
+  // Función para formatear la fecha
+  const formatDate = (dateString) => {
+    try {
+      return format(new Date(dateString), "dd/MM/yyyy", { locale: es })
+    } catch (error) {
+      return dateString
     }
   }
 
@@ -227,24 +184,70 @@ export default function TodosLosReportes() {
                 <Card key={report.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                      <div className="bg-gray-100 rounded-full p-3">{getReportIcon(report.format)}</div>
+                      <div className="bg-gray-100 rounded-full p-3">{getReportIcon(report.formato)}</div>
                       <div className="flex-grow">
-                        <h3 className="font-medium">{report.name}</h3>
+                        <h3 className="font-medium">{report.nombre}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          {getReportTypeBadge(report.type)}
+                          {getReportTypeBadge(report.tipo)}
                           <span className="text-xs text-gray-500">
-                            {report.format.toUpperCase()} • {report.size}
+                            {report.formato.toUpperCase()} • {report.tamano}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-500 mt-2">{report.dateRange}</p>
+                        <p className="text-sm text-gray-500 mt-2">{report.rangoFechas}</p>
                         <p className="text-xs text-gray-400 mt-1">
-                          Generado el {format(new Date(report.createdAt), "dd/MM/yyyy", { locale: es })}
+                          Generado el {formatDate(report.fechaCreacion)} por {report.creadoPor}
                         </p>
-                        <Button variant="outline" size="sm" className="mt-4 w-full" asChild>
-                          <a href="#" download>
-                            <Download className="h-4 w-4 mr-2" />
-                            Descargar
-                          </a>
+                        <p className="text-xs text-gray-500 mt-2 line-clamp-2">{report.descripcion}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-4 w-full"
+                          onClick={() => {
+                            // Descargar el reporte al hacer clic
+                            console.log("Descargando reporte con ID:", report.id)
+
+                            // Usar fetch para descargar el archivo directamente
+                            fetch(`/api/reportes/descargar/${report.id}`)
+                              .then(async response => {
+                                // Verificar si la respuesta es exitosa
+                                if (!response.ok) {
+                                  throw new Error(`Error al descargar: ${response.status} ${response.statusText}`)
+                                }
+
+                                // Obtener el nombre del archivo
+                                const contentDisposition = response.headers.get('content-disposition')
+                                const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/)
+                                const filename = filenameMatch ? filenameMatch[1] : `${report.nombre}.${report.formato === 'excel' ? 'csv' : 'pdf'}`
+
+                                // Convertir la respuesta a blob
+                                const blob = await response.blob()
+
+                                // Crear un objeto URL para el blob
+                                const url = window.URL.createObjectURL(blob)
+
+                                // Crear un enlace para descargar el archivo
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.setAttribute('download', filename)
+                                document.body.appendChild(link)
+                                link.click()
+
+                                // Limpiar
+                                window.URL.revokeObjectURL(url)
+                                document.body.removeChild(link)
+                              })
+                              .catch(error => {
+                                console.error("Error al descargar el reporte:", error)
+                                addNotification({
+                                  title: "Error",
+                                  message: "No se pudo descargar el reporte. Intente nuevamente.",
+                                  type: "warning"
+                                })
+                              })
+                          }}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Descargar
                         </Button>
                       </div>
                     </div>
@@ -263,7 +266,7 @@ export default function TodosLosReportes() {
                   className="mt-4"
                   onClick={() => {
                     setSearchQuery("")
-                    setReports(reportsData)
+                    setReports(allReports)
                   }}
                 >
                   Limpiar filtros

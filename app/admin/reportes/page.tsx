@@ -12,6 +12,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Separator } from "@/components/ui/separator"
 import { useNotification } from "@/context/NotificationContext"
+import { generarReporte, obtenerReportesRecientes, ReporteDTO } from "@/lib/api-reports"
 
 export default function ReportesAdmin() {
   const { addNotification } = useNotification()
@@ -24,15 +25,156 @@ export default function ReportesAdmin() {
   const [fileFormat, setFileFormat] = useState("excel")
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // Datos de ejemplo para las instalaciones
-  const facilities = [
-    { id: "all", name: "Todas las instalaciones" },
-    { id: "1", name: "Piscina Municipal" },
-    { id: "2", name: "Cancha de Fútbol (Grass)" },
-    { id: "3", name: "Gimnasio Municipal" },
-    { id: "4", name: "Cancha de Fútbol (Loza)" },
-    { id: "5", name: "Pista de Atletismo" },
-  ]
+  // Estado para las instalaciones
+  const [facilities, setFacilities] = useState([
+    { id: "all", name: "Todas las instalaciones" }
+  ])
+
+  // Función mejorada para descargar el archivo
+  const descargarReporte = async (reporteId: number | string) => {
+    console.log(`Iniciando descarga del reporte ID: ${reporteId}`);
+
+    try {
+      // Primero obtenemos los metadatos del reporte para verificar que existe
+      console.log(`Obteniendo metadatos del reporte ID: ${reporteId}`);
+      const metadataResponse = await fetch(`/api/reportes/${reporteId}`);
+
+      if (!metadataResponse.ok) {
+        console.error(`Error al obtener metadatos: ${metadataResponse.status} ${metadataResponse.statusText}`);
+        throw new Error(`No se pudo obtener información del reporte: ${metadataResponse.statusText}`);
+      }
+
+      const metadata = await metadataResponse.json();
+      console.log("Metadatos del reporte:", metadata);
+
+      // Ahora solicitamos el archivo
+      console.log(`Solicitando archivo del reporte ID: ${reporteId}`);
+      const fileResponse = await fetch(`/api/reportes/descargar/${reporteId}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': '*/*',
+          'Cache-Control': 'no-cache',
+        },
+      });
+
+      console.log(`Respuesta recibida: ${fileResponse.status} ${fileResponse.statusText}`);
+      console.log("Headers:", Object.fromEntries([...fileResponse.headers.entries()]));
+
+      // Verificar si la respuesta es exitosa
+      if (!fileResponse.ok) {
+        // Intentar leer el cuerpo del error
+        let errorMessage = `Error al descargar: ${fileResponse.status} ${fileResponse.statusText}`;
+        let errorDetails = "";
+
+        try {
+          const contentType = fileResponse.headers.get('content-type');
+          console.log("Tipo de contenido de error:", contentType);
+
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await fileResponse.json();
+            console.error("Error JSON:", errorData);
+            errorMessage = errorData.error || errorMessage;
+            errorDetails = errorData.details || "";
+          } else {
+            const errorText = await fileResponse.text();
+            console.error("Error texto:", errorText);
+            errorDetails = errorText;
+          }
+        } catch (e) {
+          console.error("No se pudo leer el cuerpo del error:", e);
+        }
+
+        console.error(`Error completo: ${errorMessage} - ${errorDetails}`);
+        throw new Error(errorMessage);
+      }
+
+      // Verificar el tipo de contenido
+      const contentType = fileResponse.headers.get('content-type');
+      console.log("Tipo de contenido:", contentType);
+
+      // Si la respuesta es JSON, probablemente sea un error
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await fileResponse.json();
+        console.error("Error JSON recibido:", errorData);
+        throw new Error(errorData.error || 'Error desconocido en formato JSON');
+      }
+
+      // Obtener el nombre del archivo
+      const contentDisposition = fileResponse.headers.get('content-disposition');
+      console.log("Content-Disposition:", contentDisposition);
+
+      const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
+      const filename = filenameMatch
+        ? filenameMatch[1]
+        : `reporte_${metadata.tipo}_${new Date().toISOString().slice(0, 10)}.${metadata.formato === 'excel' ? 'csv' : 'pdf'}`;
+
+      console.log("Nombre del archivo para descarga:", filename);
+
+      // Convertir la respuesta a blob
+      const blob = await fileResponse.blob();
+      console.log("Tamaño del blob:", blob.size, "bytes");
+      console.log("Tipo MIME del blob:", blob.type);
+
+      if (blob.size === 0) {
+        console.error("El archivo descargado está vacío");
+        throw new Error("El archivo descargado está vacío. Por favor, intente generar el reporte nuevamente.");
+      }
+
+      // Verificar el tipo MIME del blob
+      if (blob.type === "application/json") {
+        // Si es JSON, probablemente sea un mensaje de error
+        const reader = new FileReader();
+        const textPromise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+        });
+
+        reader.readAsText(blob);
+        const text = await textPromise;
+
+        console.error("Contenido JSON del error:", text);
+        try {
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.error || "Error desconocido en el servidor");
+        } catch (e) {
+          throw new Error("Error al procesar la respuesta del servidor");
+        }
+      }
+
+      // Crear un objeto URL para el blob
+      const url = window.URL.createObjectURL(blob);
+
+      // Crear un enlace para descargar el archivo
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+
+      // Simular clic y limpiar
+      console.log("Iniciando descarga del archivo...");
+      link.click();
+
+      // Limpiar recursos
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+        console.log("Descarga completada y recursos liberados");
+      }, 100);
+
+      return true;
+    } catch (error: any) {
+      console.error("Error en la función descargarReporte:", error);
+      addNotification({
+        title: "Error al descargar",
+        message: error.message || "No se pudo descargar el reporte. Intente nuevamente.",
+        type: "warning"
+      });
+      return false;
+    }
+  };
+
+  // Estado para los reportes recientes
+  const [recentReports, setRecentReports] = useState<ReporteDTO[]>([])
 
   // Datos de ejemplo para los reportes
   const reportTypes = [
@@ -43,15 +185,51 @@ export default function ReportesAdmin() {
   ]
 
   useEffect(() => {
-    // Simulación de carga de datos
+    // Cargar datos reales
     const loadData = async () => {
-      const today = new Date()
-      let start = new Date(today)
-      start.setMonth(today.getMonth() - 1)
-      setStartDate(start)
-      setEndDate(today)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setIsLoading(false)
+      try {
+        // Configurar fechas iniciales
+        const today = new Date()
+        let start = new Date(today)
+        start.setMonth(today.getMonth() - 1)
+        setStartDate(start)
+        setEndDate(today)
+
+        // Cargar instalaciones desde la API
+        const response = await fetch('/api/instalaciones')
+        if (response.ok) {
+          const data = await response.json()
+          setFacilities([
+            { id: "all", name: "Todas las instalaciones" },
+            ...data.map((instalacion: any) => ({
+              id: instalacion.id.toString(),
+              name: instalacion.nombre
+            }))
+          ])
+        }
+
+        // Cargar reportes recientes
+        try {
+          console.log("Intentando cargar reportes recientes...")
+          const recentReportsData = await obtenerReportesRecientes()
+          console.log("Reportes recientes cargados:", recentReportsData)
+          setRecentReports(recentReportsData)
+        } catch (error) {
+          console.error("Error al cargar reportes recientes:", error)
+          // No interrumpir el flujo si falla la carga de reportes recientes
+          setRecentReports([])
+        }
+
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Error al cargar datos:", error)
+        addNotification({
+          title: "Error",
+          message: "No se pudieron cargar los datos. Intente nuevamente.",
+          type: "warning"
+        })
+        setIsLoading(false)
+      }
     }
 
     loadData()
@@ -88,58 +266,81 @@ export default function ReportesAdmin() {
     setEndDate(today)
   }
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     setIsGenerating(true)
 
-    // Generar el nombre del archivo
-    const fileName = `reporte_${reportType}_${format(startDate, "yyyy-MM-dd")}_${format(endDate, "yyyy-MM-dd")}`
-    
-    // Crear contenido de ejemplo según el tipo de reporte
-    let content = ''
-    if (fileFormat === 'excel') {
-      // Contenido CSV para Excel
-      content = 'Fecha,Tipo,Instalación,Detalle\n'
-      content += `${format(new Date(), 'dd/MM/yyyy')},${reportType},${facility},Reporte generado\n`
-    } else {
-      // Contenido texto plano para PDF
-      content = `Reporte de ${reportType}\n`
-      content += `Fecha: ${format(new Date(), 'dd/MM/yyyy')}\n`
-      content += `Instalación: ${facility}\n`
-      content += `Período: ${format(startDate, 'dd/MM/yyyy')} - ${format(endDate, 'dd/MM/yyyy')}\n`
-    }
+    try {
+      // Validar que las fechas sean válidas
+      if (!startDate || !endDate) {
+        addNotification({
+          title: "Error",
+          message: "Debe seleccionar fechas de inicio y fin para el reporte",
+          type: "warning"
+        })
+        setIsGenerating(false)
+        return
+      }
 
-    // Crear el blob según el formato
-    const blob = new Blob(
-      [content],
-      { type: fileFormat === 'excel' ? 'text/csv;charset=utf-8;' : 'application/pdf' }
-    )
+      // Preparar la solicitud para generar el reporte
+      const reporteRequest = {
+        tipo: reportType,
+        formato: fileFormat,
+        fechaInicio: format(startDate, "yyyy-MM-dd"),
+        fechaFin: format(endDate, "yyyy-MM-dd"),
+        instalacionId: facility !== "all" ? parseInt(facility) : undefined
+      }
 
-    // Crear URL del blob
-    const url = window.URL.createObjectURL(blob)
+      console.log("Enviando solicitud de reporte:", reporteRequest)
 
-    // Crear enlace de descarga
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `${fileName}.${fileFormat === 'excel' ? 'csv' : 'pdf'}`)
-    document.body.appendChild(link)
+      try {
+        // Llamar a la API para generar el reporte
+        console.log("Llamando a generarReporte con:", reporteRequest)
+        const reporte = await generarReporte(reporteRequest)
+        console.log("Reporte generado:", reporte)
 
-    // Simular tiempo de generación
-    setTimeout(() => {
-      setIsGenerating(false)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      
-      // Obtener el nombre legible del tipo de reporte
-      const reportTypeName = reportTypes.find(type => type.id === reportType)?.name || reportType
+        // Obtener el nombre legible del tipo de reporte
+        const reportTypeName = reportTypes.find(type => type.id === reportType)?.name || reportType
 
-      // Use the notification context with improved message
+        // Actualizar la lista de reportes recientes
+        try {
+          const updatedReports = await obtenerReportesRecientes()
+          setRecentReports(updatedReports)
+        } catch (error) {
+          console.error("Error al actualizar reportes recientes:", error)
+          // No interrumpir el flujo si falla la actualización de reportes recientes
+        }
+
+        // Crear enlace de descarga
+        console.log("Descargando reporte con ID:", reporte.id)
+        console.log("Formato del reporte:", fileFormat)
+
+        // Llamar a la función de descarga
+        await descargarReporte(reporte.id);
+
+        // Mostrar notificación de éxito
+        addNotification({
+          title: "Reporte generado exitosamente",
+          message: `Se ha generado el reporte de ${reportTypeName} para el período del ${format(startDate, "dd/MM/yyyy")} al ${format(endDate, "dd/MM/yyyy")}`,
+          type: "reporte"
+        })
+      } catch (error) {
+        console.error("Error específico al generar reporte:", error)
+        addNotification({
+          title: "Error",
+          message: error instanceof Error ? error.message : "No se pudo generar el reporte. Intente nuevamente.",
+          type: "warning"
+        })
+      }
+    } catch (error) {
+      console.error("Error al generar reporte:", error)
       addNotification({
-        title: "Reporte generado exitosamente",
-        message: `Se ha generado el reporte de ${reportTypeName} para el período del ${format(startDate, "dd/MM/yyyy")} al ${format(endDate, "dd/MM/yyyy")}`,
-        type: "reporte"
+        title: "Error",
+        message: "No se pudo generar el reporte. Intente nuevamente.",
+        type: "warning"
       })
-    }, 2000)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   if (isLoading) {
@@ -347,41 +548,38 @@ export default function ReportesAdmin() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                    <h3 className="font-medium">Reporte de Reservas</h3>
-                  </div>
-                  <p className="text-sm text-gray-500">01/04/2025 - 30/04/2025</p>
-                  <p className="text-xs text-gray-400 mt-1">Generado el 30/04/2025</p>
-                </div>
+                {recentReports.length > 0 ? (
+                  recentReports.slice(0, 4).map((report) => (
+                    <div
+                      key={report.id}
+                      className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        // Descargar el reporte al hacer clic
+                        console.log("Descargando reporte reciente con ID:", report.id);
 
-                <div className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FilePdf className="h-5 w-5 text-red-600" />
-                    <h3 className="font-medium">Reporte de Ingresos</h3>
+                        // Reutilizar la función de descarga que definimos anteriormente
+                        descargarReporte(report.id);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {report.formato === 'excel' ? (
+                          <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <FilePdf className="h-5 w-5 text-red-600" />
+                        )}
+                        <h3 className="font-medium">{report.nombre}</h3>
+                      </div>
+                      <p className="text-sm text-gray-500">{report.rangoFechas}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Generado el {new Date(report.fechaCreacion).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    No hay reportes recientes
                   </div>
-                  <p className="text-sm text-gray-500">01/03/2025 - 31/03/2025</p>
-                  <p className="text-xs text-gray-400 mt-1">Generado el 01/04/2025</p>
-                </div>
-
-                <div className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                    <h3 className="font-medium">Uso de Instalaciones</h3>
-                  </div>
-                  <p className="text-sm text-gray-500">01/01/2025 - 31/03/2025</p>
-                  <p className="text-xs text-gray-400 mt-1">Generado el 01/04/2025</p>
-                </div>
-
-                <div className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FilePdf className="h-5 w-5 text-red-600" />
-                    <h3 className="font-medium">Reporte de Mantenimiento</h3>
-                  </div>
-                  <p className="text-sm text-gray-500">01/02/2025 - 28/02/2025</p>
-                  <p className="text-xs text-gray-400 mt-1">Generado el 01/03/2025</p>
-                </div>
+                )}
               </div>
             </CardContent>
             <CardFooter>

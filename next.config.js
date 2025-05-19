@@ -75,6 +75,15 @@ const nextConfig = {
         source: '/api/auth',
         destination: `${API_BASE_URL}/auth`,
       },
+      // Reportes
+      {
+        source: '/api/reportes/:path*',
+        destination: `${API_BASE_URL}/reportes/:path*`,
+      },
+      {
+        source: '/api/reportes',
+        destination: `${API_BASE_URL}/reportes`,
+      },
     ]
   },
 }
