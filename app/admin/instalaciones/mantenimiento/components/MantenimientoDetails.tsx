@@ -47,20 +47,31 @@ export default function MantenimientoDetailsPage() {
         const inicio = new Date(data.fechaInicio)
         const fin = new Date(data.fechaFin)
 
+        // Calcular el estado basado en las fechas
+        const now = new Date();
+        let status = "unknown";
+        if (now < inicio) status = "scheduled";
+        if (now >= inicio && now <= fin) status = "in-progress";
+        if (now > fin) status = "completed";
+
+        // Obtener el nombre y ubicación de la instalación
+        const facilityName = data.instalacion ? data.instalacion.nombre : "Desconocida";
+        const facilityLocation = data.instalacion ? data.instalacion.ubicacion : "";
+
         const parsed: Maintenance = {
           id: data.id,
-          facilityName: data.instalacionNombre,
-          facilityLocation: data.instalacionUbicacion,
-          type: data.motivo,
+          facilityName: facilityName,
+          facilityLocation: facilityLocation,
+          type: data.motivo || "preventivo",
           description: data.descripcion || "",
           startDate: format(inicio, "dd/MM/yyyy", { locale: es }),
           startTime: format(inicio, "HH:mm"),
           endDate: format(fin, "dd/MM/yyyy", { locale: es }),
           endTime: format(fin, "HH:mm"),
-          createdBy: data.creadoPor || "Desconocido",
+          createdBy: data.registradoPor?.nombre || "Administrador",
           createdAt: format(new Date(data.createdAt || new Date()), "dd/MM/yyyy HH:mm", { locale: es }),
-          affectsAvailability: true, // Ajusta si tienes este dato
-          status: "scheduled" // Puedes calcularlo por fecha si quieres
+          affectsAvailability: true, // Por defecto, el mantenimiento afecta la disponibilidad
+          status: status
         }
 
         setMaintenance(parsed)

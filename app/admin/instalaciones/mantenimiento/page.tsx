@@ -7,13 +7,23 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Plus, Search, AlertCircle } from "lucide-react"
+import { ArrowLeft, Plus, Search, AlertCircle, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import MantenimientoDetails from "./components/MantenimientoDetails"
 import { API_BASE_URL } from "@/lib/config";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function MantenimientoPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -25,9 +35,22 @@ export default function MantenimientoPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [facilityFilter, setFacilityFilter] = useState("all")
   const [selectedMaintenance, setSelectedMaintenance] = useState(null)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const { toast } = useToast()
 
   const getMaintenanceStatus = (maintenance) => {
+    // Si el mantenimiento tiene un estado explícito, lo usamos
+    if (maintenance.estado) {
+      switch (maintenance.estado) {
+        case "programado": return "scheduled";
+        case "en-progreso": return "in-progress";
+        case "completado": return "completed";
+        case "cancelado": return "cancelled";
+      }
+    }
+
+    // Si no tiene estado, lo inferimos por las fechas
     const now = new Date()
     const start = new Date(maintenance.fechaInicio)
     const end = new Date(maintenance.fechaFin)
@@ -37,24 +60,86 @@ export default function MantenimientoPage() {
     return "unknown"
   }
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const resMaintenances = await fetch(`${API_BASE_URL}/mantenimientos/filtrar`)
-        const maintenanceData = await resMaintenances.json()
-        setMaintenances(maintenanceData)
-        setFilteredMaintenances(maintenanceData)
+  // Estado para controlar la pestaña activa
+  const [activeTab, setActiveTab] = useState("activos")
 
-        const resFacilities = await fetch(`${API_BASE_URL}/instalaciones`)
-        const facilitiesData = await resFacilities.json()
-        setFacilities(facilitiesData)
-      } catch (error) {
-        console.error("Error loading data:", error)
-      } finally {
-        setIsLoading(false)
+  // Función para cargar los datos según la pestaña activa
+  const loadMaintenanceData = async (tab = activeTab) => {
+    // No activamos el loading al cambiar entre tabs para evitar parpadeos
+    const isInitialLoad = tab === activeTab;
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
+
+    try {
+      let endpoint = "";
+
+      // Seleccionar el endpoint según la pestaña
+      switch (tab) {
+        case "activos":
+          endpoint = `${API_BASE_URL}/mantenimientos/activos`;
+          break;
+        case "programados":
+          endpoint = `${API_BASE_URL}/mantenimientos/programados`;
+          break;
+        case "historial":
+          endpoint = `${API_BASE_URL}/mantenimientos/historial`;
+          break;
+        default:
+          endpoint = `${API_BASE_URL}/mantenimientos/filtrar`;
+      }
+
+      const resMaintenances = await fetch(endpoint);
+
+      if (!resMaintenances.ok) {
+        throw new Error(`Error al cargar datos: ${resMaintenances.status}`);
+      }
+
+      const maintenanceData = await resMaintenances.json();
+      setMaintenances(maintenanceData);
+      setFilteredMaintenances(maintenanceData);
+
+      // Resetear filtros al cambiar de pestaña
+      setSearchTerm("");
+      setStatusFilter("all");
+      setFacilityFilter("all");
+    } catch (error) {
+      console.error("Error loading maintenance data:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos de mantenimiento.",
+        variant: "destructive"
+      });
+    } finally {
+      if (isInitialLoad) {
+        setIsLoading(false);
       }
     }
-    loadData()
+  }
+
+  // Cargar las instalaciones
+  const loadFacilities = async () => {
+    try {
+      const resFacilities = await fetch(`${API_BASE_URL}/instalaciones`)
+      if (!resFacilities.ok) {
+        throw new Error(`Error al cargar instalaciones: ${resFacilities.status}`)
+      }
+      const facilitiesData = await resFacilities.json()
+      setFacilities(facilitiesData)
+    } catch (error) {
+      console.error("Error loading facilities:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las instalaciones.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadFacilities()
+    loadMaintenanceData()
   }, [])
 
   useEffect(() => {
@@ -73,7 +158,16 @@ export default function MantenimientoPage() {
     }
 
     if (facilityFilter !== "all") {
-      result = result.filter((m) => m.facilityId === Number.parseInt(facilityFilter))
+      // Buscar por el ID de la instalación en el nombre de la instalación
+      // Ya que el backend devuelve el nombre pero no el ID directamente
+      const facilityId = Number.parseInt(facilityFilter);
+      const facility = facilities.find(f => f.id === facilityId);
+
+      if (facility) {
+        result = result.filter((m) =>
+          m.instalacionNombre === facility.nombre
+        );
+      }
     }
 
     setFilteredMaintenances(result)
@@ -90,7 +184,72 @@ export default function MantenimientoPage() {
       case "cancelled":
         return <Badge className="bg-red-100 text-red-800">Cancelado</Badge>
       default:
+        // Si el mantenimiento tiene un estado explícito en el backend
+        if (status && typeof status === 'object' && status.estado) {
+          switch (status.estado) {
+            case "programado":
+              return <Badge className="bg-yellow-100 text-yellow-800">Programado</Badge>
+            case "en-progreso":
+              return <Badge className="bg-blue-100 text-blue-800">En progreso</Badge>
+            case "completado":
+              return <Badge className="bg-green-100 text-green-800">Completado</Badge>
+            case "cancelado":
+              return <Badge className="bg-red-100 text-red-800">Cancelado</Badge>
+            default:
+              return null
+          }
+        }
         return null
+    }
+  }
+
+  const handleDelete = (m) => {
+    setSelectedMaintenance(m);
+    setShowDeleteDialog(true);
+  }
+
+  const handleCancelMaintenance = (m) => {
+    setSelectedMaintenance(m);
+    setShowCancelDialog(true);
+  }
+
+  const confirmCancelMaintenance = async () => {
+    if (!selectedMaintenance) return;
+
+    try {
+      // Aquí se debe implementar la lógica para cambiar el estado a "cancelled"
+      const res = await fetch(`${API_BASE_URL}/mantenimientos/${selectedMaintenance.id}/cancelar`, {
+        method: "PUT"
+      });
+
+      if (res.ok) {
+        // Cambiar a la pestaña de historial para mostrar el mantenimiento cancelado
+        setActiveTab("historial");
+
+        // Actualizar la lista de mantenimientos después de cancelar
+        setTimeout(() => loadMaintenanceData("historial"), 100);
+
+        toast({
+          title: "Mantenimiento cancelado",
+          description: `Se canceló correctamente el mantenimiento de "${selectedMaintenance.instalacionNombre}". Se ha movido al historial.`,
+        });
+      } else {
+        toast({
+          title: "Error al cancelar",
+          description: "No se pudo cancelar el mantenimiento.",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      console.error("Error al cancelar:", err);
+      toast({
+        title: "Error de red",
+        description: "Hubo un problema al conectarse con el servidor.",
+        variant: "destructive"
+      });
+    } finally {
+      setShowCancelDialog(false);
+      setSelectedMaintenance(null);
     }
   }
 
@@ -100,8 +259,9 @@ export default function MantenimientoPage() {
         method: "DELETE"
       })
       if (res.ok) {
-        setMaintenances((prev) => prev.filter((mt) => mt.id !== m.id))
-        setFilteredMaintenances((prev) => prev.filter((mt) => mt.id !== m.id))
+        // Actualizar la lista de mantenimientos después de eliminar
+        loadMaintenanceData()
+
         toast({
           title: "Mantenimiento eliminado",
           description: `Se eliminó correctamente el mantenimiento de "${m.instalacionNombre}".`,
@@ -120,6 +280,9 @@ export default function MantenimientoPage() {
         description: "Hubo un problema al conectarse con el servidor.",
         variant: "destructive"
       })
+    } finally {
+      setShowDeleteDialog(false);
+      setSelectedMaintenance(null);
     }
   }
 
@@ -133,6 +296,67 @@ export default function MantenimientoPage() {
 
   return (
     <div className="space-y-6">
+      {/* Diálogo de confirmación para cancelar mantenimiento */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar mantenimiento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <div className="flex items-center space-x-2 text-amber-600 mb-4">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span>Esta acción cambiará el estado del mantenimiento a "Cancelado".</span>
+                </div>
+                {selectedMaintenance && (
+                  <div className="mt-2">
+                    ¿Estás seguro de que deseas cancelar el mantenimiento programado para{" "}
+                    <strong>{selectedMaintenance.instalacionNombre}</strong>?
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, mantener</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancelMaintenance} className="bg-red-600 hover:bg-red-700">
+              Sí, cancelar mantenimiento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de confirmación para eliminar mantenimiento */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar mantenimiento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <div className="flex items-center space-x-2 text-red-600 mb-4">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span>Esta acción eliminará permanentemente el registro de mantenimiento.</span>
+                </div>
+                {selectedMaintenance && (
+                  <div className="mt-2">
+                    ¿Estás seguro de que deseas eliminar el mantenimiento de{" "}
+                    <strong>{selectedMaintenance.instalacionNombre}</strong>?
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, mantener</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedMaintenance && handleDeleteMaintenance(selectedMaintenance)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Sí, eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center">
@@ -182,9 +406,8 @@ export default function MantenimientoPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="scheduled">Programado</SelectItem>
-                  <SelectItem value="in-progress">En progreso</SelectItem>
                   <SelectItem value="completed">Completado</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -210,7 +433,17 @@ export default function MantenimientoPage() {
       </Card>
 
       {/* Tabs */}
-      <Tabs defaultValue="activos" className="w-full">
+      <Tabs
+        defaultValue="activos"
+        className="w-full"
+        value={activeTab}
+        onValueChange={(value) => {
+          // Primero actualizamos la pestaña activa para una respuesta inmediata en la UI
+          setActiveTab(value)
+          // Luego cargamos los datos en segundo plano
+          setTimeout(() => loadMaintenanceData(value), 0)
+        }}
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="activos">Activos</TabsTrigger>
           <TabsTrigger value="programados">Programados</TabsTrigger>
@@ -219,28 +452,34 @@ export default function MantenimientoPage() {
 
         <TabsContent value="activos" className="mt-4">
           <MaintenanceTable
-            maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "in-progress")}
+            maintenances={filteredMaintenances}
             getMaintenanceStatus={getMaintenanceStatus}
             getStatusBadge={getStatusBadge}
-            handleDelete={handleDeleteMaintenance}
+            handleDelete={handleDelete}
+            handleCancelMaintenance={handleCancelMaintenance}
+            activeTab={activeTab}
           />
         </TabsContent>
 
         <TabsContent value="programados" className="mt-4">
           <MaintenanceTable
-            maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "scheduled")}
+            maintenances={filteredMaintenances}
             getMaintenanceStatus={getMaintenanceStatus}
             getStatusBadge={getStatusBadge}
-            handleDelete={handleDeleteMaintenance}
+            handleDelete={handleDelete}
+            handleCancelMaintenance={handleCancelMaintenance}
+            activeTab={activeTab}
           />
         </TabsContent>
 
         <TabsContent value="historial" className="mt-4">
           <MaintenanceTable
-            maintenances={filteredMaintenances.filter((m) => getMaintenanceStatus(m) === "completed")}
+            maintenances={filteredMaintenances}
             getMaintenanceStatus={getMaintenanceStatus}
             getStatusBadge={getStatusBadge}
-            handleDelete={handleDeleteMaintenance}
+            handleDelete={handleDelete}
+            handleCancelMaintenance={handleCancelMaintenance}
+            activeTab={activeTab}
           />
         </TabsContent>
       </Tabs>
@@ -249,22 +488,22 @@ export default function MantenimientoPage() {
 }
 
 // Tabla
-function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, handleDelete }) {
+function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, handleDelete, handleCancelMaintenance, activeTab }) {
   if (maintenances.length === 0) {
     return (
-      <div className="text-center py-8">
-        <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-lg font-medium">No hay mantenimientos</h3>
-        <p className="mt-1 text-gray-500">No hay datos disponibles.</p>
+      <div className="text-center py-8 bg-white rounded-md shadow">
+        <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mt-6" />
+        <h3 className="mt-4 text-lg font-medium">No hay mantenimientos</h3>
+        <p className="mt-2 text-gray-500 mb-6">No hay datos disponibles para esta sección.</p>
       </div>
     )
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-md bg-white shadow">
       <table className="w-full">
         <thead>
-          <tr className="border-b">
+          <tr className="border-b bg-gray-50">
             <th className="text-left py-3 px-4 font-medium">Instalación</th>
             <th className="text-left py-3 px-4 font-medium">Descripción</th>
             <th className="text-left py-3 px-4 font-medium">Fechas</th>
@@ -274,7 +513,7 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
         </thead>
         <tbody>
           {maintenances.map((m) => (
-            <tr key={m.id} className="border-b">
+            <tr key={m.id} className="border-b hover:bg-gray-50">
               <td className="py-3 px-4">{m.instalacionNombre}</td>
               <td className="py-3 px-4">{m.descripcion}</td>
               <td className="py-3 px-4">
@@ -288,8 +527,12 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
                       Ver detalles
                     </Button>
                   </Link>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(m)}>
-                    Eliminar
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => activeTab === "programados" ? handleCancelMaintenance(m) : handleDelete(m)}
+                  >
+                    {activeTab === "programados" ? "Cancelar" : "Eliminar"}
                   </Button>
                 </div>
               </td>
