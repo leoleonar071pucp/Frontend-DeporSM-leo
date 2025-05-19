@@ -2,42 +2,89 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { CheckCircle, Loader2, Bell, Lock, LogOut, Laptop } from "lucide-react"
+import { CheckCircle, Loader2, Bell, Lock, LogOut, Laptop, Eye, EyeOff, AlertCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { API_BASE_URL } from "@/lib/config"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
 
 export default function ConfiguracionAdmin() {
+  const { toast } = useToast()
+  const router = useRouter()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("seguridad")
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false)
 
   // Estado para la configuración de notificaciones
   const [notificationSettings, setNotificationSettings] = useState({
-    email: true,
-    reservas: true,
-    pagos: true,
-    mantenimiento: true,
-    reportes: false,
+    email: true
   })
 
   // Estado para el cambio de contraseña
   const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    passwordActual: "",
+    passwordNueva: "",
+    confirmacionPassword: "",
   })
+
+  // Estados para mostrar/ocultar contraseñas
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // Estado para validación de coincidencia de contraseñas
+  const [passwordsMatch, setPasswordsMatch] = useState(true)
 
   // Estado para errores de validación
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Cargar preferencias de notificaciones desde el backend
+  useEffect(() => {
+    const fetchNotificationPreferences = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/usuarios/preferencias-notificaciones`, {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setNotificationSettings({
+            email: data.email
+          });
+        }
+      } catch (error) {
+        console.error("Error al cargar preferencias de notificaciones:", error);
+      }
+    };
+
+    fetchNotificationPreferences();
+  }, []);
+
+  // Manejadores para alternar la visibilidad de las contraseñas
+  const toggleCurrentPasswordVisibility = () => setShowCurrentPassword(prev => !prev);
+  const toggleNewPasswordVisibility = () => setShowNewPassword(prev => !prev);
+  const toggleConfirmPasswordVisibility = () => setShowConfirmPassword(prev => !prev);
+
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setPasswordData((prev) => ({ ...prev, [name]: value }))
+
+    // Verificar coincidencia de contraseñas
+    if (name === 'passwordNueva') {
+      setPasswordsMatch(value === passwordData.confirmacionPassword || passwordData.confirmacionPassword === "");
+    } else if (name === 'confirmacionPassword') {
+      setPasswordsMatch(value === passwordData.passwordNueva);
+    }
 
     // Limpiar error al editar
     if (errors[name]) {
@@ -56,66 +103,149 @@ export default function ConfiguracionAdmin() {
   const validatePasswordForm = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!passwordData.currentPassword) {
-      newErrors.currentPassword = "La contraseña actual es obligatoria"
+    if (!passwordData.passwordActual) {
+      newErrors.passwordActual = "La contraseña actual es obligatoria"
     }
 
-    if (!passwordData.newPassword) {
-      newErrors.newPassword = "La nueva contraseña es obligatoria"
-    } else if (passwordData.newPassword.length < 8) {
-      newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres"
+    if (!passwordData.passwordNueva) {
+      newErrors.passwordNueva = "La nueva contraseña es obligatoria"
+    } else if (passwordData.passwordNueva.length < 6) {
+      newErrors.passwordNueva = "La contraseña debe tener al menos 6 caracteres"
     }
 
-    if (!passwordData.confirmPassword) {
-      newErrors.confirmPassword = "Debes confirmar la nueva contraseña"
-    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
-      newErrors.confirmPassword = "Las contraseñas no coinciden"
+    if (!passwordData.confirmacionPassword) {
+      newErrors.confirmacionPassword = "Debes confirmar la nueva contraseña"
+    } else if (passwordData.passwordNueva !== passwordData.confirmacionPassword) {
+      newErrors.confirmacionPassword = "Las contraseñas no coinciden"
+      setPasswordsMatch(false);
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validatePasswordForm()) {
       return
     }
 
-    setIsSaving(true)
+    setIsChangingPassword(true)
 
-    // Simulación de cambio de contraseña
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/usuarios/cambiar-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(passwordData)
+      });
 
-      // Resetear formulario y mensaje de éxito
+      if (response.status === 401) {
+        toast({
+          variant: "destructive",
+          title: "Sesión expirada",
+          description: "Por favor, inicia sesión nuevamente.",
+        });
+        router.push('/login');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        // El backend devuelve el mensaje de error en el body
+        throw new Error(typeof errorData === 'string' ? errorData :
+          (errorData.message || "Error al cambiar la contraseña"));
+      }
+
+      // Limpiar campos de contraseña y restablecer estados
       setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      })
+        passwordActual: "",
+        passwordNueva: "",
+        confirmacionPassword: ""
+      });
 
+      // Ocultar contraseñas
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+
+      // Restablecer estado de coincidencia
+      setPasswordsMatch(true);
+
+      setIsSuccess(true);
+
+      toast({
+        title: "Contraseña actualizada",
+        description: "Tu contraseña ha sido actualizada correctamente.",
+      });
+
+      // Ocultar mensaje de éxito después de 3 segundos
       setTimeout(() => {
-        setIsSuccess(false)
-      }, 3000)
-    }, 1500)
+        setIsSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Error al cambiar la contraseña:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo cambiar la contraseña",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
   }
 
-  const handleSaveNotifications = () => {
-    setIsSaving(true)
+  const handleSaveNotifications = async () => {
+    setIsSavingNotifications(true);
 
-    // Simulación de guardado
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/usuarios/preferencias-notificaciones`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(notificationSettings)
+      });
 
-      // Resetear mensaje de éxito después de 3 segundos
+      if (response.status === 401) {
+        toast({
+          variant: "destructive",
+          title: "Sesión expirada",
+          description: "Por favor, inicia sesión nuevamente.",
+        });
+        router.push('/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Error al guardar preferencias: ${response.status}`);
+      }
+
+      setIsSuccess(true);
+
+      toast({
+        title: "Preferencias guardadas",
+        description: "Tus preferencias de notificaciones han sido actualizadas.",
+      });
+
+      // Ocultar mensaje de éxito después de 3 segundos
       setTimeout(() => {
-        setIsSuccess(false)
-      }, 3000)
-    }, 1500)
+        setIsSuccess(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Error al guardar preferencias:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron guardar las preferencias de notificaciones",
+      });
+    } finally {
+      setIsSavingNotifications(false);
+    }
   }
 
   // Estado para sesiones activas (simuladas)
@@ -137,13 +267,13 @@ export default function ConfiguracionAdmin() {
 
   const handleTerminateSession = (sessionId: string) => {
     setIsSaving(true);
-    
+
     // Simulación de cierre de sesión
     setTimeout(() => {
       setActiveSessions(prev => prev.filter(session => session.id !== sessionId));
       setIsSaving(false);
       setIsSuccess(true);
-      
+
       setTimeout(() => {
         setIsSuccess(false);
       }, 3000);
@@ -152,13 +282,13 @@ export default function ConfiguracionAdmin() {
 
   const handleTerminateAllSessions = () => {
     setIsSaving(true);
-    
+
     // Simulación de cierre de todas las sesiones excepto la actual
     setTimeout(() => {
       setActiveSessions(prev => prev.filter(session => session.current));
       setIsSaving(false);
       setIsSuccess(true);
-      
+
       setTimeout(() => {
         setIsSuccess(false);
       }, 3000);
@@ -198,57 +328,100 @@ export default function ConfiguracionAdmin() {
               <form onSubmit={handleChangePassword}>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="currentPassword" className="flex items-center gap-2">
+                    <Label htmlFor="passwordActual" className="flex items-center gap-2">
                       <Lock className="h-4 w-4 text-primary" />
                       Contraseña actual
                     </Label>
-                    <Input
-                      id="currentPassword"
-                      name="currentPassword"
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={handlePasswordChange}
-                      className={errors.currentPassword ? "border-red-500" : ""}
-                    />
-                    {errors.currentPassword && <p className="text-red-500 text-sm">{errors.currentPassword}</p>}
+                    <div className="relative">
+                      <Input
+                        id="passwordActual"
+                        name="passwordActual"
+                        type={showCurrentPassword ? "text" : "password"}
+                        placeholder="Ingresa tu contraseña actual"
+                        value={passwordData.passwordActual}
+                        onChange={handlePasswordChange}
+                        className={errors.passwordActual ? "border-red-500" : ""}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        onClick={toggleCurrentPasswordVisibility}
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.passwordActual && <p className="text-red-500 text-sm">{errors.passwordActual}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newPassword" className="flex items-center gap-2">
+                    <Label htmlFor="passwordNueva" className="flex items-center gap-2">
                       <Lock className="h-4 w-4 text-primary" />
                       Nueva contraseña
                     </Label>
-                    <Input
-                      id="newPassword"
-                      name="newPassword"
-                      type="password"
-                      value={passwordData.newPassword}
-                      onChange={handlePasswordChange}
-                      className={errors.newPassword ? "border-red-500" : ""}
-                    />
-                    {errors.newPassword && <p className="text-red-500 text-sm">{errors.newPassword}</p>}
+                    <div className="relative">
+                      <Input
+                        id="passwordNueva"
+                        name="passwordNueva"
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="Ingresa tu nueva contraseña"
+                        value={passwordData.passwordNueva}
+                        onChange={handlePasswordChange}
+                        className={errors.passwordNueva ? "border-red-500" : ""}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        onClick={toggleNewPasswordVisibility}
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {errors.passwordNueva && <p className="text-red-500 text-sm">{errors.passwordNueva}</p>}
+                    <p className="text-xs text-gray-500 mt-1">
+                      La contraseña debe tener al menos 6 caracteres
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className="flex items-center gap-2">
+                    <Label htmlFor="confirmacionPassword" className="flex items-center gap-2">
                       <Lock className="h-4 w-4 text-primary" />
                       Confirmar nueva contraseña
                     </Label>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={passwordData.confirmPassword}
-                      onChange={handlePasswordChange}
-                      className={errors.confirmPassword ? "border-red-500" : ""}
-                    />
-                    {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
+                    <div className="relative">
+                      <Input
+                        id="confirmacionPassword"
+                        name="confirmacionPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirma tu nueva contraseña"
+                        value={passwordData.confirmacionPassword}
+                        onChange={handlePasswordChange}
+                        className={!passwordsMatch && passwordData.confirmacionPassword ? "border-red-500 focus-visible:ring-red-500" : errors.confirmacionPassword ? "border-red-500" : ""}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        onClick={toggleConfirmPasswordVisibility}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {!passwordsMatch && passwordData.confirmacionPassword && (
+                      <div className="flex items-center text-red-500 text-xs mt-1">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Las contraseñas no coinciden
+                      </div>
+                    )}
+                    {errors.confirmacionPassword && passwordsMatch && <p className="text-red-500 text-sm">{errors.confirmacionPassword}</p>}
                   </div>
 
                   <div className="mt-6 flex justify-end">
-                    <Button type="submit" className="bg-primary hover:bg-primary-light" disabled={isSaving}>
-                      {isSaving ? (
+                    <Button
+                      type="submit"
+                      className="bg-primary hover:bg-primary-light"
+                      disabled={isChangingPassword}
+                    >
+                      {isChangingPassword ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Actualizando...
+                          Cambiando...
                         </>
                       ) : (
                         "Cambiar contraseña"
@@ -299,9 +472,9 @@ export default function ConfiguracionAdmin() {
                       </div>
                     </div>
                     {!session.current && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleTerminateSession(session.id)}
                         disabled={isSaving}
                       >
@@ -374,70 +547,6 @@ export default function ConfiguracionAdmin() {
                         onCheckedChange={(checked) => handleNotificationChange("email", checked)}
                       />
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="reservas-notifications" className="font-medium">
-                          Reservas
-                        </Label>
-                        <p className="text-sm text-gray-500">
-                          Notificaciones sobre nuevas reservas y cambios en reservas existentes
-                        </p>
-                      </div>
-                      <Switch
-                        id="reservas-notifications"
-                        checked={notificationSettings.reservas}
-                        onCheckedChange={(checked) => handleNotificationChange("reservas", checked)}
-                        disabled={!notificationSettings.email}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="pagos-notifications" className="font-medium">
-                          Pagos
-                        </Label>
-                        <p className="text-sm text-gray-500">Notificaciones sobre pagos pendientes y confirmados</p>
-                      </div>
-                      <Switch
-                        id="pagos-notifications"
-                        checked={notificationSettings.pagos}
-                        onCheckedChange={(checked) => handleNotificationChange("pagos", checked)}
-                        disabled={!notificationSettings.email}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="mantenimiento-notifications" className="font-medium">
-                          Mantenimiento
-                        </Label>
-                        <p className="text-sm text-gray-500">
-                          Notificaciones sobre mantenimientos programados y completados
-                        </p>
-                      </div>
-                      <Switch
-                        id="mantenimiento-notifications"
-                        checked={notificationSettings.mantenimiento}
-                        onCheckedChange={(checked) => handleNotificationChange("mantenimiento", checked)}
-                        disabled={!notificationSettings.email}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="reportes-notifications" className="font-medium">
-                          Reportes
-                        </Label>
-                        <p className="text-sm text-gray-500">Recibe reportes periódicos por correo electrónico</p>
-                      </div>
-                      <Switch
-                        id="reportes-notifications"
-                        checked={notificationSettings.reportes}
-                        onCheckedChange={(checked) => handleNotificationChange("reportes", checked)}
-                        disabled={!notificationSettings.email}
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -446,9 +555,9 @@ export default function ConfiguracionAdmin() {
               <Button
                 className="bg-primary hover:bg-primary-light"
                 onClick={handleSaveNotifications}
-                disabled={isSaving}
+                disabled={isSavingNotifications}
               >
-                {isSaving ? (
+                {isSavingNotifications ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Guardando...

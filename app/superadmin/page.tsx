@@ -136,8 +136,8 @@ const UserActivity = ({ activity }: UserActivityProps) => {
           </div>
           <div className="flex flex-col items-end">
             <Badge
-              className={activity.userType === "Administrador" ? "bg-[#def7ff] text-[#0cb7f2]" : 
-                activity.userType === "Coordinador" ? "bg-green-100 text-green-800" : 
+              className={activity.userType === "Administrador" ? "bg-[#def7ff] text-[#0cb7f2]" :
+                activity.userType === "Coordinador" ? "bg-green-100 text-green-800" :
                 "bg-gray-100 text-gray-800"}
             >
               {activity.userType}
@@ -221,17 +221,18 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard de Superadministrador</h1>
-        <p className="text-muted-foreground">Bienvenido al panel de control del sistema DeporSM.</p>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Dashboard de Superadministrador</h1>
+        <p className="text-muted-foreground text-lg">Bienvenido al panel de control del sistema DeporSM.</p>
       </div>
 
       {/* Estadísticas */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard
           title="Total de Usuarios"
           value={stats.totalUsers}
-          icon={<Users className="h-4 w-4" />}          change={stats.monthlyChanges !== undefined ? `${stats.monthlyChanges.totalUsers >= 0 ? '+' : ''}${stats.monthlyChanges.totalUsers}% desde el mes pasado` : ''}
+          icon={<Users className="h-4 w-4" />}
+          change={stats.monthlyChanges !== undefined ? `${stats.monthlyChanges.totalUsers >= 0 ? '+' : ''}${stats.monthlyChanges.totalUsers}% desde el mes pasado` : ''}
           isIncrease={stats.monthlyChanges?.totalUsers >= 0}
           description="Usuarios registrados en el sistema"
         />
@@ -261,10 +262,10 @@ export default function Page() {
         />
       </div>
 
-      {/* Contenido principal */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Contenido principal - Reorganizado para la presentación */}
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
         {/* Distribución de usuarios */}
-        <Card>
+        <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Distribución de Usuarios</CardTitle>
             <CardDescription>Usuarios registrados por tipo de rol</CardDescription>
@@ -274,30 +275,8 @@ export default function Page() {
           </CardContent>
         </Card>
 
-        {/* Actividad reciente de usuarios */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Actividad Reciente</CardTitle>
-              <CardDescription>Últimas acciones realizadas en el sistema</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/superadmin/monitoreo/actividad-usuarios">Ver todas</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-0 divide-y">
-              {recentActivity.map((activity) => (
-                <UserActivity key={activity.id} activity={activity} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Enlaces rápidos */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        {/* Gestión de Usuarios */}
+        <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Gestión de Usuarios</CardTitle>
             <CardDescription>Administra los usuarios del sistema</CardDescription>
@@ -321,6 +300,28 @@ export default function Page() {
                 Vecinos
               </Link>
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secciones comentadas para la presentación
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Actividad Reciente</CardTitle>
+              <CardDescription>Últimas acciones realizadas en el sistema</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/superadmin/monitoreo/actividad-usuarios">Ver todas</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-0 divide-y">
+              {recentActivity.map((activity) => (
+                <UserActivity key={activity.id} activity={activity} />
+              ))}
+            </div>
           </CardContent>
         </Card>
 
@@ -366,6 +367,7 @@ export default function Page() {
           </CardContent>
         </Card>
       </div>
+      */}
     </div>
   )
 }

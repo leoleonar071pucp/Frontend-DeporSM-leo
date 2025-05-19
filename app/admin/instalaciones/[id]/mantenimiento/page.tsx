@@ -7,10 +7,12 @@ import { ArrowLeft, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { addDays } from "date-fns"
+import { addDays, format } from "date-fns"
+import { es } from "date-fns/locale"
 import { MantenimientoForm } from "./components"
 import { Badge } from "@/components/ui/badge"
 import { API_BASE_URL } from "@/lib/config"
+import { useNotification } from "@/context/NotificationContext"
 
 // Datos de ejemplo para las instalaciones
 const facilitiesDB = [
@@ -132,6 +134,7 @@ const maintenanceDB = [
 
 export default function MantenimientoPage() {
   const { toast } = useToast()
+  const { addNotification } = useNotification()
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
@@ -350,6 +353,18 @@ export default function MantenimientoPage() {
         const errorText = await response.text();
         throw new Error(errorText || `Error ${response.status}: No se pudo ${isEditing ? 'actualizar' : 'guardar'} el mantenimiento`);
       }
+
+      // Crear notificación en el sistema
+      const notificationTitle = isEditing ? "Mantenimiento actualizado" : "Mantenimiento programado";
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+
+      addNotification({
+        title: notificationTitle,
+        message: `Se ha ${isEditing ? 'actualizado' : 'programado'} un mantenimiento ${formData.maintenanceType} para ${facility.name} del ${format(startDate, "PPP", { locale: es })} al ${format(endDate, "PPP", { locale: es })}.`,
+        type: "mantenimiento",
+        category: "mantenimiento"
+      });
 
       // Mostrar mensaje de éxito
       toast({

@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { API_BASE_URL } from "@/lib/config"
 import { useToast } from "@/components/ui/use-toast"
+import { useNotification } from "@/context/NotificationContext"
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,7 @@ const dateToCalendarValue = (date: Date | null): Date | undefined => {
 export default function ProgramarMantenimientoPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { addNotification } = useNotification()
   const [installations, setInstallations] = useState<Instalacion[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -293,6 +295,18 @@ export default function ProgramarMantenimientoPage() {
 
       setIsSuccess(true)
       setFormError("")
+
+      // Obtener el nombre de la instalación seleccionada
+      const selectedInstallation = installations.find(inst => inst.id.toString() === formData.facilityId);
+      const installationName = selectedInstallation ? selectedInstallation.nombre : "instalación";
+
+      // Crear notificación en el sistema
+      addNotification({
+        title: "Mantenimiento programado",
+        message: `Se ha programado un mantenimiento ${formData.maintenanceType} para ${installationName} del ${format(formData.startDate!, "PPP", { locale: es })} al ${format(formData.endDate!, "PPP", { locale: es })}.`,
+        type: "mantenimiento",
+        category: "mantenimiento"
+      });
 
       // Mostrar mensaje de éxito con información sobre reservas canceladas
       toast({
