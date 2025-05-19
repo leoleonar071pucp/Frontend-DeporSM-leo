@@ -28,6 +28,12 @@ interface AssignedSchedules {
   };
 }
 
+// Interfaz para almacenar información de visitas registradas con fecha
+interface RegisteredVisitInfo {
+  id: number;
+  registeredDate: string; // Fecha ISO string
+}
+
 // Función para normalizar nombres de días
 const normalizeDayName = (dayString: string): string => {
   if (!dayString) return "lunes"; // Valor predeterminado
@@ -93,62 +99,36 @@ const isDayOfWeek = (date: Date, day: string): boolean => {
   return false;
 };
 
-// Función para obtener las visitas registradas desde localStorage
-const getRegisteredVisits = (): number[] => {
-  try {
-    const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
-    const registeredVisits = JSON.parse(registeredVisitsJson);
-    console.log("Contenido de localStorage['registeredVisits']:", registeredVisitsJson);
-    console.log("Visitas registradas parseadas:", registeredVisits);
-    return registeredVisits;
-  } catch (e) {
-    console.error("Error al leer visitas registradas desde localStorage:", e);
-    return [];
-  }
-};
-
 export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
   try {
-    // ID de coordinador (fijo para desarrollo y pruebas)
-    const userId = 4;
+    // Obtener el usuario desde la sesión
+    let userId;
+    try {
+      const authDataStr = sessionStorage.getItem('authData');
+      if (authDataStr) {
+        const authData = JSON.parse(authDataStr);
+        userId = authData.user?.id || 4; // Usar ID del usuario autenticado, o 4 como fallback
+      } else {
+        userId = 4; // ID por defecto si no hay sesión
+      }
+    } catch (e) {
+      console.warn("Error al obtener el usuario de la sesión:", e);
+      userId = 4; // Usar ID por defecto
+    }
     
-    // Obtener los horarios del coordinador
+    // Obtener los horarios del coordinador desde la API
     const response = await apiGet(`horarios-coordinador/coordinador/${userId}`);
     let horarios: HorarioCoordinador[] = [];
     
     if (response.ok) {
-      horarios = await response.json();
-      if (!Array.isArray(horarios)) {
-        console.warn("Formato de respuesta incorrecto, usando datos de desarrollo");
-        horarios = [];
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        horarios = data;
+      } else {
+        console.warn("Formato de respuesta incorrecto");
       }
     } else {
-      console.warn(`Error al cargar horarios: ${response.status}, usando datos de desarrollo`);
-    }
-    
-    // Si no hay horarios del backend o hubo un error, usamos datos de desarrollo
-    if (horarios.length === 0) {
-      // Añadir manualmente un horario para el domingo (día 18 de mayo de 2025)
-      horarios = [
-        {
-          id: 301,
-          coordinadorInstalacionId: 4,
-          diaSemana: "domingo",
-          horaInicio: "09:00",
-          horaFin: "13:00",
-          instalacionNombre: "Gimnasio Municipal",
-          instalacionId: 3
-        },
-        {
-          id: 401,
-          coordinadorInstalacionId: 4,
-          diaSemana: "domingo",
-          horaInicio: "14:00",
-          horaFin: "18:00",
-          instalacionNombre: "Cancha de Fútbol (Grass)",
-          instalacionId: 1
-        }
-      ];
+      console.warn(`Error al cargar horarios: ${response.status}`);
     }
     
     // Procesar los horarios y convertirlos al formato requerido
@@ -175,9 +155,8 @@ export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
       let startTime = typeof horario.horaInicio === 'string' ? horario.horaInicio : '00:00';
       let endTime = typeof horario.horaFin === 'string' ? horario.horaFin : '00:00';
       
-      // Asegurar formato HH:MM y manejo de casos especiales
+      // Asegurar formato HH:MM
       try {
-        // Si viene en formato HH:MM:SS, extraer solo HH:MM
         if (startTime.includes(':') && startTime.length >= 5) {
           startTime = startTime.substring(0, 5);
         }
@@ -196,94 +175,61 @@ export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
         startTime: startTime,
         endTime: endTime
       });
-    });      // Generar visitas programadas solo para el día actual
-    // Usar la fecha actual del sistema, forzando a que sea el 18 de mayo de 2025 para desarrollo
-    // Crear fecha en zona horaria de Perú (GMT-5)
-    const today = new Date(Date.UTC(2025, 4, 18, 12, 0, 0)); // Mayo es el mes 4 (0-indexado) y 18 es el día (domingo)
-    // Ajustar para la zona horaria de Perú (GMT-5)
-    today.setHours(today.getHours() - 5);
-    console.log(`Día de la semana actual en Perú: ${format(today, 'EEEE', { locale: es })}`);
+    });
     
-    // Crear solo el día de hoy
-    const dayOne = today; // Hoy en Perú
+    // Generar visitas programadas para el día actual
+    // Ajustar a la zona horaria de Perú (GMT-5)
+    const now = new Date();
+    const localOffset = now.getTimezoneOffset();
+    const peruOffset = -300; // -5 horas * 60 minutos
+    const offsetDiff = localOffset + peruOffset;
+    const today = new Date(now.getTime() + offsetDiff * 60000);
     
-    // Verificar que la fecha generada sea correcta
-    console.log("Fecha generada para las visitas:");
-    console.log(`Hoy: ${format(dayOne, 'yyyy-MM-dd')} (${format(dayOne, 'EEEE', { locale: es })})`);
+    // Obtener el nombre del día actual en español
+    const currentDayName = format(today, 'EEEE', { locale: es }).toLowerCase();
     
-    // Generar visitas programadas solo para hoy
     const visits: ScheduledVisit[] = [];
-    
-    // Obtener el nombre del día actual
-    const currentDayName = format(dayOne, 'EEEE', { locale: es }).toLowerCase();
-    console.log(`Generando visitas solo para ${currentDayName} (${format(dayOne, 'yyyy-MM-dd')})`);
     
     // Revisar cada instalación y sus horarios
     Object.entries(processedSchedules).forEach(([facilityId, facilityData]) => {
-      // Filtrar horarios para este día específico
+      // Filtrar horarios para el día actual
       const schedulesForDay = facilityData.schedules.filter(schedule => {
-        const matches = isDayOfWeek(dayOne, schedule.day);
-        if (matches) {
-          console.log(`  - Coincidencia: Horario (${schedule.day}) coincide con ${currentDayName} para instalación ${facilityData.facilityName}`);
-        }
+        // Comparamos con el día actual calculado
+        // Normalizamos ambos días para asegurar la comparación correcta
+        const normalizedScheduleDay = normalizeDayName(schedule.day);
+        const normalizedCurrentDay = normalizeDayName(currentDayName);
+        const matches = normalizedScheduleDay === normalizedCurrentDay;
         return matches;
       });
       
       schedulesForDay.forEach(schedule => {
         // Crear un ID único usando una combinación de fecha, facilityId y día
-        const uniqueId = parseInt(`${dayOne.getFullYear()}${dayOne.getMonth()}${dayOne.getDate()}${facilityId}${schedule.id}`);
+        const uniqueId = parseInt(`${today.getFullYear()}${today.getMonth()}${today.getDate()}${facilityId}${schedule.id}`);
         
+        // Usamos la fecha actual en Perú, ya calculada anteriormente
         const visit = {
           id: uniqueId,
           facilityId: parseInt(facilityId),
           facilityName: facilityData.facilityName,
           location: "Sin ubicación registrada", // La API actual no devuelve ubicación
-          date: format(dayOne, 'yyyy-MM-dd'),
+          date: format(today, 'yyyy-MM-dd'), // Usar la fecha actual en Perú
           scheduledTime: schedule.startTime,
           scheduledEndTime: schedule.endTime,
           image: "/placeholder.svg" // La API actual no devuelve imagen
         };
         
         visits.push(visit);
-        console.log(`    + Visita creada para ${currentDayName} en ${facilityData.facilityName}`);
       });
     });
     
     // Terminado proceso de crear visitas para el día actual
-    const firstDate = dayOne;  // Hoy
-    
-    // Formatear la fecha que queremos filtrar
-    const firstDateStr = format(firstDate, 'yyyy-MM-dd'); // Hoy
-    
-    // Registrar los días para depuración
-    console.log(`Fecha de filtrado específica:`);
-    console.log(`- Hoy: ${firstDateStr} (${format(firstDate, 'EEEE', { locale: es })})`);
-    
-    // Imprimir todas las fechas en las visitas para debugging
-    console.log("Todas las fechas de visitas generadas:", visits.map(v => v.date));
+    // Usar la fecha en Perú para filtrado
+    const todayStr = format(today, 'yyyy-MM-dd'); // Fecha actual en Perú
     
     // Filtrar visitas para asegurar que solo muestren las del día actual
-    // Si no hay visitas para el día actual, esto puede indicar un problema con la generación
-    if (!visits.some(visit => visit.date === firstDateStr)) {
-      console.warn(`ADVERTENCIA: No se encontraron visitas para hoy (${firstDateStr})`);
-    }
+    const filteredVisits = visits.filter(visit => visit.date === todayStr);
     
-    // Forzar la inclusión explícita de solo el día actual
-    const filteredVisits = visits.filter(visit => {
-      // Compara directamente con la cadena de fecha generada para hoy
-      const isMatch = visit.date === firstDateStr;
-      
-      // Registrar fechas descartadas para debugging
-      if (!isMatch) {
-        console.log(`Descartando visita que no es de hoy: ${visit.date}`);
-      }
-      
-      return isMatch;
-    });
-    
-    // Log de las visitas filtradas por día
-    console.log("Visitas filtradas para hoy:", filteredVisits.filter(v => v.date === firstDateStr).length);
-      // Ordenar las visitas por fecha y hora
+    // Ordenar las visitas por fecha y hora
     filteredVisits.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -292,24 +238,64 @@ export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
       if (dateComparison !== 0) return dateComparison;
       return a.scheduledTime.localeCompare(b.scheduledTime);
     });
-      // Obtener las visitas ya registradas
-    const registeredVisits = getRegisteredVisits();
-    console.log("Visitas ya registradas:", registeredVisits);
     
-    // Imprimir IDs de todas las visitas para comparación
-    console.log("IDs de visitas filtradas:", filteredVisits.map(v => v.id));
-      // Marcar las visitas que ya han sido registradas en lugar de filtrarlas
+    // Obtener las visitas ya registradas
+    // Aquí necesitamos la información completa incluyendo fechas
+    const registeredVisitsRaw = localStorage.getItem('registeredVisits') || '[]';
+    let registeredVisitsFull: RegisteredVisitInfo[] = [];
+    
+    try {
+      registeredVisitsFull = JSON.parse(registeredVisitsRaw);
+      // Convertir formato antiguo si es necesario
+      if (Array.isArray(registeredVisitsFull) && (registeredVisitsFull.length === 0 || typeof registeredVisitsFull[0] === 'number')) {
+        registeredVisitsFull = registeredVisitsFull.map((id: number) => ({
+          id,
+          registeredDate: new Date().toISOString()
+        }));
+      }
+    } catch (e) {
+      console.error("Error al parsear registeredVisits:", e);
+      registeredVisitsFull = [];
+    }
+    
+    // Filtrar para obtener solo los IDs de las visitas no expiradas
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    
+    const registeredVisits = registeredVisitsFull
+      .filter(visit => {
+        if (!visit.registeredDate) return false;
+        const registeredDate = new Date(visit.registeredDate);
+        return registeredDate > twoDaysAgo;
+      })
+      .map(visit => visit.id);
+    
+    // Marcar las visitas que ya han sido registradas en lugar de filtrarlas
     const allVisitsWithStatus = filteredVisits.map(visit => {
+      // Buscar información completa de registro si existe
+      const registrationInfo = registeredVisitsFull.find(rv => rv.id === visit.id);
       const isRegistered = registeredVisits.includes(visit.id);
-      console.log(`Visita ID=${visit.id}, registrada=${isRegistered}`);
-      // Añadimos propiedad status para uso en el UI pero no filtramos
+      
+      // Si está registrada, añadir información de fechas
+      if (isRegistered && registrationInfo) {
+        const registrationDate = new Date(registrationInfo.registeredDate);
+        const expirationDate = new Date(registrationDate);
+        expirationDate.setDate(expirationDate.getDate() + 2);
+        
+        return {
+          ...visit,
+          isRegistered: true,
+          registrationDate: registrationInfo.registeredDate,
+          registrationExpires: expirationDate.toISOString()
+        };
+      }
+      
+      // Si no está registrada, mantener la estructura base
       return {
         ...visit,
-        isRegistered: isRegistered
+        isRegistered: false
       };
     });
-    
-    console.log(`Total de visitas: ${filteredVisits.length}, de las cuales ${allVisitsWithStatus.filter(v => v.isRegistered).length} ya están registradas`);
     
     return allVisitsWithStatus;
     

@@ -94,11 +94,18 @@ export async function getScheduledVisit(visitId: number, facilityId: number): Pr
       1: "Cancha de Fútbol (Grass)",
       2: "Piscina Municipal",
       3: "Gimnasio Municipal"
-    };      // Usar la fecha actual para los datos dinámicos, forzando a que sea el 18 de mayo de 2025
-    // Crear fecha en zona horaria de Perú (GMT-5)
-    const today = new Date(Date.UTC(2025, 4, 18, 12, 0, 0)); // Mayo es el mes 4 (0-indexado) y 18 es el día (domingo)
-    // Ajustar para la zona horaria de Perú (GMT-5)
-    today.setHours(today.getHours() - 5);
+    };    // Usar la fecha actual ajustada a la zona horaria de Perú (GMT-5)
+    const now = new Date();
+    // Ajustar a la zona horaria de Perú (GMT-5)
+    // 1. Obtener la diferencia entre la zona horaria local y UTC en minutos
+    const localOffset = now.getTimezoneOffset();
+    // 2. La zona horaria de Perú es UTC-5, que son -300 minutos
+    const peruOffset = -300; // -5 horas * 60 minutos
+    // 3. Calcular la diferencia total para ajustar
+    const offsetDiff = localOffset + peruOffset; // Minutos para ajustar
+    // 4. Crear una nueva fecha ajustada para Perú
+    const peruDate = new Date(now.getTime() + offsetDiff * 60000);
+    const today = peruDate;
     let dateToUse: Date;
     let scheduleTime: string;
     let scheduleEndTime: string;
@@ -151,11 +158,18 @@ export async function getScheduledVisits(userId: string, filters?: any): Promise
       return data;
     }    // Si no hay respuesta del backend, devolver datos de desarrollo
     console.warn("Usando datos de desarrollo para visitas programadas");
-      // Usar solo la fecha actual para cumplir con el requerimiento de mostrar solo horarios del día actual
-    // Crear fecha en zona horaria de Perú (GMT-5)
-    const today = new Date(Date.UTC(2025, 4, 18, 12, 0, 0)); // Mayo es el mes 4 (0-indexado) y 18 es el día (domingo)
-    // Ajustar para la zona horaria de Perú (GMT-5)
-    today.setHours(today.getHours() - 5);
+      // Usar la fecha actual ajustada a la zona horaria de Perú (GMT-5)
+    const now = new Date();
+    // Ajustar a la zona horaria de Perú (GMT-5)
+    // 1. Obtener la diferencia entre la zona horaria local y UTC en minutos
+    const localOffset = now.getTimezoneOffset();
+    // 2. La zona horaria de Perú es UTC-5, que son -300 minutos
+    const peruOffset = -300; // -5 horas * 60 minutos
+    // 3. Calcular la diferencia total para ajustar
+    const offsetDiff = localOffset + peruOffset; // Minutos para ajustar
+    // 4. Crear una nueva fecha ajustada para Perú
+    const peruDate = new Date(now.getTime() + offsetDiff * 60000);
+    const today = peruDate;
     
     // Generar un ID único basado en la fecha para evitar conflictos
     const generateIdFromDate = (date: Date, facilityId: number): number => {
@@ -215,23 +229,54 @@ export async function recordAttendance(attendanceRecord: AttendanceRecord): Prom
       };
     }    // Guardar el ID de visita programada como registrada en localStorage
     const visitIdToSave = attendanceRecord.visitId;
-    console.log("Intentando guardar visitId:", visitIdToSave);
     
     if (visitIdToSave) {
-      try {
-        // Obtener las visitas ya registradas
+      try {        // Obtener las visitas ya registradas
         const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
-        const registeredVisits = JSON.parse(registeredVisitsJson);
+        let registeredVisits = [];
         
-        // Añadir la nueva visita registrada si no existe ya
-        if (!registeredVisits.includes(visitIdToSave)) {
-          registeredVisits.push(visitIdToSave);
-          console.log(`Guardando visita ${visitIdToSave} como registrada (services.ts)`);
-          localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
-          console.log("Estado actualizado de localStorage:", localStorage.getItem('registeredVisits'));
-        } else {
-          console.log(`Visita ${visitIdToSave} ya estaba registrada`);
+        try {
+          // Intentar parsear el contenido actual
+          registeredVisits = JSON.parse(registeredVisitsJson);
+          
+          // Convertir formato antiguo (array de IDs) al nuevo formato (array de objetos)
+          if (Array.isArray(registeredVisits) && (registeredVisits.length === 0 || typeof registeredVisits[0] === 'number')) {
+            registeredVisits = registeredVisits.map(id => ({
+              id,
+              registeredDate: new Date().toISOString()
+            }));
+          }
+        } catch (e) {
+          console.error("Error parseando JSON de localStorage:", e);
+          registeredVisits = [];
         }
+        
+        // Filtrar visitas expiradas (más de 2 días)
+        const twoDaysAgo = new Date();
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+        
+        registeredVisits = registeredVisits.filter(visit => {
+          if (!visit.registeredDate) return false;
+          const registeredDate = new Date(visit.registeredDate);
+          return registeredDate > twoDaysAgo;
+        });
+        
+        // Verificar si ya existe esta visita
+        const existingVisitIndex = registeredVisits.findIndex(visit => visit.id === visitIdToSave);
+        
+        // Añadir la nueva visita registrada o actualizar la existente
+        if (existingVisitIndex === -1) {
+          // Nueva visita
+          registeredVisits.push({
+            id: visitIdToSave,
+            registeredDate: new Date().toISOString()
+          });        } else {
+          // Actualizar la fecha de la visita existente
+          registeredVisits[existingVisitIndex].registeredDate = new Date().toISOString();
+        }
+        
+        // Guardar en localStorage
+        localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
       } catch (e) {
         console.error("Error al guardar en localStorage:", e);
         // Continuar el flujo aunque falle el localStorage

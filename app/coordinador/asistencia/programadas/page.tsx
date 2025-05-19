@@ -22,17 +22,12 @@ export default function ProgramadasPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
   const [filteredVisits, setFilteredVisits] = useState<ScheduledVisit[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  // Función para cargar los datos
+  const [error, setError] = useState<string | null>(null);  // Función para cargar los datos
   const loadData = async () => {
     try {
       setIsLoading(true);
       const data = await fetchProgrammedVisits();
       
-      // Verificar los datos para debugging
-      console.log(`Recibidas ${data.length} visitas desde fetchProgrammedVisits`);
-      console.log("Fechas de visitas recibidas:", data.map(v => `${v.date} (${format(new Date(v.date), 'EEEE', { locale: es })})`));
-
       setScheduledVisits(data);
       setFilteredVisits(data);
     } catch (error) {
@@ -46,8 +41,7 @@ export default function ProgramadasPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-  // Solo un useEffect para cargar datos al montar el componente
+  };  // Solo un useEffect para cargar datos al montar el componente
   useEffect(() => {
     // Indicador para saber si el componente está montado
     let isMounted = true;
@@ -55,7 +49,6 @@ export default function ProgramadasPage() {
     // Función que solo ejecuta loadData si el componente sigue montado
     const safeLoadData = () => {
       if (isMounted) {
-        console.log("Cargando datos de visitas programadas...");
         loadData();
       }
     };
@@ -133,12 +126,8 @@ export default function ProgramadasPage() {
             </Link>
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">Visitas Programadas</h1>
-        </div>
-        <Button 
-          onClick={() => {
-            console.log("Actualización manual solicitada");
-            loadData();
-          }}
+        </div>        <Button 
+          onClick={() => loadData()}
           variant="outline"
           size="sm"
         >
@@ -199,9 +188,12 @@ export default function ProgramadasPage() {
                   </div>                  <div className="flex gap-2">
                     <Button asChild variant="outline" className="flex-1">
                       <Link href={`/coordinador/instalaciones/${visit.facilityId}`}>Ver Detalles</Link>
-                    </Button>
-                    {visit.isRegistered ? (
-                      <Button variant="secondary" className="flex-1" disabled>
+                    </Button>                    {visit.isRegistered ? (
+                      <Button 
+                        variant="secondary" 
+                        className="flex-1" 
+                        disabled
+                      >
                         Asistencia Registrada
                       </Button>
                     ) : (

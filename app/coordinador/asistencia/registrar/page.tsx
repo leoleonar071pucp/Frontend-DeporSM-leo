@@ -360,18 +360,55 @@ export default function RegistrarAsistenciaPage() {
         departureTime: null,
       }      // Usar el servicio para registrar la asistencia
       await recordAttendance(attendanceRecord)
-      
-      // También guardar directamente el ID de la visita para asegurar su almacenamiento
+        // También guardar directamente el ID de la visita para asegurar su almacenamiento
       try {
         const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
-        const registeredVisits = JSON.parse(registeredVisitsJson);
+        let registeredVisits = [];
         
-        // Asegurar que el ID de la visita se guarde correctamente
-        if (visit.id && !registeredVisits.includes(visit.id)) {
-          registeredVisits.push(visit.id);
-          console.log(`Guardando visita ID=${visit.id} como registrada (desde componente)`);
-          localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
+        try {
+          // Intentar parsear el contenido actual
+          registeredVisits = JSON.parse(registeredVisitsJson);
+          
+          // Convertir formato antiguo (array de IDs) al nuevo formato (array de objetos)
+          if (Array.isArray(registeredVisits) && (registeredVisits.length === 0 || typeof registeredVisits[0] === 'number')) {
+            registeredVisits = registeredVisits.map(id => ({
+              id,
+              registeredDate: new Date().toISOString()
+            }));
+          }
+        } catch (e) {
+          console.error("Error parseando JSON de localStorage:", e);
+          registeredVisits = [];
         }
+        
+        // Filtrar visitas expiradas (más de 2 días)
+        const twoDaysAgo = new Date();
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+        
+        registeredVisits = registeredVisits.filter(visit => {
+          if (!visit.registeredDate) return false;
+          const registeredDate = new Date(visit.registeredDate);
+          return registeredDate > twoDaysAgo;
+        });
+        
+        // Verificar si ya existe esta visita
+        const existingVisitIndex = registeredVisits.findIndex(v => v.id === visit.id);
+        
+        // Añadir la nueva visita registrada o actualizar la existente
+        if (visit.id && existingVisitIndex === -1) {
+          registeredVisits.push({
+            id: visit.id,
+            registeredDate: new Date().toISOString()
+          });
+          console.log(`Guardando visita ID=${visit.id} como registrada (desde componente)`);
+        } else if (visit.id) {
+          // Actualizar la fecha de la visita existente
+          registeredVisits[existingVisitIndex].registeredDate = new Date().toISOString();
+          console.log(`Actualizando fecha de registro para visita ID=${visit.id}`);
+        }
+        
+        // Guardar en localStorage
+        localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
       } catch (err) {
         console.error("Error al guardar en localStorage (componente):", err);
       }
