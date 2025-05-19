@@ -47,38 +47,25 @@ export default function ProgramadasPage() {
       setIsLoading(false);
     }
   };
-
-  // Cargar datos al montar el componente
+  // Solo un useEffect para cargar datos al montar el componente
   useEffect(() => {
-    loadData();
-  }, []);
-    // Recargar datos cuando la página gane el foco o cuando se monte
-  useEffect(() => {
-    // Función para manejar cuando la ventana recupera el foco
-    const handleFocus = () => {
-      console.log("Ventana recuperó el foco, recargando visitas programadas");
-      loadData();
+    // Indicador para saber si el componente está montado
+    let isMounted = true;
+    
+    // Función que solo ejecuta loadData si el componente sigue montado
+    const safeLoadData = () => {
+      if (isMounted) {
+        console.log("Cargando datos de visitas programadas...");
+        loadData();
+      }
     };
     
-    // También recargar datos en la navegación
-    const handleNavigation = () => {
-      console.log("Navegación detectada, recargando visitas programadas");
-      loadData();
-    };
+    // Cargar datos una sola vez al montar el componente
+    safeLoadData();
     
-    // Agregar event listeners
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('popstate', handleNavigation);
-    
-    // Forzar una recarga inicial al montar el componente
-    // Esto es importante para asegurar que leemos el estado más reciente de localStorage
-    console.log("Componente montado, cargando datos...");
-    setTimeout(loadData, 100); // Pequeño retardo para asegurar que todo está inicializado
-    
-    // Limpiar los event listeners al desmontar
+    // Limpiar al desmontar
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('popstate', handleNavigation);
+      isMounted = false;
     };
   }, []);
   useEffect(() => {
@@ -209,16 +196,21 @@ export default function ProgramadasPage() {
                       <p className="text-sm text-gray-500">Horario</p>
                       <p className="font-medium">{visit.scheduledTime} - {visit.scheduledEndTime}</p>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
+                  </div>                  <div className="flex gap-2">
                     <Button asChild variant="outline" className="flex-1">
                       <Link href={`/coordinador/instalaciones/${visit.facilityId}`}>Ver Detalles</Link>
                     </Button>
-                    <Button asChild className="flex-1 bg-primary hover:bg-primary-light">
-                      <Link href={`/coordinador/asistencia/registrar?id=${visit.id}&facilityId=${visit.facilityId}`}>
-                        Registrar Asistencia
-                      </Link>
-                    </Button>
+                    {visit.isRegistered ? (
+                      <Button variant="secondary" className="flex-1" disabled>
+                        Asistencia Registrada
+                      </Button>
+                    ) : (
+                      <Button asChild className="flex-1 bg-primary hover:bg-primary-light">
+                        <Link href={`/coordinador/asistencia/registrar?id=${visit.id}&facilityId=${visit.facilityId}`}>
+                          Registrar Asistencia
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

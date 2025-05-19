@@ -298,17 +298,20 @@ export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
     
     // Imprimir IDs de todas las visitas para comparación
     console.log("IDs de visitas filtradas:", filteredVisits.map(v => v.id));
-    
-    // Filtrar las visitas para remover las que ya han sido registradas
-    const unregisteredVisits = filteredVisits.filter(visit => {
+      // Marcar las visitas que ya han sido registradas en lugar de filtrarlas
+    const allVisitsWithStatus = filteredVisits.map(visit => {
       const isRegistered = registeredVisits.includes(visit.id);
       console.log(`Visita ID=${visit.id}, registrada=${isRegistered}`);
-      return !isRegistered;
+      // Añadimos propiedad status para uso en el UI pero no filtramos
+      return {
+        ...visit,
+        isRegistered: isRegistered
+      };
     });
     
-    console.log(`Filtrando visitas: ${filteredVisits.length} totales, ${unregisteredVisits.length} sin registrar`);
+    console.log(`Total de visitas: ${filteredVisits.length}, de las cuales ${allVisitsWithStatus.filter(v => v.isRegistered).length} ya están registradas`);
     
-    return unregisteredVisits;
+    return allVisitsWithStatus;
     
   } catch (error) {
     console.error("Error al obtener visitas programadas:", error);

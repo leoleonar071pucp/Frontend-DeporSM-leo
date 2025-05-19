@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -64,7 +64,8 @@ interface Instalacion {
 }
 
 export default function InstalacionDetalle({ params }: { params: { id: string } }) {
-  const { id } = params;
+  // Create a stable reference to the ID using React.use() to unwrap the Promise
+  const facilityId = React.use(params).id;
   const [isLoading, setIsLoading] = useState(true);
   const [facility, setFacility] = useState<Instalacion | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,9 +83,7 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
         setError("No tienes permisos para ver esta instalación");
         setIsLoading(false);
         return;
-      }
-
-      try {
+      }      try {
         // Verificar si el coordinador tiene acceso a esta instalación
         const accessResponse = await fetch(
           `${API_BASE_URL}/instalaciones/coordinador/${user.id}`,
@@ -93,12 +92,10 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
 
         if (!accessResponse.ok) {
           throw new Error(`Error HTTP: ${accessResponse.status}`);
-        }
-
-        const assignedFacilities = await accessResponse.json();
+        }        const assignedFacilities = await accessResponse.json();
           // Verificar si la instalación solicitada está en las asignadas al coordinador
         const hasAccess = assignedFacilities.some((facility: any) =>
-          facility.id === parseInt(id) || facility.instalacion_id === parseInt(id)
+          facility.id === parseInt(facilityId) || facility.instalacion_id === parseInt(facilityId)
         );
 
         setAuthorized(hasAccess);
@@ -108,10 +105,8 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
           setError("No tienes permiso para ver esta instalación. Solo puedes acceder a las instalaciones asignadas a tu cuenta.");
           setIsLoading(false);
           return;
-        }
-
-        // Obtener los datos de la instalación desde el backend
-        const response = await fetch(`${API_BASE_URL}/instalaciones/${id}`, {
+        }        // Obtener los datos de la instalación desde el backend
+        const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}`, {
           credentials: 'include'
         });
 
@@ -182,7 +177,7 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
     if (!authLoading) {
       checkAccess();
     }
-  }, [id, user, authLoading, router])
+  }, [facilityId, user, authLoading, router])
 
   const getStatusBadge = (status: Instalacion['status'], maintenanceStatus: Instalacion['maintenanceStatus']) => {
     // Mostrar En Mantenimiento solo cuando está in-progress

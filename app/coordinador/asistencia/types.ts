@@ -25,4 +25,5 @@ export interface ScheduledVisit {
   scheduledTime: string
   scheduledEndTime?: string
   image?: string
+  isRegistered?: boolean // Flag to indicate if attendance has already been registered
 }
