@@ -15,8 +15,8 @@ export default function ConfiguracionPage() {
   const [activeTab, setActiveTab] = useState("seguridad")
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-
-  // Estado para la configuración de notificaciones
+  // Estado para la configuración de notificaciones (comentado)
+  /*
   const [notificationSettings, setNotificationSettings] = useState({
     email: true,
     observaciones: true,
@@ -24,6 +24,7 @@ export default function ConfiguracionPage() {
     recordatorios: true,
     mantenimiento: true
   })
+  */
 
   // Estado para el cambio de contraseña
   const [passwordData, setPasswordData] = useState({
@@ -48,10 +49,12 @@ export default function ConfiguracionPage() {
       })
     }
   }
-
+  // Función para manejar cambios en notificaciones (comentada)
+  /*
   const handleNotificationChange = (key: string, checked: boolean) => {
     setNotificationSettings((prev) => ({ ...prev, [key]: checked }))
   }
+  */
 
   const validatePasswordForm = () => {
     const newErrors: Record<string, string> = {}
@@ -148,7 +151,8 @@ export default function ConfiguracionPage() {
       console.error("Error al cambiar contraseña:", error);
     }
   }
-
+  // Función para guardar notificaciones (comentada)
+  /*
   const handleSaveNotifications = () => {
     setIsSaving(true)
 
@@ -168,6 +172,7 @@ export default function ConfiguracionPage() {
       }, 3000)
     }, 1500)
   }
+  */
   // Las variables de estado y funciones relacionadas con sesiones activas han sido eliminadas ya que esta sección fue ocultada
 
   return (
@@ -175,12 +180,10 @@ export default function ConfiguracionPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground">Gestiona tu perfil y preferencias de notificaciones</p>
-      </div>
-
-      <Tabs defaultValue="seguridad" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+      </div>      <Tabs defaultValue="seguridad" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
-          <TabsTrigger value="notificaciones">Notificaciones</TabsTrigger>
+          {/* <TabsTrigger value="notificaciones">Notificaciones</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="seguridad" className="mt-6">
@@ -338,8 +341,8 @@ export default function ConfiguracionPage() {
             </CardFooter>
           </Card>
           */}
-        </TabsContent>
-
+        </TabsContent>        {/* TabsContent Notificaciones - Comentado según requerimiento */}
+        {/* 
         <TabsContent value="notificaciones" className="mt-6">
           <Card>
             <CardHeader>
@@ -460,6 +463,7 @@ export default function ConfiguracionPage() {
             </CardFooter>
           </Card>
         </TabsContent>
+        */}
       </Tabs>
     </div>
   )
