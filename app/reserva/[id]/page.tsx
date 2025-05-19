@@ -155,6 +155,38 @@ export default function ReservaDetalle() {
         const reservaData = await response.json();
         console.log('Datos de reserva obtenidos:', reservaData);
 
+        // Verificar si tenemos la información de precio de la instalación
+        if (reservaData.instalacion && reservaData.instalacion.precio) {
+          console.log('Precio por hora de la instalación:', reservaData.instalacion.precio);
+        } else {
+          console.warn('No se encontró el precio de la instalación en la respuesta. Intentando cargar la instalación...');
+
+          // Si no tenemos la información completa de la instalación, intentamos cargarla
+          if (reservaData.instalacionId) {
+            try {
+              const instalacionResponse = await fetch(`${API_BASE_URL}/instalaciones/${reservaData.instalacionId}`, {
+                method: 'GET',
+                headers: {
+                  'Accept': 'application/json',
+                  'Origin': FRONTEND_URL
+                }
+              });
+
+              if (instalacionResponse.ok) {
+                const instalacionData = await instalacionResponse.json();
+                console.log('Datos de instalación cargados:', instalacionData);
+
+                // Añadir la información de la instalación a los datos de la reserva
+                reservaData.instalacion = instalacionData;
+              } else {
+                console.error('No se pudo cargar la información de la instalación');
+              }
+            } catch (error) {
+              console.error('Error al cargar la información de la instalación:', error);
+            }
+          }
+        }
+
         // También obtener detalles de pago si existe
         let pagoData = null;        try {
           const pagoResponse = await fetch(`${API_BASE_URL}/pagos/reserva/${reservaId}`, {
@@ -216,7 +248,27 @@ export default function ReservaDetalle() {
               ? (reservaData.metodoPago === 'deposito' ? 'Depósito bancario' : 'Tarjeta de crédito')
               : 'Pendiente',
           paymentStatus: pagoData ? pagoData.estado.charAt(0).toUpperCase() + pagoData.estado.slice(1).toLowerCase() : (reservaData.estadoPago ? reservaData.estadoPago.charAt(0).toUpperCase() + reservaData.estadoPago.slice(1).toLowerCase() : 'Pendiente'),
-          paymentAmount: pagoData ? `S/. ${pagoData.monto}` : 'Pendiente',          paymentDate: pagoData && pagoData.createdAt
+          // Siempre calcular el precio basado en la duración de la reserva
+          paymentAmount: (() => {
+            // Siempre calcular el precio basado en la duración si tenemos los datos necesarios
+            if (horaInicio && horaFin && reservaData.instalacion?.precio) {
+              const totalPrice = calculateTotalPrice(
+                reservaData.instalacion.precio,
+                horaInicio,
+                horaFin
+              );
+              console.log(`Calculando precio para ${horaInicio} - ${horaFin} con precio por hora ${reservaData.instalacion.precio}: ${totalPrice}`);
+              return formatPrice(totalPrice);
+            }
+
+            // Si no podemos calcular con la duración pero tenemos datos de pago, usar el monto del pago
+            if (pagoData && pagoData.monto) {
+              return `S/. ${pagoData.monto}`;
+            }
+
+            // Si no podemos calcular de ninguna forma, mostrar pendiente
+            return 'Pendiente';
+          })(),          paymentDate: pagoData && pagoData.createdAt
                         ? new Intl.DateTimeFormat('es-ES', {
                             day: 'numeric',
                             month: 'long',
@@ -558,6 +610,21 @@ export default function ReservaDetalle() {
 
               <div>
                 <h3 className="text-lg font-medium mb-4">Detalles del pago</h3>
+
+                {/* Mensaje informativo sobre el cálculo del precio */}
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-blue-700">
+                        El precio se calcula multiplicando el precio por hora de la instalación por la duración de la reserva.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">                      <CreditCard className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -577,9 +644,16 @@ export default function ReservaDetalle() {
                       <p className="text-sm text-gray-500">Monto</p>
                       <p className="font-medium">{reservation.paymentAmount}</p>
                       {reservation.time && (
-                        <p className="text-xs text-gray-500">
-                          Calculado según duración: {reservation.time}
-                        </p>
+                        <div>
+                          <p className="text-xs text-gray-500">
+                            Calculado según duración: {reservation.time}
+                          </p>
+                          {reservation.facilityId && (
+                            <p className="text-xs text-gray-500 italic">
+                              Precio calculado por hora × duración en horas
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div>

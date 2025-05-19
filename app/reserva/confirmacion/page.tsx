@@ -9,7 +9,7 @@ import { CheckCircle, Clock } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { calculateAndFormatPrice } from "@/lib/price-utils"
+import { calculateTotalPrice, formatPrice } from "@/lib/price-utils"
 import { API_BASE_URL } from "@/lib/config"
 
 function ConfirmacionReservaContent() {
@@ -27,8 +27,12 @@ function ConfirmacionReservaContent() {
     if (price && time) {
       const pricePerHour = parseFloat(price)
       if (!isNaN(pricePerHour)) {
-        const calculatedPrice = calculateAndFormatPrice(pricePerHour, time)
-        setFacilityPrice(calculatedPrice)
+        // Calcular el precio correctamente usando la función calculateTotalPrice
+        const [startTime, endTime] = time.split(' - ');
+        const totalPrice = calculateTotalPrice(pricePerHour, startTime, endTime);
+        const formattedPrice = formatPrice(totalPrice);
+        console.log(`Precio calculado para ${time}: ${formattedPrice} (precio por hora: ${pricePerHour})`);
+        setFacilityPrice(formattedPrice);
       }
     }
   }, [price, time])

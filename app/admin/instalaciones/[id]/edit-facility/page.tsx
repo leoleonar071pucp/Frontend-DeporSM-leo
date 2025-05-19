@@ -45,7 +45,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
-  
+
   // Estado para el formulario de horario a añadir
   const [newTimeSlot, setNewTimeSlot] = useState<AvailableTimeSlot>({
     dayOfWeek: "LUNES",
@@ -58,7 +58,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
         // Obtener los datos básicos de la instalación
         const res = await fetch(`${API_BASE_URL}/instalaciones/${id}`)
         const data = await res.json()
-        
+
         // Transformar los datos para el formulario
         const transformed = {
           id: data.id,
@@ -68,19 +68,19 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
           type: data.tipo,
           price: data.precio ? data.precio.toString() : "0.00",
           capacity: data.capacidad.toString(),
-          contactNumber: "987654321",
+          contactNumber: data.contactoNumero || "",
           imagenUrl: data.imagenUrl,
-          schedule: `Lunes a Viernes: ${data.horarioApertura} - ${data.horarioCierre}`,
+
           features: "",
           amenities: "",
           rules: "",
           availableTimeSlots: []
         }
-        
+
         // Establecer los valores iniciales
         setFacility(transformed)
         setFormData(transformed)
-        
+
         // Obtener los horarios disponibles
         try {
           const horariosRes = await fetch(`${API_BASE_URL}/instalaciones/${id}/horarios-disponibles`)
@@ -89,7 +89,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
             if (Array.isArray(horariosData) && horariosData.length > 0) {
               // Actualizar el formulario con los horarios obtenidos
               setFormData((prev: any) => ({
-                ...prev, 
+                ...prev,
                 availableTimeSlots: horariosData.map((h: any) => ({
                   dayOfWeek: h.diaSemana,
                   startTime: h.horaInicio ? h.horaInicio.substring(0, 5) : "08:00",
@@ -161,10 +161,21 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
     if (!formData.name.trim()) newErrors.name = "El nombre es obligatorio"
     if (!formData.location.trim()) newErrors.location = "La ubicación es obligatoria"
     if (!formData.description.trim()) newErrors.description = "La descripción es obligatoria"
-    if (!formData.capacity.trim()) newErrors.capacity = "La capacidad es obligatoria"
-    if (!formData.price.trim()) newErrors.price = "El precio es obligatorio"
+
+    if (!formData.capacity.trim()) {
+      newErrors.capacity = "La capacidad es obligatoria"
+    } else if (isNaN(Number(formData.capacity)) || Number(formData.capacity) <= 0) {
+      newErrors.capacity = "La capacidad debe ser un número positivo"
+    }
+
+    if (!formData.price.trim()) {
+      newErrors.price = "El precio es obligatorio"
+    } else if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+      newErrors.price = "El precio debe ser un número positivo"
+    }
+
     if (!formData.contactNumber.trim()) newErrors.contactNumber = "El número de contacto es obligatorio"
-    if (!formData.schedule.trim()) newErrors.schedule = "El horario es obligatorio"
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -172,21 +183,20 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
     e.preventDefault();
     if (!validateForm()) return;
     setIsSaving(true);
-    
+
     let uploadedUrl = formData.imagenUrl;
     if (imageFile) {
       const url = await uploadImageToSupabase(imageFile);
       if (url) uploadedUrl = url;
     }
-    
+
     const updatedFacility = {
       nombre: formData.name,
       descripcion: formData.description,
       ubicacion: formData.location,
       tipo: formData.type,
       capacidad: Number(formData.capacity),
-      horarioApertura: "08:00:00",
-      horarioCierre: "20:00:00",
+      contactoNumero: formData.contactNumber,
       imagenUrl: uploadedUrl,
       precio: parseFloat(formData.price),
       activo: true
@@ -199,24 +209,24 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedFacility)
       });
-      
+
       if (!res.ok) throw new Error("Error al actualizar instalación");
-      
+
       // Luego actualizamos los horarios disponibles
       const horariosDisponibles = (formData.availableTimeSlots || []).map((slot: AvailableTimeSlot) => ({
         diaSemana: slot.dayOfWeek,
         horaInicio: `${slot.startTime}:00`,
         horaFin: `${slot.endTime}:00`
       }));
-      
+
       const horariosRes = await fetch(`${API_BASE_URL}/instalaciones/${formData.id}/horarios-disponibles`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(horariosDisponibles)
       });
-      
+
       if (!horariosRes.ok) throw new Error("Error al actualizar horarios disponibles");
-      
+
       setIsSuccess(true);
       setTimeout(() => router.push("/admin/instalaciones"), 2000);
     } catch (error) {
@@ -244,7 +254,21 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
             </div>
             <div className="space-y-2">
               <Label>Tipo</Label>
-              <Input value={formData.type.replace(/-/g, " ")} disabled />
+              <Select
+                value={formData.type}
+                onValueChange={(value: string) => setFormData((prev: any) => ({...prev, type: value}))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="piscina">Piscina</SelectItem>
+                  <SelectItem value="cancha-futbol-grass">Cancha de Fútbol (Grass)</SelectItem>
+                  <SelectItem value="cancha-futbol-loza">Cancha de Fútbol (Loza)</SelectItem>
+                  <SelectItem value="gimnasio">Gimnasio</SelectItem>
+                  <SelectItem value="pista-atletismo">Pista de Atletismo</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Ubicación</Label>
@@ -252,31 +276,51 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
             </div>
             <div className="space-y-2">
               <Label>Número de contacto</Label>
-              <Input name="contactNumber" value={formData.contactNumber} onChange={handleInputChange} />
+              <Input
+                name="contactNumber"
+                value={formData.contactNumber}
+                onChange={handleInputChange}
+                placeholder="Ej: 987-654-321"
+              />
             </div>
             <div className="space-y-2">
               <Label>Capacidad</Label>
-              <Input name="capacity" value={formData.capacity} onChange={handleInputChange} />
+              <Input
+                name="capacity"
+                type="number"
+                min="1"
+                step="1"
+                value={formData.capacity}
+                onChange={handleInputChange}
+                className={errors.capacity ? "border-red-500" : ""}
+              />
+              {errors.capacity && <p className="text-red-500 text-sm">{errors.capacity}</p>}
             </div>
             <div className="space-y-2">
               <Label>Precio</Label>
-              <Input name="price" value={formData.price} onChange={handleInputChange} />
-            </div>            <div className="space-y-2 md:col-span-2">
-              <Label>Horario</Label>
-              <Input name="schedule" value={formData.schedule} onChange={handleInputChange} />
+              <Input
+                name="price"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={formData.price}
+                onChange={handleInputChange}
+                className={errors.price ? "border-red-500" : ""}
+              />
+              {errors.price && <p className="text-red-500 text-sm">{errors.price}</p>}
             </div>
-            
+
             {/* Sección para horarios disponibles */}
             <div className="space-y-4 md:col-span-2 border rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Horarios Disponibles</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="dayOfWeek">Día</Label>
-                  <Select 
-                    value={newTimeSlot.dayOfWeek} 
+                  <Select
+                    value={newTimeSlot.dayOfWeek}
                     onValueChange={(value: string) => setNewTimeSlot(prev => ({...prev, dayOfWeek: value}))}
                   >
                     <SelectTrigger id="dayOfWeek">
@@ -293,53 +337,53 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="startTime">Hora inicio</Label>
-                  <Input 
-                    id="startTime" 
-                    type="time" 
+                  <Input
+                    id="startTime"
+                    type="time"
                     value={newTimeSlot.startTime}
                     onChange={(e) => setNewTimeSlot(prev => ({...prev, startTime: e.target.value}))}
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="endTime">Hora fin</Label>
-                  <Input 
-                    id="endTime" 
-                    type="time" 
+                  <Input
+                    id="endTime"
+                    type="time"
                     value={newTimeSlot.endTime}
                     onChange={(e) => setNewTimeSlot(prev => ({...prev, endTime: e.target.value}))}
                   />
                 </div>
               </div>
-              
+
               <div className="flex justify-end mt-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => {
                     // Validar que no haya solapamiento de horarios
                     const overlapping = (formData.availableTimeSlots || []).some(
-                      (slot: AvailableTimeSlot) => 
-                        slot.dayOfWeek === newTimeSlot.dayOfWeek && 
+                      (slot: AvailableTimeSlot) =>
+                        slot.dayOfWeek === newTimeSlot.dayOfWeek &&
                         ((newTimeSlot.startTime >= slot.startTime && newTimeSlot.startTime < slot.endTime) ||
                          (newTimeSlot.endTime > slot.startTime && newTimeSlot.endTime <= slot.endTime) ||
                          (slot.startTime >= newTimeSlot.startTime && slot.startTime < newTimeSlot.endTime))
                     );
-                    
+
                     if (overlapping) {
                       setFormError("Este horario se solapa con otro ya definido para el mismo día");
                       return;
                     }
-                    
+
                     // Añadir el nuevo horario
                     setFormData((prev: any) => ({
                       ...prev,
                       availableTimeSlots: [...(prev.availableTimeSlots || []), {...newTimeSlot}]
                     }));
-                    
+
                     // Limpiar error si existe
                     if (formError) setFormError(null);
                   }}
@@ -347,11 +391,11 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
                   Añadir horario
                 </Button>
               </div>
-              
+
               {formError && (
                 <p className="text-red-500 text-sm mt-1">{formError}</p>
               )}
-              
+
               {formData.availableTimeSlots && formData.availableTimeSlots.length > 0 ? (
                 <div className="max-h-64 overflow-y-auto border rounded-md">
                   <table className="w-full text-sm">
@@ -375,16 +419,16 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
                           "SABADO": "Sábado",
                           "DOMINGO": "Domingo"
                         }[slot.dayOfWeek] || slot.dayOfWeek;
-                        
+
                         return (
                           <tr key={index}>
                             <td className="px-4 py-2">{dayName}</td>
                             <td className="px-4 py-2">{slot.startTime}</td>
                             <td className="px-4 py-2">{slot.endTime}</td>
                             <td className="px-4 py-2 text-right">
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
+                              <Button
+                                type="button"
+                                variant="ghost"
                                 className="h-8 w-8 p-0 text-red-500"
                                 onClick={() => {
                                   setFormData((prev: any) => ({
@@ -409,7 +453,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
               )}
               <p className="text-xs text-gray-500">Define los horarios en que la instalación estará disponible para reservas</p>
             </div>
-            
+
             <div className="space-y-2 md:col-span-2">
               <Label>Descripción</Label>
               <Textarea name="description" value={formData.description} onChange={handleInputChange} />

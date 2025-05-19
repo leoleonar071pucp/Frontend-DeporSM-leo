@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Plus, Edit, Trash2, AlertTriangle, Filter, Settings } from "lucide-react"
+import { Search, Plus, Edit, Trash2, AlertTriangle, Filter } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -45,10 +45,12 @@ interface Facility {
 export default function InstalacionesAdmin() {
   const [isLoading, setIsLoading] = useState(true)
   const [facilities, setFacilities] = useState<Facility[]>([])
+  const [filteredFacilities, setFilteredFacilities] = useState<Facility[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("todas")
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [facilityToDelete, setFacilityToDelete] = useState<Facility | null>(null)
+  const [currentFilter, setCurrentFilter] = useState<string | null>(null)
 
   // Fetch all facilities
   const fetchFacilities = async () => {
@@ -57,6 +59,7 @@ export default function InstalacionesAdmin() {
       const response = await fetch(`${API_BASE_URL}/instalaciones`)
       const data: Facility[] = await response.json()
       setFacilities(data)
+      setFilteredFacilities(data)
     } catch (error) {
       console.error("Error fetching facilities:", error)
     } finally {
@@ -64,78 +67,57 @@ export default function InstalacionesAdmin() {
     }
   }
 
-  // Fetch facilities by search query
-  const fetchFacilitiesBySearch = async (query: string) => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`${API_BASE_URL}/instalaciones/buscar?nombre=${query}`)
-      const data: Facility[] = await response.json()
-      setFacilities(data)
-    } catch (error) {
-      console.error("Error fetching facilities by search:", error)
-    } finally {
-      setIsLoading(false)
+  // Aplicar filtros localmente sin hacer peticiones adicionales al servidor
+  const applyFilters = () => {
+    let result = [...facilities];
+
+    // Filtrar por estado (activo/inactivo)
+    if (activeTab === "disponibles") {
+      result = result.filter(facility => facility.activo);
+    } else if (activeTab === "mantenimiento") {
+      result = result.filter(facility => !facility.activo);
     }
+
+    // Filtrar por tipo
+    if (currentFilter) {
+      result = result.filter(facility => facility.tipo === currentFilter);
+    }
+
+    // Filtrar por búsqueda
+    if (searchQuery.trim() !== "") {
+      result = result.filter(facility =>
+        facility.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    setFilteredFacilities(result);
   }
 
-  // Fetch facilities by type
-  const fetchFacilitiesByType = async (type: string) => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`${API_BASE_URL}/instalaciones/tipo?tipo=${type}`)
-      const data: Facility[] = await response.json()
-      setFacilities(data)
-    } catch (error) {
-      console.error("Error fetching facilities by type:", error)
-    } finally {
-      setIsLoading(false)
+  // Aplicar filtros cuando cambie cualquier criterio de filtrado
+  useEffect(() => {
+    if (facilities.length > 0) {
+      applyFilters();
     }
-  }
+  }, [searchQuery, activeTab, currentFilter, facilities]);
 
-  // Fetch facilities by active status
-  const fetchFacilitiesByStatus = async (activo: boolean) => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`${API_BASE_URL}/instalaciones/activo?activo=${activo}`)
-      const data: Facility[] = await response.json()
-      setFacilities(data)
-    } catch (error) {
-      console.error("Error fetching facilities by status:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
+  // Cargar datos iniciales
   useEffect(() => {
     fetchFacilities()
   }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    if (searchQuery.trim() === "") {
-      fetchFacilities()
-    } else {
-      fetchFacilitiesBySearch(searchQuery)
-    }
+    // No es necesario hacer nada aquí, ya que el efecto se encargará de aplicar los filtros
   }
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    if (value === "todas") {
-      fetchFacilities()
-    } else if (value === "disponibles") {
-      fetchFacilitiesByStatus(true)
-    } else if (value === "mantenimiento") {
-      fetchFacilitiesByStatus(false)
-    }
+    // No es necesario hacer peticiones al servidor, los filtros se aplicarán automáticamente
   }
 
   const handleTypeFilterClick = (type: string | null) => {
-    if (type === null) {
-      fetchFacilities()
-    } else {
-      fetchFacilitiesByType(type)
-    }
+    setCurrentFilter(type)
+    // No es necesario hacer peticiones al servidor, los filtros se aplicarán automáticamente
   }
 
   const handleDeleteClick = (facility: Facility) => {
@@ -196,7 +178,7 @@ export default function InstalacionesAdmin() {
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value)
-                  fetchFacilitiesBySearch(e.target.value) // Realiza la búsqueda en tiempo real
+                  // Los filtros se aplicarán automáticamente por el useEffect
                 }}
               />
             </div>
@@ -230,9 +212,9 @@ export default function InstalacionesAdmin() {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
-          {facilities.length > 0 ? (
+          {filteredFacilities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {facilities.map((facility) => (
+              {filteredFacilities.map((facility) => (
                 <Card key={facility.id} className="overflow-hidden">
                   <div className="relative">
                     <img

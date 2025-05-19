@@ -13,25 +13,25 @@ export function calculateTotalPrice(pricePerHour: number, startTime: string, end
   // Extraer solo las horas y minutos si viene en formato "HH:MM:SS"
   const startParts = startTime.split(':');
   const endParts = endTime.split(':');
-  
+
   // Convertir a minutos para facilitar el cálculo
   const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
   const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
-  
+
   // Calcular la duración en minutos
   let durationMinutes = endMinutes - startMinutes;
-  
+
   // Si el tiempo final es menor que el inicial, asumimos que cruza la medianoche
   if (durationMinutes < 0) {
     durationMinutes += 24 * 60; // Añadir un día completo en minutos
   }
-  
+
   // Convertir la duración a horas (con decimales)
   const durationHours = durationMinutes / 60;
-  
+
   // Calcular el precio total
   const totalPrice = pricePerHour * durationHours;
-  
+
   // Redondear a 2 decimales
   return Math.round(totalPrice * 100) / 100;
 }
@@ -52,9 +52,7 @@ export function formatPrice(price: number): string {
  * @returns String formateado con unidad (ej: "S/. 55.00 por hora")
  */
 export function formatPriceWithUnit(price: number, tipo: string): string {
-  if (tipo.toLowerCase().includes('gimnasio')) {
-    return `${formatPrice(price)} por día`;
-  }
+  // Todos los precios se muestran por hora
   return `${formatPrice(price)} por hora`;
 }
 

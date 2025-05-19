@@ -29,14 +29,13 @@ interface Instalacion {
   ubicacion: string;
   tipo: string;
   capacidad: number;
-  horarioApertura: string;
-  horarioCierre: string;
+  horario: string;
   imagenUrl: string;
   precio: number;
   activo: boolean;
   createdAt?: string;
   updatedAt?: string;
-  
+
   // Propiedades adicionales para el frontend
   status?: 'disponible' | 'mantenimiento';
   maintenanceStatus?: 'none' | 'required' | 'scheduled' | 'in-progress';
@@ -56,9 +55,9 @@ export default function InstalacionesCoordinador() {
   const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
     // Obtener el usuario del contexto de autenticación
   const { user, isLoading: authLoading } = useAuth();
-  
+
   useEffect(() => {
-    
+
     const loadData = async () => {
       try {
         // Si no hay usuario autenticado o no es coordinador, no cargar datos
@@ -69,29 +68,29 @@ export default function InstalacionesCoordinador() {
           setIsLoading(false);
           return;
         }
-        
+
         // Usar el endpoint específico para coordinadores que devuelve solo las instalaciones asignadas
         const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${user.id}`, {
           credentials: 'include', // Importante para enviar cookies de autenticación
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Obtener datos completos para cada instalación
         const detailedFacilities = await Promise.all(data.map(async (instalacionBasica: any) => {
           try {
             const detailResponse = await fetch(`${API_BASE_URL}/instalaciones/${instalacionBasica.id}`);
-            
+
             if (!detailResponse.ok) {
               throw new Error(`Error al obtener detalles de instalación: ${detailResponse.status}`);
             }
-            
+
             const detailData = await detailResponse.json();
-            
+
             // Agregar propiedades adicionales para el frontend
             return {
               ...detailData,
@@ -118,7 +117,7 @@ export default function InstalacionesCoordinador() {
             };
           }
         }));
-        
+
         setFacilities(detailedFacilities);
         setOriginalFacilities(detailedFacilities);
       } catch (error) {
@@ -130,25 +129,25 @@ export default function InstalacionesCoordinador() {
   }, [user])
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (searchQuery.trim() === "") {
       // Si la búsqueda está vacía, restaurar datos originales
       setFacilities(originalFacilities);
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       // Filtrar las instalaciones originales que ya están asignadas al coordinador
       // Esto garantiza que solo se busque entre las instalaciones que el coordinador tiene asignadas
       const filteredFacilities = originalFacilities.filter(
-        facility => facility.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        facility => facility.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     facility.descripcion?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     facility.ubicacion.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     facility.tipo.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      
+
       setFacilities(filteredFacilities);
     } catch (error) {
       console.error("Error al buscar instalaciones:", error);
@@ -171,14 +170,14 @@ export default function InstalacionesCoordinador() {
   }
     const handleFilterByType = async (tipo: string) => {
     setIsLoading(true);
-    
+
     try {
       // Filtrar de las instalaciones originales que ya están asignadas al coordinador
       // Solo aquellas que coinciden con el tipo seleccionado
       const filteredFacilities = originalFacilities.filter(
         facility => facility.tipo.toLowerCase() === tipo.toLowerCase()
       );
-      
+
       setFacilities(filteredFacilities);
     } catch (error) {
       console.error("Error al filtrar instalaciones por tipo:", error);
@@ -188,14 +187,14 @@ export default function InstalacionesCoordinador() {
   }
     const handleFilterByStatus = async (activo: boolean) => {
     setIsLoading(true);
-    
+
     try {
       // Filtrar de las instalaciones originales que ya están asignadas al coordinador
       // Solo aquellas que coinciden con el estado activo seleccionado
       const filteredFacilities = originalFacilities.filter(
         facility => facility.activo === activo
       );
-      
+
       setFacilities(filteredFacilities);
     } catch (error) {
       console.error("Error al filtrar instalaciones por estado:", error);
@@ -209,7 +208,7 @@ export default function InstalacionesCoordinador() {
     if (maintenanceStatus === "in-progress") {
       return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
     }
-    
+
     // En cualquier otro caso mostrar Disponible
     return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
   }
@@ -319,8 +318,8 @@ export default function InstalacionesCoordinador() {
           ) : facilities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {facilities.map((facility) => (
-                <Card 
-                  key={facility.id} 
+                <Card
+                  key={facility.id}
                   className={`overflow-hidden hover:shadow-lg transition-shadow ${selectedFacilityId === facility.id ? 'ring-2 ring-primary' : ''}`}
                   onClick={() => setSelectedFacilityId(facility.id)}
                 >
@@ -412,7 +411,7 @@ export default function InstalacionesCoordinador() {
                 className="mt-4"
                 onClick={() => {                  setSearchQuery("");
                   setActiveTab("todas");
-                  
+
                   const loadData = async () => {
                     try {
                       setIsLoading(true);
@@ -424,22 +423,22 @@ export default function InstalacionesCoordinador() {
                         setIsLoading(false);
                         return;
                       }
-                      
+
                       // Usar el endpoint específico para coordinadores
                       const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${user.id}`, {
                         credentials: 'include', // Importante para enviar cookies de autenticación// Importante para enviar cookies de autenticación
                       });
-                      
+
                       if (!response.ok) {
                         throw new Error(`Error HTTP: ${response.status}`);
                       }
-                      
+
                       const data = await response.json();
-                      
+
                       // Obtener datos completos para cada instalación
                       const detailedFacilities = await Promise.all(data.map(async (instalacionBasica: any) => {
                         const detailResponse = await fetch(`${API_BASE_URL}/instalaciones/${instalacionBasica.id}`);
-                        
+
                         if (!detailResponse.ok) {
                           return {
                             ...instalacionBasica,
@@ -452,9 +451,9 @@ export default function InstalacionesCoordinador() {
                             pendingObservations: 0,
                           };
                         }
-                        
+
                         const detailData = await detailResponse.json();
-                        
+
                         return {
                           ...detailData,
                           status: detailData.activo ? 'disponible' : 'mantenimiento',
@@ -466,7 +465,7 @@ export default function InstalacionesCoordinador() {
                           pendingObservations: Math.floor(Math.random() * 5),
                         };
                       }));
-                      
+
                       setFacilities(detailedFacilities);
                       setOriginalFacilities(detailedFacilities);
                     } catch (error) {
@@ -475,7 +474,7 @@ export default function InstalacionesCoordinador() {
                       setIsLoading(false);
                     }
                   };
-                  
+
                   loadAllData();
                 }}
               >

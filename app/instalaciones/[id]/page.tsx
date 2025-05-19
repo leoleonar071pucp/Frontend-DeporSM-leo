@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, isBefore, parse, isToday } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIcon, Clock, Info, MapPin, Users, Droplets, Dumbbell, Timer, CheckCircle } from "lucide-react"
+import { CalendarIcon, Clock, Info, MapPin, Users, Droplets, Dumbbell, Timer, CheckCircle, Phone } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
@@ -36,8 +36,8 @@ interface Facility {
   caracteristicas: string[];
   comodidades: string[];
   reglas: string[];
-  horario: string;
   capacidad: string;
+  contactoNumero: string;
   horariosDisponibles: string[];
   activo: boolean;
 }
@@ -57,10 +57,8 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const { isAuthenticated } = useAuth()
 
   // Función para formatear el precio
-  const formatPrice = (price: number, tipo: string) => {
-    if (tipo.toLowerCase().includes('gimnasio')) {
-      return `S/. ${price.toFixed(2)} por día`
-    }
+  const formatPrice = (price: number) => {
+    // Todos los precios se muestran por hora
     return `S/. ${price.toFixed(2)} por hora`
   }
 
@@ -369,10 +367,10 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                       <p className="text-gray-700 mb-4">{facility.descripcion}</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-primary" />
+                          <Phone className="h-5 w-5 text-primary" />
                           <div>
-                            <p className="font-medium">Horario</p>
-                            <p className="text-sm text-gray-600">{facility.horario}</p>
+                            <p className="font-medium">Contacto</p>
+                            <p className="text-sm text-gray-600">{facility.contactoNumero}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -383,7 +381,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                           </div>
                         </div>
                       </div>
-                      <p className="text-primary font-bold mt-4">{formatPrice(facility.precio, facility.tipo)}</p>
+                      <p className="text-primary font-bold mt-4">{formatPrice(facility.precio)}</p>
                     </TabsContent>
                     <TabsContent value="caracteristicas" className="mt-4">
                       <ul className="space-y-2">

@@ -42,14 +42,13 @@ interface Instalacion {
   ubicacion: string;
   tipo: string;
   capacidad: number;
-  horarioApertura: string;
-  horarioCierre: string;
+  horario: string;
   imagenUrl: string;
   precio: number;
   activo: boolean;
   createdAt?: string;
   updatedAt?: string;
-  
+
   // Propiedades adicionales para el frontend
   status?: 'disponible' | 'mantenimiento';
   maintenanceStatus?: 'none' | 'required' | 'scheduled' | 'in-progress';
@@ -70,7 +69,7 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
   const [facility, setFacility] = useState<Instalacion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
-  
+
   // Obtener el usuario del contexto de autenticación
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -84,44 +83,44 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
         setIsLoading(false);
         return;
       }
-      
+
       try {
         // Verificar si el coordinador tiene acceso a esta instalación
         const accessResponse = await fetch(
-          `${API_BASE_URL}/instalaciones/coordinador/${user.id}`, 
+          `${API_BASE_URL}/instalaciones/coordinador/${user.id}`,
           { credentials: 'include' }
         );
-        
+
         if (!accessResponse.ok) {
           throw new Error(`Error HTTP: ${accessResponse.status}`);
         }
-        
+
         const assignedFacilities = await accessResponse.json();
           // Verificar si la instalación solicitada está en las asignadas al coordinador
-        const hasAccess = assignedFacilities.some((facility: any) => 
+        const hasAccess = assignedFacilities.some((facility: any) =>
           facility.id === parseInt(id) || facility.instalacion_id === parseInt(id)
         );
-        
+
         setAuthorized(hasAccess);
-        
+
         // Si no tiene acceso, no cargar los datos
         if (!hasAccess) {
           setError("No tienes permiso para ver esta instalación. Solo puedes acceder a las instalaciones asignadas a tu cuenta.");
           setIsLoading(false);
           return;
         }
-        
+
         // Obtener los datos de la instalación desde el backend
         const response = await fetch(`${API_BASE_URL}/instalaciones/${id}`, {
           credentials: 'include'
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Procesar los datos para agregar propiedades adicionales para el frontend
         const processedData = {
           ...data,
@@ -150,7 +149,7 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
           ],
           observations: [] // Se podría obtener las observaciones desde otro endpoint
         };
-        
+
         // Obtener observaciones de la instalación (simulación por ahora)
         // En un entorno real, se haría otra llamada a un endpoint específico para observaciones
         const mockObservations = [
@@ -169,9 +168,9 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
             photos: ["/placeholder.svg?height=100&width=100"],
           },
         ];
-        
+
         processedData.observations = mockObservations;
-        
+
         setFacility(processedData);
       } catch (error) {
         console.error("Error al cargar detalles de la instalación:", error);
@@ -190,7 +189,7 @@ export default function InstalacionDetalle({ params }: { params: { id: string } 
     if (maintenanceStatus === "in-progress") {
       return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
     }
-    
+
     // En cualquier otro caso mostrar Disponible
     return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
   }

@@ -19,12 +19,11 @@ interface Instalacion {
   ubicacion: string;
   tipo: string;
   capacidad: number;
-  horarioApertura: string;
-  horarioCierre: string;
+  horario: string;
   imagenUrl: string;
   precio: number;
   activo: boolean;
-  
+
   // Propiedades adicionales para el frontend
   status?: 'disponible' | 'mantenimiento';
   maintenanceStatus?: 'none' | 'required' | 'scheduled' | 'in-progress';
@@ -53,7 +52,7 @@ export default function MapaInstalaciones() {
   const [selectedFacility, setSelectedFacility] = useState<Instalacion | null>(null)
   const searchParams = useSearchParams()
   const selectedId = searchParams.get('id')
-  
+
   // Obtener el usuario del contexto de autenticación
   const { user, isLoading: authLoading } = useAuth();
 
@@ -71,33 +70,33 @@ export default function MapaInstalaciones() {
           setIsLoading(false);
           return;
         }
-        
+
         // Usar el endpoint específico para coordinadores que devuelve solo las instalaciones asignadas
         const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${user.id}`, {
           credentials: 'include', // Importante para enviar cookies de autenticación
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error HTTP: ${response.status}`);
         }
-        
+
         const data = await response.json();
           // Obtener datos completos para cada instalación        // Procesar los datos para agregar propiedades adicionales para el frontend
         const processedData = await Promise.all(data.map(async (instalacionBasica: any) => {
           try {
             const detailResponse = await fetch(`${API_BASE_URL}/instalaciones/${instalacionBasica.id}`);
-            
+
             if (!detailResponse.ok) {
               throw new Error(`Error al obtener detalles de instalación: ${detailResponse.status}`);
             }
-            
+
             const detailData = await detailResponse.json();
-            
+
             // Generar coordenadas aleatorias cerca de Lima (simulado)
             // En un entorno real, estas coordenadas vendrían del backend
             const latOffset = (Math.random() - 0.5) * 0.02;
             const lngOffset = (Math.random() - 0.5) * 0.02;
-            
+
             // Agregar propiedades adicionales para el frontend
             return {
               ...detailData,
@@ -114,7 +113,7 @@ export default function MapaInstalaciones() {
             // Datos básicos en caso de error
             const latOffset = (Math.random() - 0.5) * 0.02;
             const lngOffset = (Math.random() - 0.5) * 0.02;
-            
+
             return {
               ...instalacionBasica,
               status: 'disponible',
@@ -127,9 +126,9 @@ export default function MapaInstalaciones() {
             };
           }
         }));
-        
+
         setFacilities(processedData);
-        
+
         // Si hay un ID seleccionado en los parámetros de consulta, encontrar y seleccionar esa instalación
         if (selectedId) {
           const selected = processedData.find(facility => facility.id === parseInt(selectedId));
@@ -155,7 +154,7 @@ export default function MapaInstalaciones() {
             }
           );
         }
-        
+
         setIsLoading(false);
       }
     };
@@ -193,7 +192,7 @@ export default function MapaInstalaciones() {
     if (maintenanceStatus === "in-progress") {
       return <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>;
     }
-    
+
     // En cualquier otro caso mostrar Disponible
     return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
   }
@@ -201,13 +200,13 @@ export default function MapaInstalaciones() {
   const onLoad = useCallback((map: google.maps.Map) => {
     if (facilities.length > 0) {
       const bounds = new window.google.maps.LatLngBounds();
-      
+
       facilities.forEach((facility) => {
         if (facility.coordinates) {
           bounds.extend(facility.coordinates);
         }
       });
-      
+
       bounds.extend(userLocation);
       map.fitBounds(bounds);
     }
@@ -338,7 +337,7 @@ export default function MapaInstalaciones() {
                 {facilities
                   .sort((a, b) => {
                     if (!a.coordinates || !b.coordinates) return 0;
-                    
+
                     const distA = Math.sqrt(
                       Math.pow(a.coordinates.lat - userLocation.lat, 2) +
                         Math.pow(a.coordinates.lng - userLocation.lng, 2)

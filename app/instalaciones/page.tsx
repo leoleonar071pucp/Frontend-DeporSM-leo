@@ -92,10 +92,8 @@ export default function Instalaciones() {
   }
 
   // Función para formatear el precio
-  const formatPrice = (price: number, tipo: string) => {
-    if (tipo.toLowerCase().includes('gimnasio')) {
-      return `S/. ${price.toFixed(2)} por día`
-    }
+  const formatPrice = (price: number) => {
+    // Todos los precios se muestran por hora
     return `S/. ${price.toFixed(2)} por hora`
   }
 
@@ -139,9 +137,9 @@ export default function Instalaciones() {
               ) : error ? (
                 <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
                   <p>{error}</p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     Reintentar
@@ -163,7 +161,7 @@ export default function Instalaciones() {
                           <strong>Ubicación:</strong> {facility.ubicacion}
                         </p>
                         <p className="text-gray-700 text-sm mb-4">
-                          <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
+                          <strong>Precio:</strong> {formatPrice(facility.precio)}
                         </p>
                         <Button asChild className="w-full bg-primary hover:bg-primary-light">
                           <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
@@ -186,9 +184,9 @@ export default function Instalaciones() {
               ) : error ? (
                 <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
                   <p>{error}</p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     Reintentar
@@ -210,7 +208,7 @@ export default function Instalaciones() {
                           <strong>Ubicación:</strong> {facility.ubicacion}
                         </p>
                         <p className="text-gray-700 text-sm mb-4">
-                          <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
+                          <strong>Precio:</strong> {formatPrice(facility.precio)}
                         </p>
                         <Button asChild className="w-full bg-primary hover:bg-primary-light">
                           <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
@@ -233,9 +231,9 @@ export default function Instalaciones() {
               ) : error ? (
                 <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
                   <p>{error}</p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     Reintentar
@@ -257,7 +255,7 @@ export default function Instalaciones() {
                           <strong>Ubicación:</strong> {facility.ubicacion}
                         </p>
                         <p className="text-gray-700 text-sm mb-4">
-                          <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
+                          <strong>Precio:</strong> {formatPrice(facility.precio)}
                         </p>
                         <Button asChild className="w-full bg-primary hover:bg-primary-light">
                           <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
@@ -280,9 +278,9 @@ export default function Instalaciones() {
               ) : error ? (
                 <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
                   <p>{error}</p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     Reintentar
@@ -304,7 +302,7 @@ export default function Instalaciones() {
                           <strong>Ubicación:</strong> {facility.ubicacion}
                         </p>
                         <p className="text-gray-700 text-sm mb-4">
-                          <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
+                          <strong>Precio:</strong> {formatPrice(facility.precio)}
                         </p>
                         <Button asChild className="w-full bg-primary hover:bg-primary-light">
                           <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
@@ -327,9 +325,9 @@ export default function Instalaciones() {
               ) : error ? (
                 <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
                   <p>{error}</p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     Reintentar
@@ -351,7 +349,7 @@ export default function Instalaciones() {
                           <strong>Ubicación:</strong> {facility.ubicacion}
                         </p>
                         <p className="text-gray-700 text-sm mb-4">
-                          <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
+                          <strong>Precio:</strong> {formatPrice(facility.precio)}
                         </p>
                         <Button asChild className="w-full bg-primary hover:bg-primary-light">
                           <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
@@ -374,9 +372,9 @@ export default function Instalaciones() {
               ) : error ? (
                 <div className="text-center p-8 bg-red-50 rounded-lg text-red-500">
                   <p>{error}</p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     Reintentar
@@ -398,7 +396,7 @@ export default function Instalaciones() {
                           <strong>Ubicación:</strong> {facility.ubicacion}
                         </p>
                         <p className="text-gray-700 text-sm mb-4">
-                          <strong>Precio:</strong> {formatPrice(facility.precio, facility.tipo)}
+                          <strong>Precio:</strong> {formatPrice(facility.precio)}
                         </p>
                         <Button asChild className="w-full bg-primary hover:bg-primary-light">
                           <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>

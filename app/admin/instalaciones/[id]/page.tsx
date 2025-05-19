@@ -10,48 +10,90 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Edit } from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
-
-
-import { facilitiesDB, Facility } from "@/data/facilities"
 import EditFacility from "./edit-facility/page"
+
+// Interfaz para las reservas recientes
+interface RecentReservation {
+  idReserva: number;
+  nombreUsuario: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  estado: string;
+}
 
 export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [facility, setFacility] = useState<Facility | null>(null)
+  const [facility, setFacility] = useState<any>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [recentReservations, setRecentReservations] = useState<RecentReservation[]>([])
   const { id: facilityId } = React.use(params)
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Cargar datos de la instalación
         const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}`)
         if (!response.ok) throw new Error("Error al cargar instalación")
         const data = await response.json()
-  
-        // Set default/fallback values for properties not in the API
+
+        // Determinar el estado de mantenimiento
+        let maintenanceStatus = "none";
+        if (data.estado === "mantenimiento") {
+          maintenanceStatus = "in-progress";
+        }
+
+        // Formatear los datos para la interfaz
         const enrichedData = {
           ...data,
+          id: data.id,
           name: data.nombre,
           description: data.descripcion,
           location: data.ubicacion,
           image: data.imagenUrl,
-          schedule: `Lunes a Viernes: ${data.horarioApertura} - ${data.horarioCierre}`,
           price: `S/. ${parseFloat(data.precio).toFixed(2)} por hora`,
           capacity: `${data.capacidad} personas`,
-          contactNumber: "987-654-321",
-          features: ["Dimensiones: 25m x 12.5m"],
-          amenities: ["Vestuarios con casilleros"],
-          rules: ["Uso obligatorio de gorro de baño"],
-          lastMaintenance: "15/03/2025",
+          contactNumber: data.contactoNumero || "987-654-321",
+          features: data.caracteristicas || [],
+          amenities: data.comodidades || [],
+          rules: data.reglas || [],
+          lastMaintenance: "15/03/2025", // Estos datos deberían venir del backend
           nextMaintenance: null,
-          status: "disponible",
-          maintenanceStatus: "required"
+          status: data.estado || "disponible",
+          maintenanceStatus: maintenanceStatus
         }
-  
+
         setFacility(enrichedData)
+
+        // Cargar reservas recientes para esta instalación
+        const reservationsResponse = await fetch(`${API_BASE_URL}/reservas/instalacion/${facilityId}`)
+        if (reservationsResponse.ok) {
+          const reservationsData = await reservationsResponse.json()
+          console.log("Datos de reservas recibidos:", reservationsData);
+
+          // Si hay datos, verificar el formato de la fecha
+          if (reservationsData && reservationsData.length > 0) {
+            console.log("Ejemplo de fecha recibida:", reservationsData[0].fecha, "Tipo:", typeof reservationsData[0].fecha);
+
+            // Mostrar cómo se formatea la fecha
+            const datePart = reservationsData[0].fecha.split('T')[0];
+            const date = new Date(`${datePart}T12:00:00`);
+            console.log("Fecha parseada:", date);
+            console.log("Fecha formateada:", date.toLocaleDateString('es-ES', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            }));
+          }
+
+          setRecentReservations(reservationsData)
+        }
       } catch (error) {
         console.error(error)
         setFacility(null)
@@ -59,7 +101,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
         setIsLoading(false)
       }
     }
-  
+
     loadData()
   }, [facilityId])
 
@@ -70,8 +112,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     description: string
     location: string
     image: string
-    schedule: string
-    price: number
+    price: string
     capacity: string
     contactNumber: string
     features: string[]
@@ -79,11 +120,38 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     rules: string[]
     lastMaintenance: string
     nextMaintenance?: string | null
-    status: "disponible" | "en mantenimiento"
+    status: string
     maintenanceStatus: "none" | "required" | "scheduled" | "in-progress"
   }
-  
-  
+
+  // Función para formatear la fecha
+  const formatDate = (dateString: string) => {
+    try {
+      // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
+      const datePart = dateString.split('T')[0];
+
+      // Crear la fecha con la hora a mediodía para evitar problemas de zona horaria
+      const date = new Date(`${datePart}T12:00:00`);
+
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) {
+        console.error("Fecha inválida:", dateString);
+        return dateString;
+      }
+
+      // Usar el mismo formato que en la vista de "Mis Reservas"
+      // Formatear la fecha usando toLocaleDateString para mostrar el día de la semana y el mes en texto
+      return date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error("Error al formatear fecha:", error);
+      return dateString;
+    }
+  }
 
   const handleSave = (updatedFacility: Facility) => {
     setFacility(updatedFacility)
@@ -220,13 +288,6 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                       <p className="text-gray-700 mb-4">{facility.description}</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-5 w-5 text-primary" />
-                          <div>
-                            <p className="font-medium">Horario</p>
-                            <p className="text-sm text-gray-600">{facility.schedule}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
                           <Users className="h-5 w-5 text-primary" />
                           <div>
                             <p className="font-medium">Capacidad</p>
@@ -254,32 +315,44 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                     </TabsContent>
                     <TabsContent value="caracteristicas" className="mt-4">
                       <ul className="space-y-2">
-                        {facility.features.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
+                        {facility.features && facility.features.length > 0 ? (
+                          facility.features.map((feature, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                              <span>{typeof feature === 'string' ? feature : feature.descripcion}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-gray-500">No hay características registradas</li>
+                        )}
                       </ul>
                     </TabsContent>
                     <TabsContent value="comodidades" className="mt-4">
                       <ul className="space-y-2">
-                        {facility.amenities.map((amenity, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                            <span>{amenity}</span>
-                          </li>
-                        ))}
+                        {facility.amenities && facility.amenities.length > 0 ? (
+                          facility.amenities.map((amenity, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                              <span>{typeof amenity === 'string' ? amenity : amenity.descripcion}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-gray-500">No hay comodidades registradas</li>
+                        )}
                       </ul>
                     </TabsContent>
                     <TabsContent value="reglas" className="mt-4">
                       <ul className="space-y-2">
-                        {facility.rules.map((rule, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                            <span>{rule}</span>
-                          </li>
-                        ))}
+                        {facility.rules && facility.rules.length > 0 ? (
+                          facility.rules.map((rule, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <Info className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                              <span>{typeof rule === 'string' ? rule : rule.descripcion}</span>
+                            </li>
+                          ))
+                        ) : (
+                          <li className="text-gray-500">No hay reglas registradas</li>
+                        )}
                       </ul>
                     </TabsContent>
                   </Tabs>
@@ -373,45 +446,42 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b">
-                      <td className="py-3 px-4">Juan Pérez</td>
-                      <td className="py-3 px-4">05/04/2025</td>
-                      <td className="py-3 px-4">18:00 - 19:00</td>
-                      <td className="py-3 px-4">
-                        <Badge className="bg-green-100 text-green-800">Confirmada</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href="/admin/reservas">Ver detalles</Link>
-                        </Button>
-                      </td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="py-3 px-4">María López</td>
-                      <td className="py-3 px-4">06/04/2025</td>
-                      <td className="py-3 px-4">10:00 - 11:00</td>
-                      <td className="py-3 px-4">
-                        <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href="/admin/reservas">Ver detalles</Link>
-                        </Button>
-                      </td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="py-3 px-4">Carlos Rodríguez</td>
-                      <td className="py-3 px-4">06/04/2025</td>
-                      <td className="py-3 px-4">16:00 - 17:00</td>
-                      <td className="py-3 px-4">
-                        <Badge className="bg-green-100 text-green-800">Confirmada</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href="/admin/reservas">Ver detalles</Link>
-                        </Button>
-                      </td>
-                    </tr>
+                    {recentReservations && recentReservations.length > 0 ? (
+                      recentReservations.map((reservation) => (
+                        <tr key={reservation.idReserva} className="border-b">
+                          <td className="py-3 px-4">{reservation.nombreUsuario}</td>
+                          <td className="py-3 px-4">
+                            {/* Mostrar la fecha formateada con día de la semana */}
+                            {formatDate(reservation.fecha)}
+                          </td>
+                          <td className="py-3 px-4">{`${reservation.horaInicio.substring(0, 5)} - ${reservation.horaFin.substring(0, 5)}`}</td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              className={
+                                reservation.estado === "confirmada" || reservation.estado === "completada"
+                                  ? "bg-green-100 text-green-800"
+                                  : reservation.estado === "pendiente"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
+                              }
+                            >
+                              {reservation.estado.charAt(0).toUpperCase() + reservation.estado.slice(1)}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/admin/reservas/${reservation.idReserva}`}>Ver detalles</Link>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-gray-500">
+                          No hay reservas recientes para esta instalación
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

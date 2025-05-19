@@ -19,7 +19,7 @@ import { useNotification } from "@/context/NotificationContext" // Importar useN
 import { useAuth } from "@/context/AuthContext" // Importar useAuth
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { API_BASE_URL } from "@/lib/config";
-import { calculateAndFormatPrice, formatPriceWithUnit } from "@/lib/price-utils";
+import { calculateTotalPrice, formatPrice, formatPriceWithUnit } from "@/lib/price-utils";
 
 // Interfaz para la instalación de la API
 interface ApiFacility {
@@ -124,14 +124,22 @@ function ConfirmarReservaForm() {
         console.log("Instalación obtenida de la API:", apiFacility);
 
         // Calcular el precio total basado en la duración
-        const timeRange = timeParam || "00:00 - 00:00";
+        let calculatedPrice = "";
+        if (timeParam) {
+          const [startTime, endTime] = timeParam.split(' - ');
+          const totalPrice = calculateTotalPrice(apiFacility.precio, startTime, endTime);
+          calculatedPrice = formatPrice(totalPrice);
+          console.log(`Precio calculado para ${timeParam}: ${calculatedPrice} (precio por hora: ${apiFacility.precio})`);
+        } else {
+          calculatedPrice = formatPrice(apiFacility.precio);
+        }
 
         // Adaptar el formato de la respuesta al formato que espera nuestro componente
         const adaptedFacility: Facility = {
           id: apiFacility.id,
           name: apiFacility.nombre,
           image: apiFacility.imagenUrl || "/placeholder.svg?height=200&width=300",
-          price: calculateAndFormatPrice(apiFacility.precio, timeRange),
+          price: calculatedPrice,
           pricePerHour: apiFacility.precio,
           tipo: apiFacility.tipo,
           description: apiFacility.descripcion,
