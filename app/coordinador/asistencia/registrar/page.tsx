@@ -66,12 +66,24 @@ const validateScheduledVisit = (visit: Visit, schedules: CoordinatorSchedule[]):
   // Obtenemos el nombre del día en español
   const dayOfWeek = visitDate.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
   
-  return schedules.some(schedule => 
-    schedule.instalacionId === visit.facilityId &&
-    schedule.diaSemana.toLowerCase() === dayOfWeek &&
-    schedule.horaInicio === visit.scheduledTime &&
-    schedule.horaFin === visit.scheduledEndTime
-  );
+  // Comprobar que coincidan: ID de instalación, día de la semana y horario
+  return schedules.some(schedule => {
+    const matchesInstallation = schedule.instalacionId === visit.facilityId;
+    const matchesDay = schedule.diaSemana.toLowerCase() === dayOfWeek;
+    const matchesStartTime = schedule.horaInicio === visit.scheduledTime;
+    const matchesEndTime = schedule.horaFin === visit.scheduledEndTime;
+    
+    // Mostrar información de depuración solo si no coincide
+    if (matchesInstallation && (!matchesDay || !matchesStartTime || !matchesEndTime)) {
+      console.log(`Validación de visita - Datos no coinciden:
+        Día de visita: ${dayOfWeek} | Día programado: ${schedule.diaSemana.toLowerCase()}
+        Hora inicio visita: ${visit.scheduledTime} | Hora programada: ${schedule.horaInicio}
+        Hora fin visita: ${visit.scheduledEndTime} | Hora fin programada: ${schedule.horaFin}`
+      );
+    }
+    
+    return matchesInstallation && matchesDay && matchesStartTime && matchesEndTime;
+  });
 }
 
 export default function RegistrarAsistenciaPage() {
@@ -342,15 +354,19 @@ export default function RegistrarAsistenciaPage() {
     }
 
     setIsSaving(true)
-    
-    try {      // Construir el objeto de registro de asistencia
+      try {
+      // Construir el objeto de registro de asistencia con la información más actualizada de la instalación
+      // Aseguramos que siempre tengamos un nombre para la instalación
+      const facilityName = visit.facilityName || `Instalación ${visit.facilityId}`;
+      const location = visit.location || "Complejo Deportivo Municipal";
+      
       const attendanceRecord = {
         id: 0, // El backend asignará el ID real
         visitId: visit.id, // ID de la visita programada (importante para tracking)
         facilityId: visit.facilityId,
         scheduleId: visit.scheduleId,
-        facilityName: visit.facilityName,
-        location: visit.location,
+        facilityName: facilityName,
+        location: location,
         date: visit.date,
         scheduledTime: visit.scheduledTime,
         scheduledEndTime: visit.scheduledEndTime,
@@ -358,7 +374,7 @@ export default function RegistrarAsistenciaPage() {
         status: formData.status,
         notes: "",
         departureTime: null,
-      }      // Usar el servicio para registrar la asistencia
+      }// Usar el servicio para registrar la asistencia
       await recordAttendance(attendanceRecord)
         // También guardar directamente el ID de la visita para asegurar su almacenamiento
       try {
@@ -533,18 +549,22 @@ export default function RegistrarAsistenciaPage() {
                 <CardTitle>Información de la Visita</CardTitle>
                 <CardDescription>Registra tu asistencia a la instalación asignada</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
+              <CardContent className="space-y-4">                <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-medium">{visit.facilityName}</h3>
+                    <h3 className="text-lg font-medium">
+                      {visit.facilityName || (isLoading ? "Cargando..." : `Instalación ${visit.facilityId}`)}
+                    </h3>
                     <p className="text-gray-500 flex items-center gap-1">
-                      <MapPin className="h-4 w-4" /> {visit.location}
+                      <MapPin className="h-4 w-4" /> {visit.location || "Sin ubicación especificada"}
                     </p>
                   </div>
                   <img
                     src={visit.image || "/placeholder.svg"}
-                    alt={visit.facilityName}
+                    alt={visit.facilityName || `Instalación ${visit.facilityId}`}
                     className="h-16 w-24 object-cover rounded-md"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg";
+                    }}
                   />
                 </div>
 

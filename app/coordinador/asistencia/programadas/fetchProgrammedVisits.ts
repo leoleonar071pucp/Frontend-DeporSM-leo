@@ -142,13 +142,34 @@ export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
       
       const facilityId = horario.instalacionId.toString();
       const dia = normalizeDayName(horario.diaSemana);
-      
-      if (!processedSchedules[facilityId]) {
+        if (!processedSchedules[facilityId]) {
         processedSchedules[facilityId] = {
           facilityId: horario.instalacionId,
           facilityName: horario.instalacionNombre || `Instalación ${horario.instalacionId}`,
           schedules: []
         };
+        
+        // Si no tenemos el nombre de la instalación pero sí su ID, intentar obtenerlo
+        if ((!horario.instalacionNombre || horario.instalacionNombre.startsWith('Instalación ')) && 
+            horario.instalacionId) {
+          // Se hace la solicitud en segundo plano sin bloquear
+          apiGet(`instalaciones/${horario.instalacionId}`)
+            .then(facilityResponse => {
+              if (facilityResponse.ok) {
+                return facilityResponse.json();
+              }
+              throw new Error("No se pudo obtener la instalación");
+            })
+            .then(facilityData => {
+              // Actualizar el nombre de la instalación si existe
+              if (facilityData && facilityData.nombre && processedSchedules[facilityId]) {
+                processedSchedules[facilityId].facilityName = facilityData.nombre;
+              }
+            })
+            .catch(err => {
+              console.warn(`Error al obtener detalles de instalación ${horario.instalacionId}:`, err);
+            });
+        }
       }
       
       // Manejo seguro de los formatos de hora

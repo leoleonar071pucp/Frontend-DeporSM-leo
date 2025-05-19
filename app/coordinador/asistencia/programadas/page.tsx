@@ -158,16 +158,17 @@ export default function ProgramadasPage() {
         <CardContent>
           {filteredVisits.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredVisits.map((visit) => (
-                <div key={visit.id} className="border rounded-lg p-4 hover:border-primary transition-colors">
+              {filteredVisits.map((visit) => (                <div key={visit.id} className="border rounded-lg p-4 hover:border-primary transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="font-medium">{visit.facilityName}</h3>
+                      <h3 className="font-medium">
+                        {visit.facilityName || (isLoading ? "Cargando..." : `Instalación ${visit.facilityId}`)}
+                      </h3>
                     </div>
                   </div>
                   <p className="text-sm text-gray-500 flex items-center gap-1 mb-4">
-                    <MapPin className="h-4 w-4" /> {visit.location}
-                  </p>                  <div className="flex items-center gap-2 mb-2">                    <Calendar className="h-4 w-4 text-primary" />
+                    <MapPin className="h-4 w-4" /> {visit.location || "Sin ubicación especificada"}
+                  </p><div className="flex items-center gap-2 mb-2">                    <Calendar className="h-4 w-4 text-primary" />
                     <div>
                       <p className="text-sm text-gray-500">Fecha</p>
                       <p className="font-medium">

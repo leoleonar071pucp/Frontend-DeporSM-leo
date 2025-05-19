@@ -15,7 +15,39 @@ export async function getCoordinatorSchedules(userId: string, facilityId: number
     
     if (response.ok) {
       const data = await response.json();
+      
+      // Si tenemos horarios pero falta el nombre de la instalación, intentar obtenerlo
+      if (Array.isArray(data) && data.length > 0) {
+        for (const schedule of data) {
+          if (!schedule.instalacionNombre && schedule.instalacionId) {
+            try {
+              const facilityResponse = await apiGet(`instalaciones/${schedule.instalacionId}`);
+              if (facilityResponse.ok) {
+                const facilityData = await facilityResponse.json();
+                schedule.instalacionNombre = facilityData.nombre || `Instalación ${schedule.instalacionId}`;
+              }
+            } catch (facilityError) {
+              console.warn("Error al obtener datos de la instalación para horario:", facilityError);
+            }
+          }
+        }
+      }
+      
       return data;
+    }
+    
+    // Si no hay respuesta del backend, intentar obtener al menos el nombre real de la instalación
+    let instalacionNombre = `Instalación ${facilityId}`;
+    
+    try {
+      // Intentar obtener datos de la instalación para mostrar el nombre correcto
+      const facilityResponse = await apiGet(`instalaciones/${facilityId}`);
+      if (facilityResponse.ok) {
+        const facilityData = await facilityResponse.json();
+        instalacionNombre = facilityData.nombre || instalacionNombre;
+      }
+    } catch (facilityError) {
+      console.warn("Error al obtener datos de la instalación para horarios:", facilityError);
     }
     
     // Si no hay respuesta del backend, devolver datos de desarrollo
@@ -27,7 +59,7 @@ export async function getCoordinatorSchedules(userId: string, facilityId: number
         horaInicio: "08:00",
         horaFin: "12:00",
         instalacionId: facilityId,
-        instalacionNombre: facilityId === 1 ? "Cancha de Fútbol (Grass)" : "Piscina Municipal",
+        instalacionNombre: instalacionNombre,
         coordinadorId: parseInt(userId)
       },
       {
@@ -36,7 +68,7 @@ export async function getCoordinatorSchedules(userId: string, facilityId: number
         horaInicio: "08:00",
         horaFin: "12:00",
         instalacionId: facilityId,
-        instalacionNombre: facilityId === 1 ? "Cancha de Fútbol (Grass)" : "Piscina Municipal",
+        instalacionNombre: instalacionNombre,
         coordinadorId: parseInt(userId)
       },
       {
@@ -45,7 +77,7 @@ export async function getCoordinatorSchedules(userId: string, facilityId: number
         horaInicio: "14:00",
         horaFin: "18:00",
         instalacionId: facilityId,
-        instalacionNombre: facilityId === 1 ? "Cancha de Fútbol (Grass)" : "Piscina Municipal",
+        instalacionNombre: instalacionNombre,
         coordinadorId: parseInt(userId)
       }
     ].filter(schedule => schedule.instalacionId === facilityId);
@@ -68,6 +100,23 @@ export async function getScheduledVisit(visitId: number, facilityId: number): Pr
     
     if (response.ok) {
       const data = await response.json();
+      
+      // Si tenemos la visita pero no el nombre de la instalación,
+      // intentamos obtener los datos de la instalación
+      if (data && !data.facilityName && data.facilityId) {
+        try {
+          const facilityResponse = await apiGet(`instalaciones/${data.facilityId}`);
+          if (facilityResponse.ok) {
+            const facilityData = await facilityResponse.json();
+            // Actualizar el nombre de la instalación con el valor dinámico
+            data.facilityName = facilityData.nombre || `Instalación ${data.facilityId}`;
+            data.location = facilityData.ubicacion || "Complejo Deportivo Municipal";
+          }
+        } catch (facilityError) {
+          console.warn("Error al obtener datos de la instalación:", facilityError);
+        }
+      }
+      
       return data;
     }
     
@@ -83,44 +132,98 @@ export async function getScheduledVisit(visitId: number, facilityId: number): Pr
     // Si encontramos la visita, la devolvemos
     if (foundVisit) {
       console.log("Encontrada visita específica:", foundVisit);
+      
+      // Intentar obtener datos actualizados de la instalación
+      if (foundVisit.facilityId) {
+        try {
+          const facilityResponse = await apiGet(`instalaciones/${foundVisit.facilityId}`);
+          if (facilityResponse.ok) {
+            const facilityData = await facilityResponse.json();
+            // Actualizar el nombre de la instalación con el valor dinámico
+            foundVisit.facilityName = facilityData.nombre || foundVisit.facilityName;
+            foundVisit.location = facilityData.ubicacion || foundVisit.location;
+          }
+        } catch (facilityError) {
+          console.warn("Error al obtener datos de la instalación:", facilityError);
+        }
+      }
+      
       return foundVisit;
     }
     
     // Como plan B (si no encontramos la visita), generamos datos basados en facilityId
     console.warn("No se encontró la visita específica, generando datos básicos");
     
-    // Mapeo de IDs de instalaciones para datos de desarrollo
+    // Intentar obtener datos dinámicos de la instalación
+    try {
+      const facilityResponse = await apiGet(`instalaciones/${facilityId}`);
+      if (facilityResponse.ok) {
+        const facilityData = await facilityResponse.json();
+        
+        // Usar la fecha actual ajustada a la zona horaria de Perú (GMT-5)
+        const now = new Date();
+        // Ajustar a la zona horaria de Perú (GMT-5)
+        const localOffset = now.getTimezoneOffset();
+        const peruOffset = -300; // -5 horas * 60 minutos
+        const offsetDiff = localOffset + peruOffset;
+        const peruDate = new Date(now.getTime() + offsetDiff * 60000);
+        const today = peruDate;
+        const dateToUse = new Date(today);
+        
+        // Usar horario predeterminado basado en la instalación
+        let scheduleTime = "09:00";
+        let scheduleEndTime = "13:00";
+        
+        // Intentar determinar el horario basado en el ID de la instalación
+        if (facilityId === 1) {
+          scheduleTime = "08:00";
+          scheduleEndTime = "12:00";
+        } else if (facilityId === 2) {
+          scheduleTime = "14:00";
+          scheduleEndTime = "18:00";
+        }
+        
+        // Crear objeto de visita con datos dinámicos de la instalación
+        return {
+          id: visitId,
+          facilityId: facilityId,
+          facilityName: facilityData.nombre || `Instalación ${facilityId}`,
+          location: facilityData.ubicacion || "Complejo Deportivo Municipal",
+          date: dateToUse.toISOString().split('T')[0],
+          scheduledTime: scheduleTime,
+          scheduledEndTime: scheduleEndTime,
+          image: facilityData.imagenUrl || "/placeholder.svg"
+        };
+      }
+    } catch (facilityError) {
+      console.warn("Error al obtener datos de la instalación:", facilityError);
+    }
+    
+    // Mapeo de IDs de instalaciones para datos de desarrollo (solo como último recurso)
     const facilityNames: Record<number, string> = {
       1: "Cancha de Fútbol (Grass)",
       2: "Piscina Municipal",
       3: "Gimnasio Municipal"
-    };    // Usar la fecha actual ajustada a la zona horaria de Perú (GMT-5)
+    };
+    // Usar la fecha actual ajustada a la zona horaria de Perú (GMT-5)
     const now = new Date();
-    // Ajustar a la zona horaria de Perú (GMT-5)
-    // 1. Obtener la diferencia entre la zona horaria local y UTC en minutos
     const localOffset = now.getTimezoneOffset();
-    // 2. La zona horaria de Perú es UTC-5, que son -300 minutos
     const peruOffset = -300; // -5 horas * 60 minutos
-    // 3. Calcular la diferencia total para ajustar
-    const offsetDiff = localOffset + peruOffset; // Minutos para ajustar
-    // 4. Crear una nueva fecha ajustada para Perú
+    const offsetDiff = localOffset + peruOffset;
     const peruDate = new Date(now.getTime() + offsetDiff * 60000);
     const today = peruDate;
-    let dateToUse: Date;
-    let scheduleTime: string;
-    let scheduleEndTime: string;
+    let dateToUse = new Date(today);
+    let scheduleTime;
+    let scheduleEndTime;
     
     // Determinar fecha y horario según el ID de la instalación
     if (facilityId === 1) {
-      dateToUse = new Date(today);
       scheduleTime = "08:00";
       scheduleEndTime = "12:00";
     } else if (facilityId === 2) {
-      dateToUse = new Date(today);
       scheduleTime = "14:00";
       scheduleEndTime = "18:00";
     } else {
-      dateToUse = new Date(today);
       scheduleTime = "09:00";
       scheduleEndTime = "13:00";
     }
@@ -213,6 +316,22 @@ export async function getScheduledVisits(userId: string, filters?: any): Promise
  */
 export async function recordAttendance(attendanceRecord: AttendanceRecord): Promise<AttendanceRecord> {
   try {
+    // Si no tenemos el nombre de la instalación pero sí su ID, intentar obtenerlo
+    if ((!attendanceRecord.facilityName || attendanceRecord.facilityName.startsWith('Instalación ')) && 
+        attendanceRecord.facilityId) {
+      try {
+        const facilityResponse = await apiGet(`instalaciones/${attendanceRecord.facilityId}`);
+        if (facilityResponse.ok) {
+          const facilityData = await facilityResponse.json();
+          // Actualizar el registro con los datos dinámicos de la instalación
+          attendanceRecord.facilityName = facilityData.nombre || attendanceRecord.facilityName;
+          attendanceRecord.location = facilityData.ubicacion || attendanceRecord.location;
+        }
+      } catch (facilityError) {
+        console.warn("Error al obtener datos de instalación para registro de asistencia:", facilityError);
+      }
+    }
+
     // Intentar enviar datos al backend
     const response = await apiPost('asistencias', attendanceRecord);
     
@@ -227,7 +346,7 @@ export async function recordAttendance(attendanceRecord: AttendanceRecord): Prom
         ...attendanceRecord,
         id: Math.floor(Math.random() * 10000) // Asignar ID aleatorio para desarrollo
       };
-    }    // Guardar el ID de visita programada como registrada en localStorage
+    }// Guardar el ID de visita programada como registrada en localStorage
     const visitIdToSave = attendanceRecord.visitId;
     
     if (visitIdToSave) {
