@@ -204,7 +204,7 @@ function NuevaObservacionForm() {
 
   const uploadImageToSupabase = async (file: File): Promise<string | null> => {
     const filePath = `instalaciones/observaciones/${Date.now()}_${file.name}`;
-  
+
     const { data, error } = await supabase
       .storage
       .from('instalaciones')  // nombre del bucket en Supabase
@@ -213,17 +213,17 @@ function NuevaObservacionForm() {
         upsert: true,
         contentType: file.type
       });
-  
+
     if (error) {
       console.error("Error al subir imagen:", error.message);
       return null;
     }
-  
+
     const { data: publicUrlData } = supabase
       .storage
       .from('instalaciones')
       .getPublicUrl(filePath);
-  
+
     return publicUrlData.publicUrl;
   };
 
@@ -264,7 +264,7 @@ function NuevaObservacionForm() {
     try {
       // Subir las fotos a Supabase y obtener las URLs
       const uploadedUrls: string[] = [];
-      
+
       if (photos.length > 0) {
         for (const photo of photos) {
           const url = await uploadImageToSupabase(photo);
@@ -272,7 +272,7 @@ function NuevaObservacionForm() {
             uploadedUrls.push(url);
           }
         }
-        
+
         if (uploadedUrls.length < photos.length) {
           throw new Error("No se pudieron subir todas las imágenes");
         }
@@ -289,7 +289,7 @@ function NuevaObservacionForm() {
       };
 
       // Llamada a la API para crear la observación
-      const response = await fetch(`${API_BASE_URL}/observaciones`, {
+      const response = await fetch(`/api/observaciones`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

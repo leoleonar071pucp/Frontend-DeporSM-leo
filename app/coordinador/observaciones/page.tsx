@@ -118,7 +118,7 @@ const observationsData: Observation[] = [
 export default function ObservacionesCoordinador() {
   // Use the proper hook instead of direct context access
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  
+
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [observations, setObservations] = useState<Observation[]>([])
   const [allObservations, setAllObservations] = useState<Observation[]>([])
@@ -131,17 +131,17 @@ export default function ObservacionesCoordinador() {
   // Función para aplicar los filtros actuales (estado y prioridad)
   const applyFilters = (data: Observation[], tab: string = activeTab, priority: string = activePriority, query: string = searchQuery) => {
     let filtered = [...data];
-    
+
     // Aplicar filtro por estado (pestaña)
     if (tab !== "todas") {
       filtered = filtered.filter((o) => o.status === tab.slice(0, -1)); // "pendientes" -> "pendiente"
     }
-    
+
     // Aplicar filtro por prioridad
     if (priority !== "todas") {
       filtered = filtered.filter((o) => o.priority === priority);
     }
-    
+
     // Aplicar búsqueda
     if (query) {
       filtered = filtered.filter(
@@ -150,59 +150,59 @@ export default function ObservacionesCoordinador() {
           observation.facilityName.toLowerCase().includes(query.toLowerCase()),
       );
     }
-    
+
     return filtered;
   }
   // Función para mapear el estado de la API al formato del frontend
   const mapApiStatusToFrontend = (apiStatus: string): string => {
     switch (apiStatus.toLowerCase()) {
-      case "en_proceso": 
+      case "en_proceso":
         return "aprobada";
-      case "resuelta": 
+      case "resuelta":
         return "completada";
-      case "cancelada": 
+      case "cancelada":
         return "rechazada";
-      default: 
+      default:
         return apiStatus.toLowerCase();
     }
   }
-  
+
   useEffect(() => {
     // Cargar datos desde la API
     const loadData = async () => {
       try {
         // Usamos el ID del usuario autenticado (o 4 como fallback)
         const userId = user?.id ? parseInt(user.id) : 4;
-        
+
         console.log(`Cargando observaciones para coordinador con ID: ${userId}`);
-        const response = await fetch(`${API_BASE_URL}/observaciones/coordinador/${userId}`, {
+        const response = await fetch(`/api/observaciones/coordinador/${userId}`, {
           credentials: 'include',
         });
-        
+
         if (!response.ok) {
           throw new Error('Error al cargar observaciones');
         }
           const data = await response.json();
-        
+
         // Depurar la respuesta API
         console.log('API Response data:', data);
-        
+
       // Transformamos los datos de la API al formato necesario para nuestro componente
         const mappedData = data.map((obs: any) => {          // Procesar URLs de imágenes (puede ser null o contener múltiples URLs separadas por comas)
           const photoUrls: string[] = [];
-          
+
           if (obs.fotosUrl) {
             try {
               if (typeof obs.fotosUrl === 'string') {
                 // Limpiar la cadena y eliminar espacios en blanco
                 const cleanUrlString = obs.fotosUrl.trim();
-                
+
                 if (cleanUrlString) {
                   // Intentar ambos separadores (coma y pipe) para mayor compatibilidad
-                  const urlsArray = cleanUrlString.includes(',') 
+                  const urlsArray = cleanUrlString.includes(',')
                     ? cleanUrlString.split(',').filter((url: string) => url && url.trim())
                     : cleanUrlString.split('|').filter((url: string) => url && url.trim());
-                  
+
                   // Filtrar URLs vacías y agregar al array
                   const validUrls = urlsArray.filter(url => url && url.trim());
                   if (validUrls.length > 0) {
@@ -214,15 +214,15 @@ export default function ObservacionesCoordinador() {
               console.error(`Error processing fotosUrl for observation ${obs.idObservacion}:`, error);
             }
           }
-          
+
           // Si no hay URLs, usar un placeholder
           if (photoUrls.length === 0) {
             photoUrls.push("/placeholder.svg?height=100&width=100");
           }
-          
+
           // Imprimir para depuración
           console.log(`Observation ${obs.idObservacion} - fotos:`, photoUrls);
-          
+
           return {            id: obs.idObservacion,
             facilityId: obs.idObservacion,
             facilityName: obs.instalacion,
@@ -237,10 +237,10 @@ export default function ObservacionesCoordinador() {
             location: obs.ubicacion || obs.instalacion || "Sin ubicación",
             fotosUrl: obs.fotosUrl // Mantener el valor original para debugging
           }
-        });        
+        });
         console.log('Observaciones mapeadas:', mappedData);
         console.log(`Se encontraron ${mappedData.length} observaciones para el coordinador`);
-        
+
         setAllObservations(mappedData);
         const filtradas = applyFilters(mappedData);
         console.log(`Después de aplicar filtros quedan ${filtradas.length} observaciones`);
@@ -253,7 +253,7 @@ export default function ObservacionesCoordinador() {
       } finally {
         setIsLoading(false);
       }    };
-    
+
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
@@ -267,7 +267,7 @@ export default function ObservacionesCoordinador() {
     // Aplicamos los filtros inmediatamente para evitar un segundo renderizado
     setObservations(applyFilters(allObservations, value, activePriority, searchQuery))
   }
-  
+
   const handlePriorityChange = (priority: string) => {
     setActivePriority(priority)
     // Aplicamos los filtros inmediatamente para evitar un segundo renderizado
@@ -322,7 +322,7 @@ export default function ObservacionesCoordinador() {
           </Link>
         </div>
       </div>
-      
+
       {/* Filtros y búsqueda */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <form onSubmit={handleSearch} className="flex space-x-2">
@@ -471,23 +471,23 @@ export default function ObservacionesCoordinador() {
                   <p className="text-sm text-gray-600">{selectedObservation.feedback}</p>
                 </div>
               )}
-              
+
               {/* Sección de imágenes */}
               <div>
                 <span className="font-medium">Imágenes:</span>
                 {selectedObservation.photos.length > 0 && selectedObservation.photos[0] !== "/placeholder.svg?height=100&width=100" ? (
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {selectedObservation.photos.map((photo, index) => (
-                      <a 
-                        key={index} 
-                        href={photo} 
-                        target="_blank" 
+                      <a
+                        key={index}
+                        href={photo}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="block"
                       >
-                        <img 
-                          src={photo} 
-                          alt={`Foto ${index + 1}`} 
+                        <img
+                          src={photo}
+                          alt={`Foto ${index + 1}`}
                           className="w-full h-24 object-cover rounded-md border border-gray-200 hover:opacity-90 transition-opacity"
                         />
                       </a>

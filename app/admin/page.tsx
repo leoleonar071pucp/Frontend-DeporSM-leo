@@ -138,7 +138,7 @@ export default function AdminDashboard() {
         )
 
         // Llamada al endpoint de observaciones recientes
-        const resAlerts = await fetch(`${API_BASE_URL}/observaciones/recientes`)
+        const resAlerts = await fetch(`/api/observaciones/recientes`)
         const dataAlerts = await resAlerts.json()
 
         setMaintenanceAlerts(

@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { useNotification } from "@/context/NotificationContext"
+import { API_BASE_URL } from "@/lib/config"
 
 interface Observation {
   id: number
@@ -48,20 +49,48 @@ export default function ObservacionesPage() {
   useEffect(() => {
     const fetchObservations = async () => {
       try {
-        const response = await fetch('${API_BASE_URL}/observaciones/all')
+        const response = await fetch(`/api/observaciones/all`)
         const data = await response.json()
 
-        const mappedData: Observation[] = data.map((obs: any) => ({
-          id: obs.idObservacion,
-          facilityName: obs.instalacion,
-          description: obs.descripcion,
-          coordinatorName: obs.coordinador,
-          date: obs.fecha,
-          status: obs.estado,
-          priority: obs.prioridad,
-        }))
+        console.log("Respuesta recibida:", data);
 
-        setObservationsData(mappedData)
+        // Verificar si data es un array
+        if (Array.isArray(data)) {
+          console.log("La respuesta es un array con", data.length, "elementos");
+
+          // Verificar si el array tiene elementos y si tienen la estructura esperada
+          if (data.length > 0 && data[0].idObservacion) {
+            const mappedData: Observation[] = data.map((obs: any) => ({
+              id: obs.idObservacion,
+              facilityName: obs.instalacion,
+              description: obs.descripcion,
+              coordinatorName: obs.coordinador,
+              date: obs.fecha,
+              status: obs.estado,
+              priority: obs.prioridad,
+            }));
+
+            setObservationsData(mappedData);
+          } else {
+            console.error("El array no tiene la estructura esperada:", data[0]);
+            setObservationsData([]);
+          }
+        }
+        // Si no es un array, podría ser un objeto con un mensaje de error
+        else if (data && typeof data === 'object') {
+          console.error("La respuesta no es un array:", data);
+
+          // Si hay un mensaje de error, mostrarlo
+          if (data.error) {
+            console.error("Error recibido:", data.error);
+          }
+
+          setObservationsData([]);
+        }
+        else {
+          console.error("Respuesta inesperada:", data);
+          setObservationsData([]);
+        }
       } catch (error) {
         console.error("Error al cargar observaciones:", error)
       }
@@ -270,6 +299,100 @@ export default function ObservacionesPage() {
           </div>
         </CardContent>
       </Card>
+
+
+      {/* Dialog para ver detalles de la observación */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalles de la Observación</DialogTitle>
+            <DialogDescription>
+              Información completa sobre la observación seleccionada
+            </DialogDescription>
+          </DialogHeader>
+          {selectedObservation && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Instalación</h3>
+                <p className="text-sm text-gray-700">{selectedObservation.facilityName}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Descripción</h3>
+                <p className="text-sm text-gray-700">{selectedObservation.description}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Coordinador</h3>
+                <p className="text-sm text-gray-700">{selectedObservation.coordinatorName}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Fecha</h3>
+                <p className="text-sm text-gray-700">{selectedObservation.date}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Estado</h3>
+                <div>{getStatusBadge(selectedObservation.status)}</div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Prioridad</h3>
+                <div>{getPriorityBadge(selectedObservation.priority)}</div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para aprobar o rechazar una observación */}
+      <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === "aprobar" ? "Aprobar Observación" : "Rechazar Observación"}
+            </DialogTitle>
+            <DialogDescription>
+              {actionType === "aprobar"
+                ? "La observación pasará a estado 'Aprobada' y se notificará al coordinador."
+                : "La observación pasará a estado 'Rechazada' y se notificará al coordinador."}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedObservation && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium">Instalación</h3>
+                <p className="text-sm text-gray-700">{selectedObservation.facilityName}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Descripción</h3>
+                <p className="text-sm text-gray-700">{selectedObservation.description}</p>
+              </div>
+              <div>
+                <Label htmlFor="feedback">Comentarios (opcional)</Label>
+                <Textarea
+                  id="feedback"
+                  placeholder="Añade comentarios adicionales..."
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsActionDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleActionConfirm}
+              variant={actionType === "aprobar" ? "default" : "destructive"}
+            >
+              {actionType === "aprobar" ? "Aprobar" : "Rechazar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
