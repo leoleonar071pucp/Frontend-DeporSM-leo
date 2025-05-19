@@ -343,10 +343,10 @@ export default function RegistrarAsistenciaPage() {
 
     setIsSaving(true)
     
-    try {
-      // Construir el objeto de registro de asistencia
+    try {      // Construir el objeto de registro de asistencia
       const attendanceRecord = {
         id: 0, // El backend asignará el ID real
+        visitId: visit.id, // ID de la visita programada (importante para tracking)
         facilityId: visit.facilityId,
         scheduleId: visit.scheduleId,
         facilityName: visit.facilityName,
@@ -358,10 +358,23 @@ export default function RegistrarAsistenciaPage() {
         status: formData.status,
         notes: "",
         departureTime: null,
-      }
-
-      // Usar el servicio para registrar la asistencia
+      }      // Usar el servicio para registrar la asistencia
       await recordAttendance(attendanceRecord)
+      
+      // También guardar directamente el ID de la visita para asegurar su almacenamiento
+      try {
+        const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
+        const registeredVisits = JSON.parse(registeredVisitsJson);
+        
+        // Asegurar que el ID de la visita se guarde correctamente
+        if (visit.id && !registeredVisits.includes(visit.id)) {
+          registeredVisits.push(visit.id);
+          console.log(`Guardando visita ID=${visit.id} como registrada (desde componente)`);
+          localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
+        }
+      } catch (err) {
+        console.error("Error al guardar en localStorage (componente):", err);
+      }
 
       toast({
         title: "Asistencia registrada",

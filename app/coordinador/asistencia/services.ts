@@ -202,17 +202,45 @@ export async function recordAttendance(attendanceRecord: AttendanceRecord): Prom
     // Intentar enviar datos al backend
     const response = await apiPost('asistencias', attendanceRecord);
     
+    let result;
     if (response.ok) {
       const data = await response.json();
-      return data;
+      result = data;
+    } else {
+      // Si no hay respuesta del backend, simular una respuesta exitosa
+      console.warn("Simulando registro de asistencia exitoso");
+      result = {
+        ...attendanceRecord,
+        id: Math.floor(Math.random() * 10000) // Asignar ID aleatorio para desarrollo
+      };
+    }    // Guardar el ID de visita programada como registrada en localStorage
+    const visitIdToSave = attendanceRecord.visitId;
+    console.log("Intentando guardar visitId:", visitIdToSave);
+    
+    if (visitIdToSave) {
+      try {
+        // Obtener las visitas ya registradas
+        const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
+        const registeredVisits = JSON.parse(registeredVisitsJson);
+        
+        // Añadir la nueva visita registrada si no existe ya
+        if (!registeredVisits.includes(visitIdToSave)) {
+          registeredVisits.push(visitIdToSave);
+          console.log(`Guardando visita ${visitIdToSave} como registrada (services.ts)`);
+          localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
+          console.log("Estado actualizado de localStorage:", localStorage.getItem('registeredVisits'));
+        } else {
+          console.log(`Visita ${visitIdToSave} ya estaba registrada`);
+        }
+      } catch (e) {
+        console.error("Error al guardar en localStorage:", e);
+        // Continuar el flujo aunque falle el localStorage
+      }
+    } else {
+      console.warn("No se pudo guardar la visita como registrada: falta visitId");
     }
     
-    // Si no hay respuesta del backend, simular una respuesta exitosa
-    console.warn("Simulando registro de asistencia exitoso");
-    return {
-      ...attendanceRecord,
-      id: Math.floor(Math.random() * 10000) // Asignar ID aleatorio para desarrollo
-    };
+    return result;
   } catch (error) {
     console.error("Error registrando asistencia:", error);
     throw error;

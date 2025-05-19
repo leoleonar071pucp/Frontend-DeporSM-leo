@@ -23,33 +23,63 @@ export default function ProgramadasPage() {
   const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([]);
   const [filteredVisits, setFilteredVisits] = useState<ScheduledVisit[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Función para cargar los datos
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchProgrammedVisits();
+      
+      // Verificar los datos para debugging
+      console.log(`Recibidas ${data.length} visitas desde fetchProgrammedVisits`);
+      console.log("Fechas de visitas recibidas:", data.map(v => `${v.date} (${format(new Date(v.date), 'EEEE', { locale: es })})`));
 
+      setScheduledVisits(data);
+      setFilteredVisits(data);
+    } catch (error) {
+      console.error("Error al cargar visitas programadas:", error);
+      setError("No se pudieron cargar las visitas programadas");
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las visitas programadas",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Cargar datos al montar el componente
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-          const data = await fetchProgrammedVisits();
-        
-        // Verificar los datos para debugging
-        console.log(`Recibidas ${data.length} visitas desde fetchProgrammedVisits`);
-        console.log("Fechas de visitas recibidas:", data.map(v => `${v.date} (${format(new Date(v.date), 'EEEE', { locale: es })})`));
-
-        setScheduledVisits(data);
-        setFilteredVisits(data);
-      } catch (error) {
-        console.error("Error al cargar visitas programadas:", error);
-        setError("No se pudieron cargar las visitas programadas");
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar las visitas programadas",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadData();
+  }, []);
+    // Recargar datos cuando la página gane el foco o cuando se monte
+  useEffect(() => {
+    // Función para manejar cuando la ventana recupera el foco
+    const handleFocus = () => {
+      console.log("Ventana recuperó el foco, recargando visitas programadas");
+      loadData();
+    };
+    
+    // También recargar datos en la navegación
+    const handleNavigation = () => {
+      console.log("Navegación detectada, recargando visitas programadas");
+      loadData();
+    };
+    
+    // Agregar event listeners
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('popstate', handleNavigation);
+    
+    // Forzar una recarga inicial al montar el componente
+    // Esto es importante para asegurar que leemos el estado más reciente de localStorage
+    console.log("Componente montado, cargando datos...");
+    setTimeout(loadData, 100); // Pequeño retardo para asegurar que todo está inicializado
+    
+    // Limpiar los event listeners al desmontar
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('popstate', handleNavigation);
+    };
   }, []);
   useEffect(() => {
     let filtered = scheduledVisits;
@@ -105,17 +135,28 @@ export default function ProgramadasPage() {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center">
-        <Button variant="ghost" className="mr-2" asChild>
-          <Link href="/coordinador/asistencia">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Link>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <Button variant="ghost" className="mr-2" asChild>
+            <Link href="/coordinador/asistencia">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">Visitas Programadas</h1>
+        </div>
+        <Button 
+          onClick={() => {
+            console.log("Actualización manual solicitada");
+            loadData();
+          }}
+          variant="outline"
+          size="sm"
+        >
+          Actualizar lista
         </Button>
-        <h1 className="text-2xl font-bold tracking-tight">Visitas Programadas</h1>
       </div>
 
       <Card>

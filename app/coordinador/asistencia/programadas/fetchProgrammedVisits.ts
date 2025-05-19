@@ -93,6 +93,20 @@ const isDayOfWeek = (date: Date, day: string): boolean => {
   return false;
 };
 
+// Función para obtener las visitas registradas desde localStorage
+const getRegisteredVisits = (): number[] => {
+  try {
+    const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
+    const registeredVisits = JSON.parse(registeredVisitsJson);
+    console.log("Contenido de localStorage['registeredVisits']:", registeredVisitsJson);
+    console.log("Visitas registradas parseadas:", registeredVisits);
+    return registeredVisits;
+  } catch (e) {
+    console.error("Error al leer visitas registradas desde localStorage:", e);
+    return [];
+  }
+};
+
 export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
   try {
     // ID de coordinador (fijo para desarrollo y pruebas)
@@ -269,8 +283,7 @@ export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
     
     // Log de las visitas filtradas por día
     console.log("Visitas filtradas para hoy:", filteredVisits.filter(v => v.date === firstDateStr).length);
-    
-    // Ordenar las visitas por fecha y hora
+      // Ordenar las visitas por fecha y hora
     filteredVisits.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -279,8 +292,23 @@ export const fetchProgrammedVisits = async (): Promise<ScheduledVisit[]> => {
       if (dateComparison !== 0) return dateComparison;
       return a.scheduledTime.localeCompare(b.scheduledTime);
     });
+      // Obtener las visitas ya registradas
+    const registeredVisits = getRegisteredVisits();
+    console.log("Visitas ya registradas:", registeredVisits);
     
-    return filteredVisits;
+    // Imprimir IDs de todas las visitas para comparación
+    console.log("IDs de visitas filtradas:", filteredVisits.map(v => v.id));
+    
+    // Filtrar las visitas para remover las que ya han sido registradas
+    const unregisteredVisits = filteredVisits.filter(visit => {
+      const isRegistered = registeredVisits.includes(visit.id);
+      console.log(`Visita ID=${visit.id}, registrada=${isRegistered}`);
+      return !isRegistered;
+    });
+    
+    console.log(`Filtrando visitas: ${filteredVisits.length} totales, ${unregisteredVisits.length} sin registrar`);
+    
+    return unregisteredVisits;
     
   } catch (error) {
     console.error("Error al obtener visitas programadas:", error);
