@@ -152,45 +152,99 @@ export default function AdminDashboard() {
         )
 
         // Llamada al endpoint de estado actual de instalaciones
-        const resFacilities = await fetch(`${API_BASE_URL}/instalaciones/estado-instalaciones`)
-        const dataFacilities = await resFacilities.json()
+        try {
+          const resFacilities = await fetch(`/api/instalaciones/estado-instalaciones`)
+          if (!resFacilities.ok) {
+            console.error("Error al obtener estado de instalaciones:", resFacilities.status);
+            throw new Error("Error al obtener estado de instalaciones");
+          }
+          const dataFacilities = await resFacilities.json()
 
-        setFacilityStatus(
-          dataFacilities.map((f: any) => ({
-            id: f.idInstalacion,
-            name: f.nombreInstalacion,
-            status: f.estado,
-            reservations: f.reservasHoy,
-            maintenance: f.estado === "mantenimiento",
-          }))
-        )
+          // Mapear los datos a la estructura esperada
+          setFacilityStatus(
+            dataFacilities.map((f: any) => ({
+              id: f.idInstalacion,
+              name: f.nombreInstalacion,
+              status: f.estado,
+              reservations: f.reservasHoy,
+              maintenance: f.estado === "mantenimiento",
+            }))
+          )
+        } catch (error) {
+          console.error("Error al cargar estado de instalaciones:", error);
+          // En caso de error, establecer un array vacío
+          setFacilityStatus([]);
+        }
+
+        // Llamada al endpoint de datos para gráficos
+        try {
+          const resCharts = await fetch(`/api/admin/dashboard/charts`)
+          const dataCharts = await resCharts.json()
+
+          if (dataCharts && !dataCharts.error) {
+            setChartData({
+              reservationsByFacility: dataCharts.reservationsByFacility || [],
+              incomeByMonth: dataCharts.incomeByMonth || [],
+              reservationsByDay: dataCharts.reservationsByDay || [],
+              usageByHour: dataCharts.usageByHour || [],
+            })
+          } else {
+            console.error("Error en los datos de gráficos:", dataCharts.error)
+            // Usar datos de ejemplo en caso de error
+            setChartData({
+              reservationsByFacility: [
+                { name: "Piscina Municipal", value: 65 },
+                { name: "Cancha de Fútbol (Grass)", value: 85 },
+                { name: "Gimnasio Municipal", value: 45 },
+                { name: "Cancha de Fútbol (Loza)", value: 35 },
+                { name: "Pista de Atletismo", value: 18 },
+              ],
+              incomeByMonth: [
+                { name: "Ene", value: 1200 }, { name: "Feb", value: 1350 }, { name: "Mar", value: 1500 },
+                { name: "Abr", value: 1650 }, { name: "May", value: 1800 }, { name: "Jun", value: 1950 },
+              ],
+              reservationsByDay: [
+                { name: "Lun", value: 35 }, { name: "Mar", value: 28 }, { name: "Mié", value: 32 },
+                { name: "Jue", value: 30 }, { name: "Vie", value: 42 }, { name: "Sáb", value: 50 }, { name: "Dom", value: 45 },
+              ],
+              usageByHour: [
+                { name: "8:00", value: 15 }, { name: "9:00", value: 20 }, { name: "10:00", value: 25 },
+                { name: "11:00", value: 30 }, { name: "12:00", value: 20 }, { name: "13:00", value: 15 },
+                { name: "14:00", value: 10 }, { name: "15:00", value: 15 }, { name: "16:00", value: 25 },
+                { name: "17:00", value: 35 }, { name: "18:00", value: 45 }, { name: "19:00", value: 40 }, { name: "20:00", value: 30 },
+              ],
+            })
+          }
+        } catch (chartError) {
+          console.error("Error al cargar datos de gráficos:", chartError)
+          // Usar datos de ejemplo en caso de error
+          setChartData({
+            reservationsByFacility: [
+              { name: "Piscina Municipal", value: 65 },
+              { name: "Cancha de Fútbol (Grass)", value: 85 },
+              { name: "Gimnasio Municipal", value: 45 },
+              { name: "Cancha de Fútbol (Loza)", value: 35 },
+              { name: "Pista de Atletismo", value: 18 },
+            ],
+            incomeByMonth: [
+              { name: "Ene", value: 1200 }, { name: "Feb", value: 1350 }, { name: "Mar", value: 1500 },
+              { name: "Abr", value: 1650 }, { name: "May", value: 1800 }, { name: "Jun", value: 1950 },
+            ],
+            reservationsByDay: [
+              { name: "Lun", value: 35 }, { name: "Mar", value: 28 }, { name: "Mié", value: 32 },
+              { name: "Jue", value: 30 }, { name: "Vie", value: 42 }, { name: "Sáb", value: 50 }, { name: "Dom", value: 45 },
+            ],
+            usageByHour: [
+              { name: "8:00", value: 15 }, { name: "9:00", value: 20 }, { name: "10:00", value: 25 },
+              { name: "11:00", value: 30 }, { name: "12:00", value: 20 }, { name: "13:00", value: 15 },
+              { name: "14:00", value: 10 }, { name: "15:00", value: 15 }, { name: "16:00", value: 25 },
+              { name: "17:00", value: 35 }, { name: "18:00", value: 45 }, { name: "19:00", value: 40 }, { name: "20:00", value: 30 },
+            ],
+          })
+        }
       } catch (error) {
         console.error("Error al cargar datos del dashboard:", error)
       }
-
-      setChartData({
-        reservationsByFacility: [
-          { name: "Piscina Municipal", value: 65 },
-          { name: "Cancha de Fútbol (Grass)", value: 85 },
-          { name: "Gimnasio Municipal", value: 45 },
-          { name: "Cancha de Fútbol (Loza)", value: 35 },
-          { name: "Pista de Atletismo", value: 18 },
-        ],
-        incomeByMonth: [
-          { name: "Ene", value: 1200 }, { name: "Feb", value: 1350 }, { name: "Mar", value: 1500 },
-          { name: "Abr", value: 1650 }, { name: "May", value: 1800 }, { name: "Jun", value: 1950 },
-        ],
-        reservationsByDay: [
-          { name: "Lun", value: 35 }, { name: "Mar", value: 28 }, { name: "Mié", value: 32 },
-          { name: "Jue", value: 30 }, { name: "Vie", value: 42 }, { name: "Sáb", value: 50 }, { name: "Dom", value: 45 },
-        ],
-        usageByHour: [
-          { name: "8:00", value: 15 }, { name: "9:00", value: 20 }, { name: "10:00", value: 25 },
-          { name: "11:00", value: 30 }, { name: "12:00", value: 20 }, { name: "13:00", value: 15 },
-          { name: "14:00", value: 10 }, { name: "15:00", value: 15 }, { name: "16:00", value: 25 },
-          { name: "17:00", value: 35 }, { name: "18:00", value: 45 }, { name: "19:00", value: 40 }, { name: "20:00", value: 30 },
-        ],
-      })
 
       setIsLoading(false)
     }
@@ -293,7 +347,8 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Gráficos y Estado de Instalaciones */}
+      {/* Gráficos y Estado de Instalaciones - Temporalmente ocultos para la exposición */}
+      {/*
       <div className="space-y-6">
         <Tabs defaultValue="general" value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-4">
@@ -357,11 +412,10 @@ export default function AdminDashboard() {
                     <CardDescription>Ingresos estimados por tipo de instalación (último mes)</CardDescription>
                  </CardHeader>
                  <CardContent>
-                    {/* Simulación basada en reservas y precio estimado */}
                     <BarChart
                       data={chartData.reservationsByFacility.map((item: ChartDataItem) => ({
                         name: item.name,
-                        value: item.value * (item.name.includes("Fútbol") ? 100 : item.name.includes("Piscina") ? 15 : 20) // Precio estimado
+                        value: item.value * (item.name.includes("Fútbol") ? 100 : item.name.includes("Piscina") ? 15 : 20)
                       }))}
                       title="Ingresos por Instalación"
                     />
@@ -387,11 +441,10 @@ export default function AdminDashboard() {
                    <CardDescription>Porcentaje de ocupación estimado</CardDescription>
                  </CardHeader>
                   <CardContent>
-                     {/* Simulación simple de ocupación */}
                      <BarChart
                        data={chartData.reservationsByFacility.map((item: ChartDataItem) => ({
                          name: item.name,
-                         value: Math.min(100, Math.round((item.value / (item.name.includes("Gimnasio") ? 50 : 30)) * 100)) // Estimación simple
+                         value: Math.min(100, Math.round((item.value / (item.name.includes("Gimnasio") ? 50 : 30)) * 100))
                        }))}
                        title="Ocupación (%)"
                      />
@@ -410,8 +463,10 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+      */}
 
-      {/* Estado Actual de Instalaciones */}
+      {/* Estado Actual de Instalaciones - Temporalmente oculto hasta resolver problemas de conexión con el backend */}
+      {/*
       <Card>
         <CardHeader>
           <CardTitle>Estado Actual de Instalaciones</CardTitle>
@@ -429,9 +484,9 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {facilityStatus.map((facility: FacilityStatusData) => ( // Tipar facility
-                  <tr key={facility.id} className="border-b">
-                    <td className="py-3 px-4">{facility.name}</td>
+                {facilityStatus.map((facility: FacilityStatusData, index: number) => (
+                  <tr key={`facility-${facility.id || index}`} className="border-b">
+                    <td className="py-3 px-4">{facility.name || 'Instalación sin nombre'}</td>
                     <td className="py-3 px-4">
                       <Badge
                         className={
@@ -441,13 +496,15 @@ export default function AdminDashboard() {
                         {facility.status === "disponible" ? "Disponible" : "En mantenimiento"}
                       </Badge>
                     </td>
-                    <td className="py-3 px-4">{facility.reservations}</td>
+                    <td className="py-3 px-4">{facility.reservations || 0}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/instalaciones/${facility.id}`}>Ver</Link>
-                        </Button>
-                        {!facility.maintenance && (
+                        {facility.id && (
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/admin/instalaciones/${facility.id}`}>Ver</Link>
+                          </Button>
+                        )}
+                        {facility.id && !facility.maintenance && (
                           <Button variant="outline" size="sm" asChild>
                             <Link href={`/admin/instalaciones/${facility.id}/mantenimiento`}>
                               Mantenimiento
@@ -463,6 +520,7 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+      */}
     </div>
   )
 }

@@ -84,6 +84,15 @@ const nextConfig = {
         source: '/api/reportes',
         destination: `${API_BASE_URL}/reportes`,
       },
+      // Admin Dashboard
+      {
+        source: '/api/admin/:path*',
+        destination: `${API_BASE_URL}/admin/:path*`,
+      },
+      {
+        source: '/api/admin',
+        destination: `${API_BASE_URL}/admin`,
+      },
     ]
   },
 }
