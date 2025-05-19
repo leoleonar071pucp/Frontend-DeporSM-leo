@@ -76,6 +76,26 @@ export default function InstalacionesAdmin() {
     }
   }
 
+  // Fetch facilities in maintenance
+  const fetchFacilitiesInMaintenance = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/instalaciones/en-mantenimiento`)
+      if (response.ok) {
+        const data: Facility[] = await response.json()
+        setFilteredFacilities(data)
+      } else {
+        console.error("Error fetching facilities in maintenance:", response.status)
+        setFilteredFacilities([])
+      }
+    } catch (error) {
+      console.error("Error fetching facilities in maintenance:", error)
+      setFilteredFacilities([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Aplicar filtros localmente sin hacer peticiones adicionales al servidor
   const applyFilters = () => {
     let result = [...facilities];
@@ -86,9 +106,8 @@ export default function InstalacionesAdmin() {
     // Filtrar por estado (activo/inactivo)
     if (activeTab === "disponibles") {
       result = result.filter(facility => facility.activo);
-    } else if (activeTab === "mantenimiento") {
-      result = result.filter(facility => !facility.activo);
     }
+    // Para la pestaña de mantenimiento, usamos el endpoint específico en handleTabChange
 
     // Filtrar por tipo
     if (currentFilter) {
@@ -153,7 +172,14 @@ export default function InstalacionesAdmin() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    // No es necesario hacer peticiones al servidor, los filtros se aplicarán automáticamente
+
+    // Para la pestaña de mantenimiento, usar el endpoint específico
+    if (value === "mantenimiento") {
+      fetchFacilitiesInMaintenance()
+    } else {
+      // Para las otras pestañas, aplicar filtros localmente
+      applyFilters()
+    }
   }
 
   const handleTypeFilterClick = (type: string | null) => {

@@ -373,6 +373,7 @@ export default function ReservaDetalle() {
         return {
           ...prev,
           status: 'cancelada',
+          paymentStatus: 'reembolsado', // Actualizar el estado de pago a reembolsado
           canCancel: false // Actualizar también canCancel si se usa en otro lado
         }
       });

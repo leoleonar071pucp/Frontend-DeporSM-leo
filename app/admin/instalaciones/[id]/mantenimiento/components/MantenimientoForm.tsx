@@ -70,7 +70,7 @@ export default function MantenimientoForm({
   isSuccess
 }: MantenimientoFormProps) {
   const { toast } = useToast()
-  
+
   const [formData, setFormData] = useState<FormData>({
     maintenanceType: maintenance?.type || "preventivo",
     description: maintenance?.description || "",
@@ -80,7 +80,7 @@ export default function MantenimientoForm({
     endTime: maintenance?.endTime || "",
     affectsAvailability: maintenance?.affectsAvailability ?? true
   })
-  
+
   // Estado para controlar errores de validación de fechas
   const [dateTimeError, setDateTimeError] = useState(false)
 
@@ -115,7 +115,20 @@ export default function MantenimientoForm({
 
   const handleDateChange = (name: string, value: Date | undefined) => {
     if (value) {
-      setFormData((prev) => ({ ...prev, [name]: value }))
+      // Verificar que la fecha no sea anterior a la fecha actual
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+
+      if (value < today && !isEditing) {
+        toast({
+          title: "Fecha inválida",
+          description: "No puedes seleccionar una fecha anterior a la actual.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   }
 
@@ -151,7 +164,7 @@ export default function MantenimientoForm({
       }
       return false
     }
-    
+
     setDateTimeError(false)
     return true
   }
@@ -208,7 +221,7 @@ export default function MantenimientoForm({
         <CardHeader>
           <CardTitle>Detalles del Mantenimiento</CardTitle>
           <CardDescription>
-            {isEditing ? `Editar mantenimiento para ${facility.name}` : `Programa un mantenimiento para ${facility.name}`}
+            {isEditing ? `Editar mantenimiento para ${facility.name}` : `Completa la información del nuevo mantenimiento`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -241,7 +254,7 @@ export default function MantenimientoForm({
 
           <div className="space-y-2">
             <Label htmlFor="description">
-              Descripción del mantenimiento <span className="text-red-500">*</span>
+              Descripción <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="description"
@@ -286,30 +299,27 @@ export default function MantenimientoForm({
                       onSelect={(date) => handleDateChange("startDate", date)}
                       initialFocus
                       locale={es}
+                      disabled={(date) => {
+                        // Deshabilitar fechas anteriores a hoy
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today && !isEditing;
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startTime">Hora de inicio</Label>
-                <Select
+                <input
+                  id="startTime"
+                  name="startTime"
+                  type="time"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={formData.startTime}
-                  onValueChange={(value) => handleSelectChange("startTime", value)}
-                >
-                  <SelectTrigger id="startTime">
-                    <SelectValue placeholder="Selecciona la hora" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 24 }, (_, i) => {
-                      const hour = i // Empezando desde las 00:00
-                      return (
-                        <SelectItem key={`${hour}:00`} value={`${hour.toString().padStart(2, "0")}:00`}>
-                          {`${hour.toString().padStart(2, "0")}:00`}
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => handleInputChange(e as any)}
+                  required
+                />
               </div>
             </div>
 
@@ -334,42 +344,39 @@ export default function MantenimientoForm({
                       onSelect={(date) => handleDateChange("endDate", date)}
                       initialFocus
                       locale={es}
+                      disabled={(date) => {
+                        // Deshabilitar fechas anteriores a hoy
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today && !isEditing;
+                      }}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="endTime">Hora de finalización</Label>
-                <Select
+                <Label htmlFor="endTime">Hora de fin</Label>
+                <input
+                  id="endTime"
+                  name="endTime"
+                  type="time"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={formData.endTime}
-                  onValueChange={(value) => handleSelectChange("endTime", value)}
-                >
-                  <SelectTrigger id="endTime">
-                    <SelectValue placeholder="Selecciona la hora" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 24 }, (_, i) => {
-                      const hour = i // Empezando desde las 00:00
-                      return (
-                        <SelectItem key={`${hour}:00`} value={`${hour.toString().padStart(2, "0")}:00`}>
-                          {`${hour.toString().padStart(2, "0")}:00`}
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => handleInputChange(e as any)}
+                  required
+                />
               </div>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="affectsAvailability" 
+            <Checkbox
+              id="affectsAvailability"
               checked={formData.affectsAvailability}
               onCheckedChange={handleCheckboxChange}
             />
             <Label htmlFor="affectsAvailability" className="font-normal">
-              Este mantenimiento afecta la disponibilidad de la instalación
+              Este mantenimiento afecta la disponibilidad (cancelará automáticamente las reservas existentes)
             </Label>
           </div>
         </CardContent>
@@ -379,12 +386,12 @@ export default function MantenimientoForm({
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditing ? "Actualizando..." : "Programando..."}
+                {isEditing ? "Actualizando..." : "Guardando..."}
               </>
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                {isEditing ? "Actualizar mantenimiento" : "Programar mantenimiento"}
+                {isEditing ? "Actualizar" : "Guardar"}
               </>
             )}
           </Button>

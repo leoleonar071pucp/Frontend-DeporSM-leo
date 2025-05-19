@@ -15,7 +15,7 @@ interface ReservationsTableProps {
   setSearchQuery: (query: string) => void
   setSelectedDate: (date: Date | undefined) => void
   setReservations: (reservations: any[]) => void
-  reservationsData: any[]
+  // Eliminamos la dependencia de reservationsData
 }
 
 export default function ReservationsTable({
@@ -29,7 +29,7 @@ export default function ReservationsTable({
   setSearchQuery,
   setSelectedDate,
   setReservations,
-  reservationsData,
+  // Eliminamos reservationsData
 }: ReservationsTableProps) {
   return (
     <>
@@ -54,7 +54,24 @@ export default function ReservationsTable({
                   <td className="py-3 px-4">{reservation.reservationNumber}</td>
                   <td className="py-3 px-4">{reservation.userDetails.name}</td>
                   <td className="py-3 px-4">{reservation.facilityName}</td>
-                  <td className="py-3 px-4">{new Date(reservation.date).toLocaleDateString("es-ES")}</td>
+                  <td className="py-3 px-4">
+                    {reservation.date ?
+                      // Intentar mostrar la fecha formateada, o mostrar la fecha original si hay error
+                      (() => {
+                        try {
+                          // Si la fecha ya está en formato dd/MM/yyyy, mostrarla directamente
+                          if (/^\d{2}\/\d{2}\/\d{4}$/.test(reservation.date)) {
+                            return reservation.date;
+                          }
+                          // Si no, intentar convertirla
+                          return new Date(reservation.date).toLocaleDateString("es-ES");
+                        } catch (e) {
+                          return reservation.date; // Mostrar el string original si hay error
+                        }
+                      })()
+                      : "Fecha no disponible"
+                    }
+                  </td>
                   <td className="py-3 px-4">{reservation.time}</td>
                   <td className="py-3 px-4">{getStatusBadge(reservation.status)}</td>
                   <td className="py-3 px-4">{getPaymentStatusBadge(reservation.paymentStatus)}</td>
@@ -78,7 +95,8 @@ export default function ReservationsTable({
                         </Button>
                       )}
 
-                      {(reservation.status === "pendiente" || reservation.status === "confirmada") && (
+                      {/* Solo permitir cancelar reservas pendientes */}
+                      {reservation.status === "pendiente" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -109,7 +127,7 @@ export default function ReservationsTable({
             onClick={() => {
               setSearchQuery("")
               setSelectedDate(undefined)
-              setReservations(reservationsData)
+              window.location.reload()
             }}
           >
             Limpiar filtros

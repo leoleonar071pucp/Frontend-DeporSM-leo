@@ -58,13 +58,14 @@ export default function ActionDialogs({
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancelar Reserva</DialogTitle>
+            <DialogTitle>Cancelar Solicitud de Reserva</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas cancelar la reserva #{selectedReservation?.reservationNumber}?
+              ¿Estás seguro de que deseas cancelar la solicitud de reserva #{selectedReservation?.reservationNumber}?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p>Esta acción cancelará la reserva y, si ya está pagada, marcará el pago como "Reembolsado".</p>
+            <p>Esta acción cancelará la solicitud de reserva pendiente.</p>
+            <p className="text-amber-500 mt-2">Nota: Solo puedes cancelar reservas en estado pendiente. Las reservas confirmadas solo pueden ser canceladas por el usuario que las realizó.</p>
             <p className="text-red-500 mt-2">Esta acción no se puede deshacer.</p>
           </div>
           <DialogFooter>
@@ -72,7 +73,7 @@ export default function ActionDialogs({
               Volver
             </Button>
             <Button variant="destructive" onClick={handleCancelReservation}>
-              Cancelar Reserva
+              Cancelar Solicitud
             </Button>
           </DialogFooter>
         </DialogContent>

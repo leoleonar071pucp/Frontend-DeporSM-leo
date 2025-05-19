@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { API_BASE_URL } from "@/lib/config"
+import { useToast } from "@/components/ui/use-toast"
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -42,6 +44,7 @@ const dateToCalendarValue = (date: Date | null): Date | undefined => {
 
 export default function ProgramarMantenimientoPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [installations, setInstallations] = useState<Instalacion[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -61,13 +64,89 @@ export default function ProgramarMantenimientoPage() {
   })
 
   useEffect(() => {
-    fetch('${API_BASE_URL}/instalaciones')
-      .then(res => res.json())
-      .then(data => {
-        setInstallations(data)
-        setIsLoading(false)
-      })
-      .catch(() => setFormError("No se pudieron cargar las instalaciones."))
+    console.log("Cargando instalaciones disponibles para mantenimiento");
+    setIsLoading(true);
+    setFormError("");
+
+    // Función para cargar instalaciones disponibles para mantenimiento
+    const cargarInstalacionesDisponibles = async () => {
+      try {
+        console.log("Intentando cargar instalaciones disponibles para mantenimiento");
+
+        // Primero intentamos cargar las instalaciones disponibles
+        let response;
+        try {
+          response = await fetch(`${API_BASE_URL}/mantenimientos/instalaciones-disponibles`, {
+            credentials: 'include'
+          });
+
+          console.log("Respuesta de instalaciones disponibles:", response.status);
+
+          // Si hay un error, pasamos directamente a cargar todas las instalaciones
+          if (!response.ok) {
+            console.warn("No se pudieron cargar las instalaciones disponibles. Cargando todas las instalaciones...");
+            await cargarTodasInstalaciones();
+            return;
+          }
+
+          const data = await response.json();
+          console.log("Datos recibidos:", data);
+
+          if (Array.isArray(data)) {
+            console.log("Instalaciones disponibles cargadas correctamente. Total:", data.length);
+            setInstallations(data);
+
+            if (data.length === 0) {
+              setFormError("No hay instalaciones disponibles para mantenimiento. Todas las instalaciones ya tienen mantenimientos programados o en progreso.");
+            }
+          } else {
+            throw new Error("La respuesta no es un array");
+          }
+        } catch (error) {
+          console.error("Error al procesar instalaciones disponibles:", error);
+          // Si hay cualquier error, intentamos con el endpoint general
+          await cargarTodasInstalaciones();
+        }
+      } catch (error) {
+        console.error("Error general al cargar instalaciones:", error);
+        setFormError("Error al cargar instalaciones. Por favor, intenta de nuevo más tarde.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Función para cargar todas las instalaciones como respaldo
+    const cargarTodasInstalaciones = async () => {
+      try {
+        console.log("Intentando cargar todas las instalaciones como alternativa");
+        const response = await fetch(`${API_BASE_URL}/instalaciones`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al cargar todas las instalaciones: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          console.log("Todas las instalaciones cargadas. Total:", data.length);
+          setInstallations(data);
+          setFormError("No se pudieron filtrar las instalaciones disponibles. Se muestran todas las instalaciones.");
+        } else {
+          console.error("La respuesta de todas las instalaciones no es un array:", data);
+          setInstallations([]);
+          setFormError("No se pudieron cargar las instalaciones. Por favor, intenta de nuevo más tarde.");
+        }
+      } catch (error) {
+        console.error("Error al cargar todas las instalaciones:", error);
+        setInstallations([]);
+        setFormError("No se pudieron cargar las instalaciones. Por favor, intenta de nuevo más tarde.");
+      }
+    };
+
+    // Iniciar la carga de instalaciones
+    cargarInstalacionesDisponibles();
   }, [])
 
   useEffect(() => {
@@ -77,13 +156,41 @@ export default function ProgramarMantenimientoPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+
+    // Si es un campo de hora, validar el formato
+    if (name === "startTime" || name === "endTime") {
+      console.log(`Hora ${name} cambiada a: ${value}`);
+    }
   }
 
   const handleSelectChange = (name: keyof FormData, value: string | boolean) => {
+    console.log(`Cambiando ${name} a:`, value);
     setFormData(prev => ({ ...prev, [name]: value }))
+
+    // Si es el ID de la instalación, imprimir información adicional
+    if (name === "facilityId") {
+      console.log("Instalación seleccionada ID:", value);
+      const selectedInstallation = installations.find(inst => inst.id.toString() === value);
+      console.log("Datos de la instalación:", selectedInstallation);
+    }
   }
 
   const handleDateChange = (name: "startDate" | "endDate", value: Date | undefined) => {
+    if (value) {
+      // Verificar que la fecha no sea anterior a la fecha actual
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+
+      if (value < today) {
+        toast({
+          title: "Fecha inválida",
+          description: "No puedes seleccionar una fecha anterior a la actual.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setFormData(prev => ({ ...prev, [name]: value || null }))
   }
 
@@ -112,8 +219,26 @@ export default function ProgramarMantenimientoPage() {
     e.preventDefault()
     setFormError("")
 
-    if (!formData.facilityId || !formData.description || !validateDates(formData, true)) {
-      setFormError("Completa todos los campos requeridos.")
+    // Validación más detallada
+    if (!formData.facilityId) {
+      setFormError("Selecciona una instalación.")
+      return
+    }
+
+    if (!formData.description) {
+      setFormError("Ingresa una descripción para el mantenimiento.")
+      return
+    }
+
+    if (!validateDates(formData, true)) {
+      // El mensaje de error ya se establece en validateDates
+      return
+    }
+
+    // Validar que el ID de la instalación sea un número válido
+    const facilityId = parseInt(formData.facilityId);
+    if (isNaN(facilityId) || facilityId <= 0) {
+      setFormError("ID de instalación inválido.")
       return
     }
 
@@ -128,25 +253,59 @@ export default function ProgramarMantenimientoPage() {
     fechaFin.setHours(eh, em, 0, 0)
 
     try {
-      const res = await fetch('${API_BASE_URL}/mantenimientos', {
+      // Imprimir los datos que se van a enviar para depuración
+      const requestData = {
+        instalacionId: parseInt(formData.facilityId),
+        motivo: formData.description,
+        tipo: formData.maintenanceType,
+        descripcion: formData.description,
+        fechaInicio: fechaInicio.toISOString(),
+        fechaFin: fechaFin.toISOString(),
+        afectaDisponibilidad: formData.affectsAvailability,
+        registradoPorId: 1 // Usamos un ID fijo para pruebas
+      };
+
+      console.log("Enviando datos:", JSON.stringify(requestData, null, 2));
+
+      const res = await fetch(`${API_BASE_URL}/mantenimientos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instalacion: { id: parseInt(formData.facilityId) },
-          motivo: formData.maintenanceType,
-          descripcion: formData.description,
-          fechaInicio: fechaInicio.toISOString(),
-          fechaFin: fechaFin.toISOString(),
-          registradoPor: { id: 1 } // Cambiar según tu sistema de autenticación
-        })
+        credentials: 'include',
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(requestData)
       })
 
-      if (!res.ok) throw new Error("Error al guardar el mantenimiento")
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Error del servidor:", errorText);
+
+        // Intentar parsear como JSON si es posible
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || errorText || "Error al guardar el mantenimiento");
+        } catch (parseError) {
+          // Si no es JSON, usar el texto tal cual
+          throw new Error(errorText || "Error al guardar el mantenimiento");
+        }
+      }
 
       setIsSuccess(true)
-      setTimeout(() => router.push("/admin/instalaciones/mantenimiento"), 1500)
-    } catch (err) {
-      setFormError("Error al guardar el mantenimiento.")
+      setFormError("")
+
+      // Mostrar mensaje de éxito con información sobre reservas canceladas
+      toast({
+        title: "Mantenimiento programado correctamente",
+        description: formData.affectsAvailability
+          ? "Las reservas afectadas han sido canceladas automáticamente y se ha notificado a los usuarios."
+          : "El mantenimiento ha sido programado sin afectar las reservas existentes.",
+        variant: "default",
+      })
+
+      setTimeout(() => router.push("/admin/instalaciones/mantenimiento"), 2000)
+    } catch (err: any) {
+      setFormError(err.message || "Error al guardar el mantenimiento.")
     } finally {
       setIsSaving(false)
     }
@@ -178,11 +337,23 @@ export default function ProgramarMantenimientoPage() {
                   <SelectValue placeholder="Selecciona una instalación" />
                 </SelectTrigger>
                 <SelectContent>
-                  {installations.map((inst) => (
-                    <SelectItem key={inst.id} value={inst.id.toString()}>
-                      {inst.nombre} - {inst.ubicacion}
+                  {Array.isArray(installations) && installations.length > 0 ? (
+                    installations.map((inst) => (
+                      <SelectItem key={inst.id} value={inst.id.toString()}>
+                        {inst.nombre} - {inst.ubicacion}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-disponible" disabled>
+                      No hay instalaciones disponibles para mantenimiento
                     </SelectItem>
-                  ))}
+                  )}
+
+                  {Array.isArray(installations) && installations.length === 0 && (
+                    <div className="p-2 text-center text-sm text-gray-500">
+                      Todas las instalaciones ya tienen mantenimientos programados o en progreso.
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -207,9 +378,21 @@ export default function ProgramarMantenimientoPage() {
             </div>
 
             {formError && (
-              <Alert variant="destructive">
+              <Alert variant={formError.includes("No hay instalaciones disponibles") ? "warning" : "destructive"}>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
+
+            {isSuccess && (
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  Mantenimiento programado correctamente.
+                  {formData.affectsAvailability
+                    ? " Las reservas afectadas han sido canceladas automáticamente."
+                    : " No se han afectado las reservas existentes."}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -224,11 +407,30 @@ export default function ProgramarMantenimientoPage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent>
-                    <CalendarComponent mode="single" selected={dateToCalendarValue(formData.startDate)} onSelect={(date) => handleDateChange("startDate", date)} />
+                    <CalendarComponent
+                      mode="single"
+                      selected={dateToCalendarValue(formData.startDate)}
+                      onSelect={(date) => handleDateChange("startDate", date)}
+                      disabled={(date) => {
+                        // Deshabilitar fechas anteriores a hoy
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                      locale={es}
+                    />
                   </PopoverContent>
                 </Popover>
                 <Label className="mt-2 block">Hora de inicio</Label>
-                <Input name="startTime" value={formData.startTime} onChange={handleInputChange} placeholder="HH:mm" />
+                <input
+                  id="startTime"
+                  name="startTime"
+                  type="time"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={formData.startTime}
+                  onChange={handleInputChange}
+                  required
+                />
               </div>
 
               <div>
@@ -241,17 +443,36 @@ export default function ProgramarMantenimientoPage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent>
-                    <CalendarComponent mode="single" selected={dateToCalendarValue(formData.endDate)} onSelect={(date) => handleDateChange("endDate", date)} />
+                    <CalendarComponent
+                      mode="single"
+                      selected={dateToCalendarValue(formData.endDate)}
+                      onSelect={(date) => handleDateChange("endDate", date)}
+                      disabled={(date) => {
+                        // Deshabilitar fechas anteriores a hoy
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                      locale={es}
+                    />
                   </PopoverContent>
                 </Popover>
                 <Label className="mt-2 block">Hora de fin</Label>
-                <Input name="endTime" value={formData.endTime} onChange={handleInputChange} placeholder="HH:mm" />
+                <input
+                  id="endTime"
+                  name="endTime"
+                  type="time"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={formData.endTime}
+                  onChange={handleInputChange}
+                  required
+                />
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
               <Checkbox checked={formData.affectsAvailability} onCheckedChange={(checked) => handleSelectChange("affectsAvailability", !!checked)} />
-              <Label>Este mantenimiento afecta la disponibilidad</Label>
+              <Label>Este mantenimiento afecta la disponibilidad (cancelará automáticamente las reservas existentes)</Label>
             </div>
           </CardContent>
           <CardFooter className="justify-end">
@@ -274,4 +495,3 @@ export default function ProgramarMantenimientoPage() {
     </div>
   )
 }
-  

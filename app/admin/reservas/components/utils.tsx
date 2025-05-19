@@ -18,16 +18,24 @@ export const getStatusBadge = (status) => {
 
 // Función para generar el badge de estado de pago
 export const getPaymentStatusBadge = (status) => {
-  switch (status) {
-    case "Pagado":
+  // Normalizar el estado a minúsculas para hacer la comparación insensible a mayúsculas/minúsculas
+  const normalizedStatus = status ? status.toLowerCase() : '';
+
+  switch (normalizedStatus) {
+    case "pagado":
       return <Badge className="bg-green-100 text-green-800">Pagado</Badge>
-    case "Pendiente de verificación":
+    case "pendiente":
+      return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
+    case "pendiente de verificación":
       return <Badge className="bg-yellow-100 text-yellow-800">Pendiente de verificación</Badge>
-    case "Reembolsado":
+    case "reembolsado":
       return <Badge className="bg-blue-100 text-blue-800">Reembolsado</Badge>
-    case "Cancelado":
+    case "cancelado":
       return <Badge className="bg-red-100 text-red-800">Cancelado</Badge>
+    case "fallido":
+      return <Badge className="bg-red-100 text-red-800">Fallido</Badge>
     default:
-      return null
+      // Si no coincide con ninguno de los casos anteriores, mostrar el estado tal cual
+      return status ? <Badge className="bg-gray-100 text-gray-800">{status}</Badge> : null
   }
 }

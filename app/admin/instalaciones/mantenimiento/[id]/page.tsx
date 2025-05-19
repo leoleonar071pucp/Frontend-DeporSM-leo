@@ -39,27 +39,90 @@ export default function MantenimientoDetailsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/mantenimientos/${id}`)
+        // Incluir credenciales para asegurar que se envíen las cookies de autenticación
+        const res = await fetch(`${API_BASE_URL}/mantenimientos/${id}`, {
+          credentials: 'include'
+        })
         if (!res.ok) throw new Error("No se encontró el mantenimiento")
         const data = await res.json()
 
+        console.log("Datos del mantenimiento:", data);
+
+        // Ajustar las fechas para manejar correctamente la zona horaria
         const inicio = new Date(data.fechaInicio)
         const fin = new Date(data.fechaFin)
 
+        // Ajustar por la zona horaria local para evitar problemas con las horas
+        const offsetInicio = inicio.getTimezoneOffset() * 60000
+        const offsetFin = fin.getTimezoneOffset() * 60000
+
+        const inicioLocal = new Date(inicio.getTime() - offsetInicio)
+        const finLocal = new Date(fin.getTime() - offsetFin)
+
+        // Calcular el estado basado en las fechas
+        const now = new Date();
+        let calculatedStatus = "unknown";
+        if (now < inicioLocal) calculatedStatus = "scheduled";
+        else if (now >= inicioLocal && now <= finLocal) calculatedStatus = "in-progress";
+        else if (now > finLocal) calculatedStatus = "completed";
+
+        // Usar el estado del backend si está disponible, o el calculado
+        let status = data.estado || calculatedStatus;
+
+        // Convertir el estado del backend al formato que usa el frontend
+        if (status === "programado") status = "scheduled";
+        else if (status === "en-progreso") status = "in-progress";
+        else if (status === "completado") status = "completed";
+        else if (status === "cancelado") status = "cancelled";
+
+        // Obtener información de la instalación
+        let facilityName = "Desconocida";
+        let facilityLocation = "";
+
+        // Verificar si tenemos el objeto instalacion completo
+        if (data.instalacion && data.instalacion.nombre) {
+          facilityName = data.instalacion.nombre;
+          facilityLocation = data.instalacion.ubicacion || "";
+        }
+        // Si tenemos el nombre de la instalación directamente
+        else if (data.instalacionNombre) {
+          facilityName = data.instalacionNombre;
+          facilityLocation = data.instalacionUbicacion || "";
+        }
+        // Si no, verificar si tenemos el ID de la instalación para hacer una consulta adicional
+        else if (data.instalacionId) {
+          try {
+            console.log("Obteniendo instalación por ID:", data.instalacionId);
+            const facilityRes = await fetch(`${API_BASE_URL}/instalaciones/${data.instalacionId}`, {
+              credentials: 'include'
+            });
+            if (facilityRes.ok) {
+              const facilityData = await facilityRes.json();
+              console.log("Datos de la instalación obtenidos:", facilityData);
+              facilityName = facilityData.nombre || "Desconocida";
+              facilityLocation = facilityData.ubicacion || "";
+            } else {
+              console.error("Error al obtener la instalación:", facilityRes.status);
+            }
+          } catch (error) {
+            console.error("Error al obtener datos de la instalación:", error);
+          }
+        }
+
         const parsed: Maintenance = {
           id: data.id,
-          facilityName: data.instalacionNombre,
-          facilityLocation: data.instalacionUbicacion,
-          type: data.motivo,
+          facilityName: facilityName,
+          facilityLocation: facilityLocation,
+          type: data.tipo || data.motivo || "Desconocido", // Usar tipo o motivo
           description: data.descripcion || "",
-          startDate: format(inicio, "dd/MM/yyyy", { locale: es }),
-          startTime: format(inicio, "HH:mm"),
-          endDate: format(fin, "dd/MM/yyyy", { locale: es }),
-          endTime: format(fin, "HH:mm"),
-          createdBy: data.creadoPor || "Desconocido",
+          startDate: format(inicioLocal, "dd/MM/yyyy", { locale: es }),
+          startTime: format(inicioLocal, "HH:mm"),
+          endDate: format(finLocal, "dd/MM/yyyy", { locale: es }),
+          endTime: format(finLocal, "HH:mm"),
+          createdBy: data.registradoPor?.nombre || "Administrador",
           createdAt: format(new Date(data.createdAt || new Date()), "dd/MM/yyyy HH:mm", { locale: es }),
-          affectsAvailability: true, // Ajusta si tienes este dato
-          status: "scheduled" // Puedes calcularlo por fecha si quieres
+          affectsAvailability: data.afectaDisponibilidad !== undefined ? data.afectaDisponibilidad : true,
+          status: status
         }
 
         setMaintenance(parsed)
@@ -87,7 +150,9 @@ export default function MantenimientoDetailsPage() {
   }
 
   const getTypeBadge = (type: string) => {
-    switch (type) {
+    if (!type) return <Badge className="bg-gray-100 text-gray-800">Desconocido</Badge>;
+
+    switch (type.toLowerCase()) {
       case "preventivo":
         return <Badge className="bg-green-100 text-green-800">Preventivo</Badge>
       case "correctivo":
@@ -95,7 +160,8 @@ export default function MantenimientoDetailsPage() {
       case "mejora":
         return <Badge className="bg-blue-100 text-blue-800">Mejora</Badge>
       default:
-        return null
+        // Si no coincide con ninguno de los tipos conocidos, mostrar el tipo tal cual
+        return <Badge className="bg-gray-100 text-gray-800">{type}</Badge>
     }
   }
 
@@ -117,7 +183,7 @@ export default function MantenimientoDetailsPage() {
         <CardDescription>Información del mantenimiento para {maintenance.facilityName}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="space-y-4">
           <div className="space-y-1">
             <Label>Estado</Label>
             <div>{getStatusBadge(maintenance.status)}</div>
@@ -174,11 +240,18 @@ export default function MantenimientoDetailsPage() {
           </div>
         </div>
 
-        {maintenance.affectsAvailability && (
+        {maintenance.affectsAvailability ? (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Este mantenimiento afecta la disponibilidad de la instalación
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              Este mantenimiento NO afecta la disponibilidad de la instalación
             </AlertDescription>
           </Alert>
         )}

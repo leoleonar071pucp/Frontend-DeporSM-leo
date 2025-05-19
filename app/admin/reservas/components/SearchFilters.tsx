@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { reservationsData } from "./data"
+// Eliminamos la importación de datos de ejemplo
 
 interface SearchFiltersProps {
   searchQuery: string
@@ -55,47 +55,15 @@ export default function SearchFilters({
           </form>
 
           <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filtrar
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filtrar por instalación</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setReservations(reservationsData)}>Todas</DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setReservations(reservationsData.filter((r) => r.facilityName.includes("Piscina")))}
-                >
-                  Piscina
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setReservations(reservationsData.filter((r) => r.facilityName.includes("Fútbol")))}
-                >
-                  Canchas de fútbol
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setReservations(reservationsData.filter((r) => r.facilityName.includes("Gimnasio")))}
-                >
-                  Gimnasio
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    setReservations(reservationsData.filter((r) => r.facilityName.includes("Atletismo")))
-                  }
-                >
-                  Pista de atletismo
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Eliminamos el filtro por instalación ya que ahora usamos el backend */}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
                   <Calendar className="h-4 w-4 mr-2" />
-                  Fecha
+                  {selectedDate
+                    ? format(selectedDate, "dd/MM/yyyy", { locale: es })
+                    : "Fecha"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="p-0">

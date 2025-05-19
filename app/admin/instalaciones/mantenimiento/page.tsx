@@ -223,22 +223,30 @@ export default function MantenimientoPage() {
       });
 
       if (res.ok) {
+        // Cerrar el diálogo primero
+        setShowCancelDialog(false);
+
         // Cambiar a la pestaña de historial para mostrar el mantenimiento cancelado
         setActiveTab("historial");
 
         // Actualizar la lista de mantenimientos después de cancelar
-        setTimeout(() => loadMaintenanceData("historial"), 100);
+        // Usar un timeout más largo para asegurar que la pestaña cambie primero
+        setTimeout(() => {
+          loadMaintenanceData("historial");
 
-        toast({
-          title: "Mantenimiento cancelado",
-          description: `Se canceló correctamente el mantenimiento de "${selectedMaintenance.instalacionNombre}". Se ha movido al historial.`,
-        });
+          // Mostrar el toast después de que los datos se hayan cargado
+          toast({
+            title: "Mantenimiento cancelado",
+            description: `Se canceló correctamente el mantenimiento de "${selectedMaintenance.instalacionNombre}". Se ha movido al historial.`,
+          });
+        }, 300);
       } else {
         toast({
           title: "Error al cancelar",
           description: "No se pudo cancelar el mantenimiento.",
           variant: "destructive"
         });
+        setShowCancelDialog(false);
       }
     } catch (err) {
       console.error("Error al cancelar:", err);
@@ -247,8 +255,8 @@ export default function MantenimientoPage() {
         description: "Hubo un problema al conectarse con el servidor.",
         variant: "destructive"
       });
-    } finally {
       setShowCancelDialog(false);
+    } finally {
       setSelectedMaintenance(null);
     }
   }
@@ -530,9 +538,9 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => activeTab === "programados" ? handleCancelMaintenance(m) : handleDelete(m)}
+                    onClick={() => activeTab === "historial" ? handleDelete(m) : handleCancelMaintenance(m)}
                   >
-                    {activeTab === "programados" ? "Cancelar" : "Eliminar"}
+                    {activeTab === "historial" ? "Eliminar" : "Cancelar"}
                   </Button>
                 </div>
               </td>

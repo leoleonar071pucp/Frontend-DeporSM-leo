@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { addDays } from "date-fns"
 import { MantenimientoForm } from "./components"
 import { Badge } from "@/components/ui/badge"
+import { API_BASE_URL } from "@/lib/config"
 
 // Datos de ejemplo para las instalaciones
 const facilitiesDB = [
@@ -136,7 +137,7 @@ export default function MantenimientoPage() {
   const searchParams = useSearchParams()
   const facilityId = params.id
   const maintenanceId = searchParams.get("id")
-  
+
   const [isLoading, setIsLoading] = useState(true)
   const [facility, setFacility] = useState(null)
   const [maintenance, setMaintenance] = useState(null)
@@ -145,122 +146,237 @@ export default function MantenimientoPage() {
   const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
-    // Simulación de carga de datos
+    // Cargar datos reales de la instalación y mantenimiento
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const foundFacility = facilitiesDB.find((f) => f.id === Number(facilityId))
-      
-      // Si estamos editando un mantenimiento existente
-      if (maintenanceId) {
-        const foundMaintenance = maintenanceDB.find((m) => m.id === Number(maintenanceId) && m.facilityId === Number(facilityId))
-        
-        if (foundMaintenance) {
-          setMaintenance(foundMaintenance)
-          setIsEditing(true)
-          setFacility(foundFacility || null)
-        } else {
-          toast({
-            title: "Mantenimiento no encontrado",
-            description: "El mantenimiento que intentas editar no existe o no pertenece a esta instalación.",
-            variant: "destructive",
-          })
-          setFacility(null)
+      try {
+        setIsLoading(true);
+
+        // Cargar datos de la instalación
+        const facilityResponse = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}`, {
+          credentials: 'include'
+        });
+
+        if (!facilityResponse.ok) {
+          throw new Error(`Error al cargar la instalación: ${facilityResponse.status}`);
         }
-      } 
-      // Si estamos creando un nuevo mantenimiento
-      else {
-        // Validar si la instalación puede recibir mantenimiento
-        if (foundFacility && (foundFacility.maintenanceStatus === 'scheduled' || foundFacility.maintenanceStatus === 'in-progress')) {
+
+        const facilityData = await facilityResponse.json();
+
+        // Determinar el estado de mantenimiento
+        let maintenanceStatus = "none";
+
+        // Cargar información de mantenimiento
+        const maintenanceResponse = await fetch(`${API_BASE_URL}/mantenimientos/instalacion/${facilityId}`, {
+          credentials: 'include'
+        });
+        let tieneMantenimientoActivo = false;
+        let enMantenimiento = false;
+        let maintenanceData = null;
+
+        if (maintenanceResponse.ok) {
+          maintenanceData = await maintenanceResponse.json();
+
+          // Verificar si está en mantenimiento actualmente
+          if (maintenanceData.enMantenimiento) {
+            enMantenimiento = true;
+            maintenanceStatus = "in-progress";
+          }
+
+          // Verificar si tiene mantenimiento programado
+          if (maintenanceData.tieneMantenimientoProgramado) {
+            maintenanceStatus = "scheduled";
+          }
+
+          // Verificar si tiene algún mantenimiento activo
+          if (maintenanceData.tieneMantenimientoActivo) {
+            tieneMantenimientoActivo = true;
+          }
+        }
+
+        // Si estamos editando un mantenimiento existente
+        if (maintenanceId) {
+          const maintenanceDetailResponse = await fetch(`${API_BASE_URL}/mantenimientos/${maintenanceId}`, {
+            credentials: 'include'
+          });
+
+          if (maintenanceDetailResponse.ok) {
+            const maintenanceDetail = await maintenanceDetailResponse.json();
+
+            // Convertir fechas de string a objetos Date
+            const startDate = new Date(maintenanceDetail.fechaInicio);
+            const endDate = new Date(maintenanceDetail.fechaFin);
+
+            // Formatear horas
+            const startTime = startDate.getHours().toString().padStart(2, '0') + ':00';
+            const endTime = endDate.getHours().toString().padStart(2, '0') + ':00';
+
+            const formattedMaintenance = {
+              id: maintenanceDetail.id,
+              facilityId: facilityData.id,
+              type: maintenanceDetail.tipo || 'preventivo',
+              description: maintenanceDetail.descripcion,
+              startDate: startDate,
+              startTime: startTime,
+              endDate: endDate,
+              endTime: endTime,
+              status: maintenanceDetail.estado,
+              affectsAvailability: maintenanceDetail.afectaDisponibilidad
+            };
+
+            setMaintenance(formattedMaintenance);
+            setIsEditing(true);
+          } else {
+            toast({
+              title: "Mantenimiento no encontrado",
+              description: "El mantenimiento que intentas editar no existe o no pertenece a esta instalación.",
+              variant: "destructive",
+            });
+          }
+        }
+
+        // Obtener información sobre el último mantenimiento completado
+        let lastMaintenance = "No disponible";
+        if (maintenanceData && maintenanceData.tieneMantenimientoCompletado && maintenanceData.ultimoMantenimiento) {
+          try {
+            // Formatear la fecha del último mantenimiento
+            const lastMaintenanceDate = new Date(maintenanceData.ultimoMantenimiento);
+
+            // Verificar si la fecha es válida
+            if (!isNaN(lastMaintenanceDate.getTime())) {
+              lastMaintenance = lastMaintenanceDate.toLocaleDateString('es-ES', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              });
+            } else {
+              console.error("Fecha de último mantenimiento inválida:", maintenanceData.ultimoMantenimiento);
+              lastMaintenance = "No disponible";
+            }
+          } catch (error) {
+            console.error("Error al procesar la fecha del último mantenimiento:", error);
+            lastMaintenance = "No disponible";
+          }
+        }
+
+        // Formatear los datos de la instalación para la interfaz
+        const formattedFacility = {
+          id: facilityData.id,
+          name: facilityData.nombre,
+          type: facilityData.tipo || 'otro',
+          location: facilityData.ubicacion,
+          status: enMantenimiento ? "mantenimiento" : "disponible",
+          maintenanceStatus: maintenanceStatus,
+          lastMaintenance: lastMaintenance,
+          nextMaintenance: null
+        };
+
+        // Si la instalación tiene mantenimiento activo y no estamos en modo edición, mostrar mensaje
+        if (tieneMantenimientoActivo && !maintenanceId) {
           toast({
             title: "No disponible para mantenimiento",
             description: "Esta instalación ya tiene un mantenimiento programado o en progreso.",
             variant: "destructive",
-          })
-          setFacility(null)
+          });
+          setFacility(null);
         } else {
-          setFacility(foundFacility || null)
+          setFacility(formattedFacility);
         }
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos de la instalación.",
+          variant: "destructive",
+        });
+        setFacility(null);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false)
-    }
+    };
 
-    loadData()
-
-    // Actualizar estado de mantenimiento cada minuto (en un caso real esto se haría en el backend)
-    const updateMaintenanceStatus = () => {
-      if (facility && facility.maintenanceStatus !== 'none' && facility.maintenanceStatus !== 'required') {
-        // Lógica para actualizar el estado del mantenimiento basado en la fecha actual
-        // Esta lógica ahora está en el componente MantenimientoForm
-      }
-    }
-
-    const statusInterval = setInterval(updateMaintenanceStatus, 60000) // Actualizar cada minuto
-
-    return () => clearInterval(statusInterval)
-  }, [facilityId, toast, facility, maintenanceId])
+    loadData();
+  }, [facilityId, maintenanceId, toast])
 
   // Función para manejar el envío del formulario desde el componente MantenimientoForm
-  const handleFormSubmit = (formData) => {
-    setIsSaving(true)
+  const handleFormSubmit = async (formData) => {
+    setIsSaving(true);
 
-    // Determinar el estado inicial basado en las fechas
-    const now = new Date();
-    const startDateTime = new Date(formData.startDate);
-    const [startHours, startMinutes] = formData.startTime.split(":").map(Number);
-    startDateTime.setHours(startHours, startMinutes, 0, 0);
+    try {
+      // Preparar los datos para enviar al backend
+      const startDateTime = new Date(formData.startDate);
+      const [startHours, startMinutes] = formData.startTime.split(":").map(Number);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
 
-    const endDateTime = new Date(formData.endDate);
-    const [endHours, endMinutes] = formData.endTime.split(":").map(Number);
-    endDateTime.setHours(endHours, endMinutes, 0, 0);
-    
-    let maintenanceStatus;
-    
-    if (now < startDateTime) {
-      maintenanceStatus = 'scheduled';
-    } else if (now >= startDateTime && now <= endDateTime) {
-      maintenanceStatus = 'in-progress';
-    } else {
-      maintenanceStatus = 'completed';
-    }
+      const endDateTime = new Date(formData.endDate);
+      const [endHours, endMinutes] = formData.endTime.split(":").map(Number);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-    // Simulación de guardado
-    setTimeout(() => {
-      if (isEditing) {
-        // En un caso real, aquí se haría la llamada a la API para actualizar el mantenimiento
-        console.log("Actualizando mantenimiento:", { 
-          id: maintenance.id,
-          ...formData, 
-          facilityId: facility.id,
-          status: maintenanceStatus
-        })
+      const requestData = {
+        instalacionId: parseInt(facilityId),
+        motivo: formData.description,
+        tipo: formData.maintenanceType,
+        descripcion: formData.description,
+        fechaInicio: startDateTime.toISOString(),
+        fechaFin: endDateTime.toISOString(),
+        afectaDisponibilidad: formData.affectsAvailability,
+        registradoPorId: 1 // ID del usuario administrador
+      };
 
-        toast({
-          title: "Mantenimiento actualizado",
-          description: "El mantenimiento ha sido actualizado exitosamente.",
-        })
+      let response;
+
+      if (isEditing && maintenance) {
+        // Actualizar mantenimiento existente
+        response = await fetch(`${API_BASE_URL}/mantenimientos/${maintenance.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+          credentials: 'include'
+        });
       } else {
-        // En un caso real, aquí se haría la llamada a la API para programar el mantenimiento
-        console.log("Programando mantenimiento:", { 
-          ...formData, 
-          facilityId: facility.id,
-          status: maintenanceStatus
-        })
-
-        toast({
-          title: "Mantenimiento programado",
-          description: "El mantenimiento ha sido programado exitosamente.",
-        })
+        // Crear nuevo mantenimiento
+        response = await fetch(`${API_BASE_URL}/mantenimientos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+          credentials: 'include'
+        });
       }
 
-      setIsSaving(false)
-      setIsSuccess(true)
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Error ${response.status}: No se pudo ${isEditing ? 'actualizar' : 'guardar'} el mantenimiento`);
+      }
+
+      // Mostrar mensaje de éxito
+      toast({
+        title: isEditing ? "Mantenimiento actualizado" : "Mantenimiento guardado",
+        description: isEditing
+          ? "El mantenimiento ha sido actualizado exitosamente."
+          : formData.affectsAvailability
+            ? "El mantenimiento ha sido guardado exitosamente. Las reservas afectadas han sido canceladas."
+            : "El mantenimiento ha sido guardado exitosamente sin afectar las reservas existentes.",
+      });
+
+      setIsSuccess(true);
 
       // Redireccionar a la página de mantenimientos después de mostrar el mensaje de éxito
       setTimeout(() => {
-        router.push('/admin/instalaciones/mantenimiento')
-      }, 2000)
-    }, 1500)
+        router.push('/admin/instalaciones/mantenimiento');
+      }, 2000);
+    } catch (error) {
+      console.error("Error al guardar mantenimiento:", error);
+      toast({
+        title: "Error",
+        description: error.message || `No se pudo ${isEditing ? 'actualizar' : 'guardar'} el mantenimiento.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // La lógica de manejo del formulario y visualización de badges se ha movido al componente MantenimientoForm
@@ -331,62 +447,20 @@ export default function MantenimientoPage() {
         {isSuccess && (
           <div className="flex items-center text-green-600">
             <CheckCircle className="h-4 w-4 mr-1" />
-            <span className="text-sm">{isEditing ? "Mantenimiento actualizado correctamente" : "Mantenimiento programado correctamente"}</span>
+            <span className="text-sm">{isEditing ? "Mantenimiento actualizado correctamente" : "Mantenimiento guardado correctamente"}</span>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <MantenimientoForm 
-            facility={facility}
-            maintenance={maintenance}
-            isEditing={isEditing}
-            onSubmit={handleFormSubmit}
-            isSaving={isSaving}
-            isSuccess={isSuccess}
-          />
-        </div>
-
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Información de la Instalación</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-medium">Tipo de instalación</h3>
-                <p className="text-sm capitalize">{facility.type.replace(/-/g, " ")}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">Ubicación</h3>
-                <p className="text-sm">{facility.location}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">Estado actual</h3>
-                <div>
-                  {facility.status === "disponible" ? (
-                    <Badge className="bg-green-100 text-green-800">Disponible</Badge>
-                  ) : facility.status === "mantenimiento" ? (
-                    <Badge className="bg-red-100 text-red-800">En mantenimiento</Badge>
-                  ) : (
-                    <Badge className="bg-red-100 text-red-800">No disponible</Badge>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">Último mantenimiento</h3>
-                <p className="text-sm">{facility.lastMaintenance}</p>
-              </div>
-              {facility.nextMaintenance && (
-                <div className="space-y-2">
-                  <h3 className="font-medium">Próximo mantenimiento</h3>
-                  <p className="text-sm">{facility.nextMaintenance}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+      <div className="w-full max-w-4xl mx-auto">
+        <MantenimientoForm
+          facility={facility}
+          maintenance={maintenance}
+          isEditing={isEditing}
+          onSubmit={handleFormSubmit}
+          isSaving={isSaving}
+          isSuccess={isSuccess}
+        />
       </div>
     </div>
   )

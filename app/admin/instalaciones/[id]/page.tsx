@@ -48,6 +48,41 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           maintenanceStatus = "in-progress";
         }
 
+        // Cargar información de mantenimiento
+        const maintenanceResponse = await fetch(`${API_BASE_URL}/mantenimientos/instalacion/${facilityId}`)
+        let lastMaintenance = null;
+        let nextMaintenance = null;
+        let tieneMantenimientoActivo = false;
+        let enMantenimiento = false;
+
+        if (maintenanceResponse.ok) {
+          const maintenanceData = await maintenanceResponse.json();
+          console.log("Datos de mantenimiento:", maintenanceData);
+
+          // Obtener último mantenimiento si existe
+          if (maintenanceData.tieneMantenimientoCompletado) {
+            lastMaintenance = maintenanceData.ultimoMantenimiento;
+          }
+
+          // Obtener próximo mantenimiento si existe
+          if (maintenanceData.tieneMantenimientoProgramado) {
+            nextMaintenance = maintenanceData.proximoMantenimiento;
+            // Si hay mantenimiento programado, actualizar el estado
+            maintenanceStatus = "scheduled";
+          }
+
+          // Verificar si está en mantenimiento actualmente
+          if (maintenanceData.enMantenimiento) {
+            enMantenimiento = true;
+            maintenanceStatus = "in-progress";
+          }
+
+          // Verificar si tiene algún mantenimiento activo (programado o en progreso)
+          if (maintenanceData.tieneMantenimientoActivo) {
+            tieneMantenimientoActivo = true;
+          }
+        }
+
         // Formatear los datos para la interfaz
         const enrichedData = {
           ...data,
@@ -62,10 +97,12 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           features: data.caracteristicas || [],
           amenities: data.comodidades || [],
           rules: data.reglas || [],
-          lastMaintenance: "15/03/2025", // Estos datos deberían venir del backend
-          nextMaintenance: null,
-          status: data.estado || "disponible",
-          maintenanceStatus: maintenanceStatus
+          lastMaintenance: lastMaintenance, // Datos reales del backend
+          nextMaintenance: nextMaintenance,
+          status: enMantenimiento ? "mantenimiento" : (data.estado || "disponible"),
+          maintenanceStatus: maintenanceStatus,
+          tieneMantenimientoActivo: tieneMantenimientoActivo,
+          enMantenimiento: enMantenimiento
         }
 
         setFacility(enrichedData)
@@ -294,14 +331,16 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                             <p className="text-sm text-gray-600">{facility.capacity}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-5 w-5 text-primary" />
-                          <div>
-                            <p className="font-medium">Último mantenimiento</p>
-                            <p className="text-sm text-gray-600">{facility.lastMaintenance}</p>
+                        {facility.lastMaintenance ? (
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-primary" />
+                            <div>
+                              <p className="font-medium">Último mantenimiento</p>
+                              <p className="text-sm text-gray-600">{facility.lastMaintenance}</p>
+                            </div>
                           </div>
-                        </div>
-                        {facility.nextMaintenance && (
+                        ) : null}
+                        {facility.nextMaintenance ? (
                           <div className="flex items-center gap-2">
                             <Calendar className="h-5 w-5 text-primary" />
                             <div>
@@ -309,7 +348,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                               <p className="text-sm text-gray-600">{facility.nextMaintenance}</p>
                             </div>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                       <p className="text-primary font-bold mt-4">{facility.price}</p>
                     </TabsContent>
@@ -388,14 +427,27 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                   <CardTitle>Estado de Mantenimiento</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Último mantenimiento</p>
-                      <p className="text-sm text-gray-600">{facility.lastMaintenance}</p>
+                  {facility.lastMaintenance ? (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="font-medium">Último mantenimiento</p>
+                        <p className="text-sm text-gray-600">{facility.lastMaintenance}</p>
+                      </div>
                     </div>
-                  </div>
-                  {facility.nextMaintenance ? (
+                  ) : null}
+
+                  {facility.enMantenimiento ? (
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-500" />
+                      <div>
+                        <p className="font-medium">Estado</p>
+                        <p className="text-sm text-red-600 font-medium">
+                          Esta instalación está en mantenimiento
+                        </p>
+                      </div>
+                    </div>
+                  ) : facility.nextMaintenance ? (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-primary" />
                       <div>
@@ -418,9 +470,13 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                   )}
                 </CardContent>
                 <CardFooter>
-                  {(facility.maintenanceStatus === 'none' || facility.maintenanceStatus === 'required') && (
-                    <Button className="w-full bg-primary hover:bg-primary-light" asChild>
-                      <Link href={`/admin/instalaciones/${facility.id}/mantenimiento`}>Programar mantenimiento</Link>
+                  {!facility.tieneMantenimientoActivo ? (
+                    <Button className="w-full bg-primary hover:bg-primary-light" onClick={() => router.push(`/admin/instalaciones/${facility.id}/mantenimiento`)}>
+                      Programar mantenimiento
+                    </Button>
+                  ) : (
+                    <Button className="w-full" disabled>
+                      {facility.enMantenimiento ? "En mantenimiento" : "Mantenimiento programado"}
                     </Button>
                   )}
                 </CardFooter>

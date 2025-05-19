@@ -16,7 +16,7 @@ interface ReservationTabsProps {
   setSearchQuery: (query: string) => void
   setSelectedDate: (date: Date | undefined) => void
   setReservations: (reservations: any[]) => void
-  reservationsData: any[]
+  // Eliminamos la dependencia de reservationsData
 }
 
 export default function ReservationTabs({
@@ -32,7 +32,7 @@ export default function ReservationTabs({
   setSearchQuery,
   setSelectedDate,
   setReservations,
-  reservationsData,
+  // Eliminamos reservationsData
 }: ReservationTabsProps) {
   return (
     <Tabs defaultValue="todas" value={activeTab} onValueChange={handleTabChange}>
@@ -56,7 +56,7 @@ export default function ReservationTabs({
           setSearchQuery={setSearchQuery}
           setSelectedDate={setSelectedDate}
           setReservations={setReservations}
-          reservationsData={reservationsData}
+          // Eliminamos la prop reservationsData
         />
       </TabsContent>
     </Tabs>

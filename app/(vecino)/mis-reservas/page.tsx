@@ -222,7 +222,12 @@ export default function MisReservas() {
       setReservations(prevReservations =>
         prevReservations.map((res: Reservation) => // Añadir tipo explícito a res
           res.id === reservationToCancel
-            ? { ...res, status: 'cancelada', canCancel: false } // Actualizar estado y canCancel
+            ? {
+                ...res,
+                status: 'cancelada',
+                estadoPago: 'reembolsado', // Actualizar el estado de pago a reembolsado
+                canCancel: false
+              } // Actualizar estado, estado de pago y canCancel
             : res
         )
       );
