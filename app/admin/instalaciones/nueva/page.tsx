@@ -393,11 +393,11 @@ export default function NuevaInstalacion() {
                     <SelectValue placeholder="Selecciona un tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="piscina">Piscina</SelectItem>
-                    <SelectItem value="cancha-futbol-grass">Cancha de Fútbol (Grass)</SelectItem>
-                    <SelectItem value="cancha-futbol-loza">Cancha de Fútbol (Loza)</SelectItem>
-                    <SelectItem value="gimnasio">Gimnasio</SelectItem>
-                    <SelectItem value="pista-atletismo">Pista de Atletismo</SelectItem>
+                    <SelectItem value="Piscina">Piscina</SelectItem>
+                    <SelectItem value="Cancha de Fútbol (Grass)">Cancha de Fútbol (Grass)</SelectItem>
+                    <SelectItem value="Cancha de Fútbol (Losa)">Cancha de Fútbol (Losa)</SelectItem>
+                    <SelectItem value="Gimnasio">Gimnasio</SelectItem>
+                    <SelectItem value="Pista de Atletismo">Pista de Atletismo</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.type && <p className="text-red-500 text-sm">{errors.type}</p>}

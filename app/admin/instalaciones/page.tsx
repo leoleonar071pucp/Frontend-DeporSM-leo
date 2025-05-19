@@ -42,6 +42,15 @@ interface Facility {
   updatedAt: string
 }
 
+// Mapeo entre los valores de visualización y los valores de almacenamiento
+const typeMapping = {
+  "Piscina": ["piscina"],
+  "Cancha de Fútbol (Grass)": ["cancha-futbol-grass", "cancha de fútbol (grass)"],
+  "Cancha de Fútbol (Losa)": ["cancha-futbol-loza", "cancha de fútbol (losa)"],
+  "Gimnasio": ["gimnasio"],
+  "Pista de Atletismo": ["pista-atletismo", "pista de atletismo"]
+};
+
 export default function InstalacionesAdmin() {
   const [isLoading, setIsLoading] = useState(true)
   const [facilities, setFacilities] = useState<Facility[]>([])
@@ -71,6 +80,9 @@ export default function InstalacionesAdmin() {
   const applyFilters = () => {
     let result = [...facilities];
 
+    // Mostrar todos los tipos disponibles para depuración
+    console.log('Todos los tipos disponibles:', [...new Set(facilities.map(f => f.tipo))]);
+
     // Filtrar por estado (activo/inactivo)
     if (activeTab === "disponibles") {
       result = result.filter(facility => facility.activo);
@@ -80,7 +92,39 @@ export default function InstalacionesAdmin() {
 
     // Filtrar por tipo
     if (currentFilter) {
-      result = result.filter(facility => facility.tipo === currentFilter);
+      // Mostrar en consola para depuración
+      console.log(`Filtrando por tipo: "${currentFilter}"`);
+
+      result = result.filter(facility => {
+        if (!facility.tipo) return false;
+
+        // Obtener los posibles valores de almacenamiento para el tipo seleccionado
+        const possibleValues = typeMapping[currentFilter as keyof typeof typeMapping] || [];
+
+        // Verificar si el tipo de la instalación coincide con alguno de los posibles valores
+        const matchByMapping = possibleValues.some(value =>
+          facility.tipo.toLowerCase() === value.toLowerCase() ||
+          facility.tipo.toLowerCase().includes(value.toLowerCase())
+        );
+
+        // También verificar si hay una coincidencia directa o por inclusión
+        const directMatch = facility.tipo.toLowerCase() === currentFilter.toLowerCase();
+        const includesMatch = facility.tipo.toLowerCase().includes(currentFilter.toLowerCase());
+
+        const match = matchByMapping || directMatch || includesMatch;
+
+        console.log(`Comparando: "${facility.tipo}" con "${currentFilter}" - Resultado: ${match}`);
+        console.log(`  - Por mapeo: ${matchByMapping}`);
+        console.log(`  - Coincidencia directa: ${directMatch}`);
+        console.log(`  - Inclusión: ${includesMatch}`);
+
+        return match;
+      });
+
+      console.log(`Instalaciones encontradas: ${result.length}`);
+      if (result.length === 0) {
+        console.log('Tipos disponibles:', [...new Set(facilities.map(f => f.tipo))]);
+      }
     }
 
     // Filtrar por búsqueda
@@ -105,10 +149,7 @@ export default function InstalacionesAdmin() {
     fetchFacilities()
   }, [])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    // No es necesario hacer nada aquí, ya que el efecto se encargará de aplicar los filtros
-  }
+  // La función handleSearch ya no es necesaria porque los filtros se aplican automáticamente
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -194,9 +235,11 @@ export default function InstalacionesAdmin() {
                 <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => handleTypeFilterClick(null)}>Todas</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Piscina")}>Piscinas</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Cancha")}>Canchas</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Gimnasio")}>Gimnasios</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Piscina")}>Piscina</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Cancha de Fútbol (Grass)")}>Cancha de Fútbol (Grass)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Cancha de Fútbol (Losa)")}>Cancha de Fútbol (Losa)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Gimnasio")}>Gimnasio</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleTypeFilterClick("Pista de Atletismo")}>Pista de Atletismo</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

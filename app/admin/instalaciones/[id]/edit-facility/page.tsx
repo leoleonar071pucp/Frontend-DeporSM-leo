@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, CheckCircle, Upload } from "lucide-react"
+import { Loader2, CheckCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from "next/navigation"
@@ -28,6 +28,15 @@ interface AvailableTimeSlot {
   startTime: string;
   endTime: string;
 }
+
+// Mapeo entre los valores de visualización y los valores de almacenamiento
+const typeMapping: Record<string, string> = {
+  "Piscina": "piscina",
+  "Cancha de Fútbol (Grass)": "cancha-futbol-grass",
+  "Cancha de Fútbol (Losa)": "cancha-futbol-loza",
+  "Gimnasio": "gimnasio",
+  "Pista de Atletismo": "pista-atletismo"
+};
 
 const supabase = createClient(
   'https://goajrdpkfhunnfuqtoub.supabase.co',
@@ -59,13 +68,56 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
         const res = await fetch(`${API_BASE_URL}/instalaciones/${id}`)
         const data = await res.json()
 
+        // Mostrar los datos recibidos para depuración
+        console.log("Datos recibidos de la instalación:", data);
+        console.log("Tipo de instalación recibido:", data.tipo);
+
+        // Convertir el tipo de almacenamiento al formato de visualización
+        let displayType = data.tipo || "";
+
+        // Mapeo inverso para convertir de formato de almacenamiento a formato de visualización
+        const reverseTypeMapping: Record<string, string> = {};
+        Object.entries(typeMapping).forEach(([display, storage]) => {
+          reverseTypeMapping[storage] = display;
+        });
+
+        // Intentar encontrar el tipo de visualización correspondiente
+        if (displayType && reverseTypeMapping[displayType]) {
+          displayType = reverseTypeMapping[displayType];
+        } else {
+          // Si no está en el mapeo, intentar normalizar basado en el contenido
+          const tipoLower = displayType.toLowerCase();
+
+          if (tipoLower.includes("piscina")) {
+            displayType = "Piscina";
+          } else if (tipoLower.includes("cancha") && (tipoLower.includes("grass") || tipoLower.includes("gras"))) {
+            displayType = "Cancha de Fútbol (Grass)";
+          } else if (tipoLower.includes("cancha") && (tipoLower.includes("loza") || tipoLower.includes("losa"))) {
+            displayType = "Cancha de Fútbol (Losa)";
+          } else if (tipoLower.includes("gimnasio")) {
+            displayType = "Gimnasio";
+          } else if (tipoLower.includes("pista") || tipoLower.includes("atletismo")) {
+            displayType = "Pista de Atletismo";
+          } else {
+            // Si no se puede normalizar, convertir a un formato más legible
+            // Convertir guiones a espacios y capitalizar cada palabra
+            displayType = displayType
+              .split('-')
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          }
+        }
+
+        console.log("Tipo original:", data.tipo);
+        console.log("Tipo convertido para visualización:", displayType);
+
         // Transformar los datos para el formulario
         const transformed = {
           id: data.id,
           name: data.nombre,
           location: data.ubicacion,
           description: data.descripcion,
-          type: data.tipo,
+          type: displayType, // Usar el tipo convertido para visualización
           price: data.precio ? data.precio.toString() : "0.00",
           capacity: data.capacidad.toString(),
           contactNumber: data.contactoNumero || "",
@@ -161,6 +213,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
     if (!formData.name.trim()) newErrors.name = "El nombre es obligatorio"
     if (!formData.location.trim()) newErrors.location = "La ubicación es obligatoria"
     if (!formData.description.trim()) newErrors.description = "La descripción es obligatoria"
+    if (!formData.type) newErrors.type = "El tipo de instalación es obligatorio"
 
     if (!formData.capacity.trim()) {
       newErrors.capacity = "La capacidad es obligatoria"
@@ -190,17 +243,39 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
       if (url) uploadedUrl = url;
     }
 
+    // Asegurarse de que el tipo no esté vacío
+    if (!formData.type) {
+      setErrors(prev => ({...prev, type: "El tipo de instalación es obligatorio"}));
+      setIsSaving(false);
+      return;
+    }
+
+    // Convertir el tipo de visualización al formato de almacenamiento
+    let tipoAlmacenamiento = formData.type;
+    if (typeMapping[formData.type]) {
+      tipoAlmacenamiento = typeMapping[formData.type];
+    } else {
+      // Si no está en el mapeo, convertir a minúsculas y reemplazar espacios por guiones
+      tipoAlmacenamiento = formData.type.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '');
+    }
+
+    console.log("Tipo original:", formData.type);
+    console.log("Tipo convertido para almacenamiento:", tipoAlmacenamiento);
+
     const updatedFacility = {
       nombre: formData.name,
       descripcion: formData.description,
       ubicacion: formData.location,
-      tipo: formData.type,
+      tipo: tipoAlmacenamiento, // Usar el tipo convertido
       capacidad: Number(formData.capacity),
       contactoNumero: formData.contactNumber,
       imagenUrl: uploadedUrl,
       precio: parseFloat(formData.price),
       activo: true
     };
+
+    // Mostrar los datos que se van a enviar para depuración
+    console.log("Datos a enviar:", updatedFacility);
 
     try {
       // Primero actualizamos la información básica de la instalación
@@ -255,20 +330,36 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select
-                value={formData.type}
-                onValueChange={(value: string) => setFormData((prev: any) => ({...prev, type: value}))}
+                value={formData.type || ""}
+                defaultValue={formData.type || ""}
+                onValueChange={(value: string) => {
+                  console.log("Tipo seleccionado:", value);
+                  setFormData((prev: any) => ({...prev, type: value}));
+                  // Limpiar error si existe
+                  if (errors.type) {
+                    const newErrors = { ...errors };
+                    delete newErrors.type;
+                    setErrors(newErrors);
+                  }
+                }}
               >
-                <SelectTrigger>
+                <SelectTrigger className={errors.type ? "border-red-500" : ""}>
                   <SelectValue placeholder="Selecciona un tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="piscina">Piscina</SelectItem>
-                  <SelectItem value="cancha-futbol-grass">Cancha de Fútbol (Grass)</SelectItem>
-                  <SelectItem value="cancha-futbol-loza">Cancha de Fútbol (Loza)</SelectItem>
-                  <SelectItem value="gimnasio">Gimnasio</SelectItem>
-                  <SelectItem value="pista-atletismo">Pista de Atletismo</SelectItem>
+                  <SelectItem value="Piscina">Piscina</SelectItem>
+                  <SelectItem value="Cancha de Fútbol (Grass)">Cancha de Fútbol (Grass)</SelectItem>
+                  <SelectItem value="Cancha de Fútbol (Losa)">Cancha de Fútbol (Losa)</SelectItem>
+                  <SelectItem value="Gimnasio">Gimnasio</SelectItem>
+                  <SelectItem value="Pista de Atletismo">Pista de Atletismo</SelectItem>
+                  {/* Agregar un elemento para mostrar el tipo actual si no coincide con ninguno de los anteriores */}
+                  {formData.type &&
+                   !["Piscina", "Cancha de Fútbol (Grass)", "Cancha de Fútbol (Losa)", "Gimnasio", "Pista de Atletismo"].includes(formData.type) &&
+                   <SelectItem value={formData.type}>{formData.type}</SelectItem>}
                 </SelectContent>
               </Select>
+              {errors.type && <p className="text-red-500 text-sm">{errors.type}</p>}
+              {formData.type && <p className="text-xs text-gray-500 mt-1">Tipo actual: {formData.type}</p>}
             </div>
             <div className="space-y-2">
               <Label>Ubicación</Label>
