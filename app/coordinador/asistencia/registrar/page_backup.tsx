@@ -34,6 +34,20 @@ const useMockAuth = () => {
 }
 
 // Interfaces
+interface Schedule {
+  id: number
+  day: string
+  startTime: string
+  endTime: string
+}
+
+interface AssignedSchedules {
+  [key: string]: {
+    facilityId: number
+    schedules: Schedule[]
+  }
+}
+
 interface Visit {
   id: number
   facilityId: number
@@ -80,10 +94,7 @@ export default function RegistrarAsistenciaPage() {
   const searchParams = useSearchParams()
   const visitId = searchParams.get("id")
   const facilityId = searchParams.get("facilityId")
-  
-  // Usar contexto de autenticación si está disponible, o el mock si no lo está
-  const authContext = useAuth() || useMockAuth()
-  const { user } = authContext
+  const { user } = useAuth()
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -189,9 +200,7 @@ export default function RegistrarAsistenciaPage() {
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const checkLocation = () => {
+  }  const checkLocation = () => {
     setIsCheckingLocation(true)
     setLocationError(null)
 
@@ -295,8 +304,7 @@ export default function RegistrarAsistenciaPage() {
           variant: "destructive",
         })
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-    )
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },    )
   }
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -341,7 +349,7 @@ export default function RegistrarAsistenciaPage() {
       return
     }
 
-    setIsSaving(true)
+    setIsSaving(true);
     
     try {
       // Construir el objeto de registro de asistencia
@@ -361,7 +369,7 @@ export default function RegistrarAsistenciaPage() {
       }
 
       // Usar el servicio para registrar la asistencia
-      await recordAttendance(attendanceRecord)
+      await recordAttendance(attendanceRecord);
 
       toast({
         title: "Asistencia registrada",
@@ -549,17 +557,13 @@ export default function RegistrarAsistenciaPage() {
                       </>
                     )}
                   </div>
-                </div>
-
-                {formData.status !== "no-asistio" && (
+                </div>                {formData.status !== "no-asistio" && (
                   <div className="space-y-2">
                     {/* Comentado por ser redundante
                     <Label htmlFor="arrivalTime">
                       Hora de llegada <span className="text-red-500">*</span>
                     </Label>
-                    */}
-
-                    {/* Comentado: Ocultar input de tiempo
+                    */}                    {/* Comentado: Ocultar input de tiempo
                     <Input
                       id="arrivalTime"
                       name="arrivalTime"
@@ -575,9 +579,7 @@ export default function RegistrarAsistenciaPage() {
                       }}
                       required
                     />
-                    */}
-
-                    {/* Comentado: Mensaje relacionado con el input de tiempo
+                    */}                    {/* Comentado: Mensaje relacionado con el input de tiempo
                     {!isLocationValid && formData.arrivalTime && (
                       <p className="text-amber-600 text-sm">
                         Valida tu ubicación para determinar el estado de la visita
@@ -586,6 +588,7 @@ export default function RegistrarAsistenciaPage() {
                     */}
                   </div>
                 )}
+
               </CardContent>
             </Card>
           </div>
@@ -679,7 +682,9 @@ export default function RegistrarAsistenciaPage() {
               </CardFooter>
             </Card>
           </div>
-        </div>      </form>
+        </div>
+      </form>
     </div>
   )
 }
+

@@ -679,7 +679,8 @@ export default function RegistrarAsistenciaPage() {
               </CardFooter>
             </Card>
           </div>
-        </div>      </form>
+        </div>
+      </form>
     </div>
   )
 }
