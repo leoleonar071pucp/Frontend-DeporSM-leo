@@ -494,17 +494,18 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-medium">Nº Reserva</th>
                       <th className="text-left py-3 px-4 font-medium">Usuario</th>
                       <th className="text-left py-3 px-4 font-medium">Fecha</th>
                       <th className="text-left py-3 px-4 font-medium">Hora</th>
                       <th className="text-left py-3 px-4 font-medium">Estado</th>
-                      <th className="text-left py-3 px-4 font-medium">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {recentReservations && recentReservations.length > 0 ? (
                       recentReservations.map((reservation) => (
                         <tr key={reservation.idReserva} className="border-b">
+                          <td className="py-3 px-4">{`RES-${reservation.idReserva}`}</td>
                           <td className="py-3 px-4">{reservation.nombreUsuario}</td>
                           <td className="py-3 px-4">
                             {/* Mostrar la fecha formateada con día de la semana */}
@@ -523,11 +524,6 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                             >
                               {reservation.estado.charAt(0).toUpperCase() + reservation.estado.slice(1)}
                             </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href={`/admin/reservas/${reservation.idReserva}`}>Ver detalles</Link>
-                            </Button>
                           </td>
                         </tr>
                       ))
