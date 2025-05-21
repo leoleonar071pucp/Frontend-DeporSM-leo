@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -61,18 +61,18 @@ const validateScheduledVisit = (visit: Visit, schedules: CoordinatorSchedule[]):
   if (!visit || !schedules || schedules.length === 0) {
     return false;
   }
-  
+
   const visitDate = new Date(visit.date);
   // Obtenemos el nombre del día en español
   const dayOfWeek = visitDate.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
-  
+
   // Comprobar que coincidan: ID de instalación, día de la semana y horario
   return schedules.some(schedule => {
     const matchesInstallation = schedule.instalacionId === visit.facilityId;
     const matchesDay = schedule.diaSemana.toLowerCase() === dayOfWeek;
     const matchesStartTime = schedule.horaInicio === visit.scheduledTime;
     const matchesEndTime = schedule.horaFin === visit.scheduledEndTime;
-    
+
     // Mostrar información de depuración solo si no coincide
     if (matchesInstallation && (!matchesDay || !matchesStartTime || !matchesEndTime)) {
       console.log(`Validación de visita - Datos no coinciden:
@@ -81,18 +81,19 @@ const validateScheduledVisit = (visit: Visit, schedules: CoordinatorSchedule[]):
         Hora fin visita: ${visit.scheduledEndTime} | Hora fin programada: ${schedule.horaFin}`
       );
     }
-    
+
     return matchesInstallation && matchesDay && matchesStartTime && matchesEndTime;
   });
 }
 
-export default function RegistrarAsistenciaPage() {
+// Componente interno que usa searchParams
+function RegistrarAsistenciaForm() {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
   const visitId = searchParams.get("id")
   const facilityId = searchParams.get("facilityId")
-  
+
   // Usar contexto de autenticación si está disponible, o el mock si no lo está
   const authContext = useAuth() || useMockAuth()
   const { user } = authContext
@@ -114,7 +115,7 @@ export default function RegistrarAsistenciaPage() {
     const loadData = async () => {
       try {
         setIsLoading(true)
-        
+
         // Validar que tengamos tanto el ID de visita como el ID de instalación
         if (!visitId || !facilityId) {
           toast({
@@ -139,11 +140,11 @@ export default function RegistrarAsistenciaPage() {
 
         const numVisitId = Number(visitId)
         const numFacilityId = Number(facilityId)
-        
+
         // 1. Cargar los horarios del coordinador para la instalación específica
         const coordinatorSchedules = await getCoordinatorSchedules(user.id, numFacilityId)
         setSchedules(coordinatorSchedules)
-        
+
         if (coordinatorSchedules.length === 0) {
           toast({
             title: "Advertencia",
@@ -151,17 +152,17 @@ export default function RegistrarAsistenciaPage() {
             variant: "default",
           })
         }
-        
+
         // 2. Cargar los datos de la visita específica
         const foundVisit = await getScheduledVisit(numVisitId, numFacilityId)
-        
+
         if (foundVisit) {
           setVisit(foundVisit as Visit)
-          
+
           // Validar la correspondencia entre visita y horarios
           if (coordinatorSchedules.length > 0) {
             const isValidVisit = validateScheduledVisit(foundVisit as Visit, coordinatorSchedules)
-            
+
             if (!isValidVisit) {
               toast({
                 title: "Advertencia",
@@ -230,36 +231,36 @@ export default function RegistrarAsistenciaPage() {
         try {
           // Usar el servicio para validar la ubicación
           const isValid = await validateLocation(userCoords, visit.facilityId)
-          
+
           setIsLocationValid(isValid)
-          
+
           if (isValid) {
             // Actualizar automáticamente la hora de llegada
             const now = new Date()
             const hours = now.getHours().toString().padStart(2, "0")
             const minutes = now.getMinutes().toString().padStart(2, "0")
             const currentTime = `${hours}:${minutes}`
-            
+
             // Calcular el estado de asistencia basado en horario
             const attendanceStatus = determineAttendanceStatus(
-              visit.scheduledTime, 
-              visit.scheduledEndTime, 
+              visit.scheduledTime,
+              visit.scheduledEndTime,
               currentTime
             )
-            
+
             setFormData((prev) => ({
               ...prev,
               arrivalTime: currentTime,
               status: attendanceStatus
             }))
-            
+
             // Mostrar mensaje según el estado calculado
             const statusMessages = {
               "a-tiempo": "Llegada registrada a tiempo.",
               "tarde": "Llegada registrada con retraso.",
               "no-asistio": "Llegada registrada después del horario programado."
             }
-            
+
             toast({
               title: "Ubicación validada",
               description: statusMessages[attendanceStatus] || "Ubicación verificada correctamente.",
@@ -310,7 +311,7 @@ export default function RegistrarAsistenciaPage() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     )
   }
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -359,7 +360,7 @@ export default function RegistrarAsistenciaPage() {
       // Aseguramos que siempre tengamos un nombre para la instalación
       const facilityName = visit.facilityName || `Instalación ${visit.facilityId}`;
       const location = visit.location || "Complejo Deportivo Municipal";
-      
+
       const attendanceRecord = {
         id: 0, // El backend asignará el ID real
         visitId: visit.id, // ID de la visita programada (importante para tracking)
@@ -380,11 +381,11 @@ export default function RegistrarAsistenciaPage() {
       try {
         const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
         let registeredVisits = [];
-        
+
         try {
           // Intentar parsear el contenido actual
           registeredVisits = JSON.parse(registeredVisitsJson);
-          
+
           // Convertir formato antiguo (array de IDs) al nuevo formato (array de objetos)
           if (Array.isArray(registeredVisits) && (registeredVisits.length === 0 || typeof registeredVisits[0] === 'number')) {
             registeredVisits = registeredVisits.map(id => ({
@@ -396,20 +397,20 @@ export default function RegistrarAsistenciaPage() {
           console.error("Error parseando JSON de localStorage:", e);
           registeredVisits = [];
         }
-        
+
         // Filtrar visitas expiradas (más de 2 días)
         const twoDaysAgo = new Date();
         twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-        
+
         registeredVisits = registeredVisits.filter(visit => {
           if (!visit.registeredDate) return false;
           const registeredDate = new Date(visit.registeredDate);
           return registeredDate > twoDaysAgo;
         });
-        
+
         // Verificar si ya existe esta visita
         const existingVisitIndex = registeredVisits.findIndex(v => v.id === visit.id);
-        
+
         // Añadir la nueva visita registrada o actualizar la existente
         if (visit.id && existingVisitIndex === -1) {
           registeredVisits.push({
@@ -422,7 +423,7 @@ export default function RegistrarAsistenciaPage() {
           registeredVisits[existingVisitIndex].registeredDate = new Date().toISOString();
           console.log(`Actualizando fecha de registro para visita ID=${visit.id}`);
         }
-        
+
         // Guardar en localStorage
         localStorage.setItem('registeredVisits', JSON.stringify(registeredVisits));
       } catch (err) {
@@ -750,5 +751,35 @@ export default function RegistrarAsistenciaPage() {
           </div>
         </div>      </form>
     </div>
+  )
+}
+
+// Componente de carga para el Suspense
+function LoadingRegistrarAsistencia() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center">
+        <Button variant="ghost" className="mr-2" asChild>
+          <Link href="/coordinador/asistencia">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver
+          </Link>
+        </Button>
+        <h1 className="text-2xl font-bold tracking-tight">Cargando...</h1>
+      </div>
+
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    </div>
+  )
+}
+
+// Componente principal que exportamos
+export default function RegistrarAsistenciaPage() {
+  return (
+    <Suspense fallback={<LoadingRegistrarAsistencia />}>
+      <RegistrarAsistenciaForm />
+    </Suspense>
   )
 }

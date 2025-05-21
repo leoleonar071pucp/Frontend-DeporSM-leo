@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Loader2, Lock, CheckCircle, AlertCircle } from "lucide-react"
 import { API_BASE_URL } from "@/lib/config"
 
-export default function ResetearContrasena() {
+// Componente que utiliza useSearchParams
+function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
@@ -248,5 +249,35 @@ export default function ResetearContrasena() {
         </Card>
       </div>
     </div>
+  )
+}
+
+// Componente de carga para el Suspense
+function LoadingResetPassword() {
+  return (
+    <div className="min-h-screen bg-primary-background flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        <Card>
+          <CardHeader>
+            <CardTitle>Restablecer Contraseña</CardTitle>
+            <CardDescription>Cargando...</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+// Componente principal que envuelve el formulario en un Suspense
+export default function ResetearContrasena() {
+  return (
+    <Suspense fallback={<LoadingResetPassword />}>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
