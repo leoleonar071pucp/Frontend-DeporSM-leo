@@ -271,10 +271,29 @@ function ConfirmarReservaForm() {
           // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
           const [horaInicio, horaFin] = timeParam.split(' - ');
 
+          // Crear fecha con la zona horaria local correcta
+          const fecha = new Date(dateParam || new Date());
+
+          // Obtener el offset de la zona horaria local en minutos
+          const offset = fecha.getTimezoneOffset();
+
+          // Crear fecha ISO con ajuste de zona horaria
+          // Esto asegura que la fecha que se envía al backend sea exactamente la que el usuario seleccionó
+          // sin ajustes de zona horaria
+          const fechaISO = new Date(fecha.getTime() - offset * 60000).toISOString().split('T')[0];
+
+          // Imprimir información detallada para depuración
+          console.log("=== INFORMACIÓN DE FECHA PARA BLOQUEO TEMPORAL ===");
+          console.log("Fecha original:", dateParam);
+          console.log("Fecha objeto Date:", fecha);
+          console.log("Offset zona horaria (minutos):", offset);
+          console.log("Fecha ISO ajustada:", fechaISO);
+          console.log("===================================");
+
           // Crear el objeto de bloqueo temporal
           const bloqueoDTO = {
             instalacionId: parseInt(facilityId),
-            fecha: new Date(dateParam).toISOString().split('T')[0],
+            fecha: fechaISO,
             horaInicio: `${horaInicio}:00`,
             horaFin: `${horaFin}:00`
           };
@@ -520,8 +539,24 @@ function ConfirmarReservaForm() {
     try {
       if (!facilityId || !dateParam || !timeParam) return false;
 
-      const formattedDate = new Date(dateParam).toISOString().split('T')[0];
-      const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}/disponibilidad?fecha=${formattedDate}`);
+      // Crear fecha con la zona horaria local correcta
+      const fecha = new Date(dateParam || new Date());
+
+      // Obtener el offset de la zona horaria local en minutos
+      const offset = fecha.getTimezoneOffset();
+
+      // Crear fecha ISO con ajuste de zona horaria
+      const fechaISO = new Date(fecha.getTime() - offset * 60000).toISOString().split('T')[0];
+
+      // Imprimir información detallada para depuración
+      console.log("=== INFORMACIÓN DE FECHA PARA VERIFICAR DISPONIBILIDAD ===");
+      console.log("Fecha original:", dateParam);
+      console.log("Fecha objeto Date:", fecha);
+      console.log("Offset zona horaria (minutos):", offset);
+      console.log("Fecha ISO ajustada:", fechaISO);
+      console.log("===================================");
+
+      const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}/disponibilidad?fecha=${fechaISO}`);
 
       if (!response.ok) {
         throw new Error(`Error al verificar disponibilidad: ${response.status}`);
@@ -574,10 +609,28 @@ function ConfirmarReservaForm() {
       try {
         // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
         const [horaInicio, horaFin] = timeParam ? timeParam.split(' - ') : ['00:00', '00:00'];
-          // Crear el objeto de reserva para enviar al backend
+
+        // Crear fecha con la zona horaria local correcta
+        const fecha = new Date(dateParam || new Date());
+
+        // Obtener el offset de la zona horaria local en minutos
+        const offset = fecha.getTimezoneOffset();
+
+        // Crear fecha ISO con ajuste de zona horaria
+        const fechaISO = new Date(fecha.getTime() - offset * 60000).toISOString().split('T')[0];
+
+        // Imprimir información detallada para depuración
+        console.log("=== INFORMACIÓN DE FECHA PARA CREAR RESERVA ===");
+        console.log("Fecha original:", dateParam);
+        console.log("Fecha objeto Date:", fecha);
+        console.log("Offset zona horaria (minutos):", offset);
+        console.log("Fecha ISO ajustada:", fechaISO);
+        console.log("===================================");
+
+        // Crear el objeto de reserva para enviar al backend
         const reservaDTO = {
           instalacionId: parseInt(facilityId || '0'),
-          fecha: dateParam, // Formato ISO que viene del parámetro
+          fecha: fechaISO, // Fecha ISO ajustada para la zona horaria local
           horaInicio: `${horaInicio}:00`, // Agregar segundos para el formato SQL TIME
           horaFin: `${horaFin}:00`,
           numeroAsistentes: 1, // Valor por defecto

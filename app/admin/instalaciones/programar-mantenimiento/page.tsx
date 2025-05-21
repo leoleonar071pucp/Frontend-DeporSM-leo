@@ -26,6 +26,7 @@ interface Instalacion {
   id: number
   nombre: string
   ubicacion: string
+  requiereMantenimiento?: boolean
 }
 
 interface FormData {
@@ -133,7 +134,29 @@ export default function ProgramarMantenimientoPage() {
 
         if (Array.isArray(data)) {
           console.log("Todas las instalaciones cargadas. Total:", data.length);
-          setInstallations(data);
+
+          // Obtener información de mantenimiento para cada instalación
+          const installationsWithMaintenance = await Promise.all(
+            data.map(async (facility) => {
+              try {
+                // Verificar si la instalación requiere mantenimiento
+                const requiresMaintenanceResponse = await fetch(`${API_BASE_URL}/observaciones/instalacion/${facility.id}/requiere-mantenimiento`);
+                if (requiresMaintenanceResponse.ok) {
+                  const requiresMaintenanceData = await requiresMaintenanceResponse.json();
+                  return {
+                    ...facility,
+                    requiereMantenimiento: requiresMaintenanceData.requiereMantenimiento === true
+                  };
+                }
+                return facility;
+              } catch (error) {
+                console.error(`Error al verificar mantenimiento para instalación ${facility.id}:`, error);
+                return facility;
+              }
+            })
+          );
+
+          setInstallations(installationsWithMaintenance);
           setFormError("No se pudieron filtrar las instalaciones disponibles. Se muestran todas las instalaciones.");
         } else {
           console.error("La respuesta de todas las instalaciones no es un array:", data);
@@ -246,6 +269,7 @@ export default function ProgramarMantenimientoPage() {
 
     setIsSaving(true)
 
+    // Crear fechas con la zona horaria local correcta
     const fechaInicio = new Date(formData.startDate!)
     const [sh, sm] = formData.startTime.split(":").map(Number)
     fechaInicio.setHours(sh, sm, 0, 0)
@@ -254,6 +278,29 @@ export default function ProgramarMantenimientoPage() {
     const [eh, em] = formData.endTime.split(":").map(Number)
     fechaFin.setHours(eh, em, 0, 0)
 
+    // Obtener el offset de la zona horaria local en minutos
+    const offsetInicio = fechaInicio.getTimezoneOffset()
+    const offsetFin = fechaFin.getTimezoneOffset()
+
+    // Crear fechas ISO con ajuste de zona horaria
+    // Esto asegura que la fecha y hora que se envía al backend sea exactamente la que el usuario seleccionó
+    // sin ajustes de zona horaria
+    const fechaInicioISO = new Date(fechaInicio.getTime() - offsetInicio * 60000).toISOString()
+    const fechaFinISO = new Date(fechaFin.getTime() - offsetFin * 60000).toISOString()
+
+    // Imprimir información detallada para depuración
+    console.log("=== INFORMACIÓN DE FECHAS Y HORAS ===");
+    console.log("Fecha inicio seleccionada:", formData.startDate);
+    console.log("Hora inicio seleccionada:", formData.startTime);
+    console.log("Fecha inicio objeto Date:", fechaInicio);
+    console.log("Offset zona horaria (minutos):", offsetInicio);
+    console.log("Fecha inicio ISO ajustada:", fechaInicioISO);
+    console.log("Fecha fin seleccionada:", formData.endDate);
+    console.log("Hora fin seleccionada:", formData.endTime);
+    console.log("Fecha fin objeto Date:", fechaFin);
+    console.log("Fecha fin ISO ajustada:", fechaFinISO);
+    console.log("===================================");
+
     try {
       // Imprimir los datos que se van a enviar para depuración
       const requestData = {
@@ -261,8 +308,8 @@ export default function ProgramarMantenimientoPage() {
         motivo: formData.description,
         tipo: formData.maintenanceType,
         descripcion: formData.description,
-        fechaInicio: fechaInicio.toISOString(),
-        fechaFin: fechaFin.toISOString(),
+        fechaInicio: fechaInicioISO,
+        fechaFin: fechaFinISO,
         afectaDisponibilidad: formData.affectsAvailability,
         registradoPorId: 1 // Usamos un ID fijo para pruebas
       };
@@ -355,6 +402,7 @@ export default function ProgramarMantenimientoPage() {
                     installations.map((inst) => (
                       <SelectItem key={inst.id} value={inst.id.toString()}>
                         {inst.nombre} - {inst.ubicacion}
+                        {inst.requiereMantenimiento ? " (Requiere Mantenimiento)" : ""}
                       </SelectItem>
                     ))
                   ) : (

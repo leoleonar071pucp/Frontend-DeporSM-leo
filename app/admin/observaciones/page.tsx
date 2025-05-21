@@ -25,11 +25,13 @@ import { API_BASE_URL } from "@/lib/config"
 interface Observation {
   id: number
   facilityName: string
+  title: string
   description: string
   coordinatorName: string
   date: string
-  status: 'pendiente' | 'aprobada' | 'rechazada' | 'completada'
+  status: 'pendiente' | 'en_proceso' | 'resuelta' | 'cancelada' | 'aprobada' | 'rechazada' | 'completada'
   priority: 'alta' | 'media' | 'baja'
+  photos?: string[]
 }
 
 export default function ObservacionesPage() {
@@ -49,7 +51,9 @@ export default function ObservacionesPage() {
   useEffect(() => {
     const fetchObservations = async () => {
       try {
-        const response = await fetch(`/api/observaciones/all`)
+        const response = await fetch(`${API_BASE_URL}/observaciones/all`, {
+          credentials: 'include' // Incluir cookies para autenticación
+        })
         const data = await response.json()
 
         console.log("Respuesta recibida:", data);
@@ -60,15 +64,47 @@ export default function ObservacionesPage() {
 
           // Verificar si el array tiene elementos y si tienen la estructura esperada
           if (data.length > 0 && data[0].idObservacion) {
-            const mappedData: Observation[] = data.map((obs: any) => ({
-              id: obs.idObservacion,
-              facilityName: obs.instalacion,
-              description: obs.descripcion,
-              coordinatorName: obs.coordinador,
-              date: obs.fecha,
-              status: obs.estado,
-              priority: obs.prioridad,
-            }));
+            const mappedData: Observation[] = data.map((obs: any) => {
+              // Procesar las URLs de las fotos si existen
+              let photos: string[] = [];
+              if (obs.fotosUrl) {
+                // Verificar primero si la cadena comienza con http:// o https://
+                if (typeof obs.fotosUrl === 'string' &&
+                    (obs.fotosUrl.startsWith('http://') || obs.fotosUrl.startsWith('https://'))) {
+                  // Es una URL directa o múltiples URLs separadas por comas
+                  photos = obs.fotosUrl.split(',').map(url => url.trim());
+                } else {
+                  try {
+                    // Intentar parsear como JSON solo si no parece ser una URL directa
+                    if (typeof obs.fotosUrl === 'string' &&
+                        (obs.fotosUrl.startsWith('[') || obs.fotosUrl.startsWith('{'))) {
+                      photos = JSON.parse(obs.fotosUrl);
+                    }
+                  } catch (e) {
+                    console.error("Error al parsear fotosUrl:", e);
+                    // Si falla el parseo JSON, intentar como cadena separada por comas
+                    if (typeof obs.fotosUrl === 'string') {
+                      photos = obs.fotosUrl.split(',').map(url => url.trim());
+                    }
+                  }
+                }
+
+                // Registrar para depuración
+                console.log("URLs de fotos procesadas:", photos);
+              }
+
+              return {
+                id: obs.idObservacion,
+                facilityName: obs.instalacion,
+                title: obs.titulo || "Sin título", // Agregamos el campo título con un valor por defecto
+                description: obs.descripcion,
+                coordinatorName: obs.coordinador,
+                date: obs.fecha,
+                status: obs.estado,
+                priority: obs.prioridad,
+                photos: photos.length > 0 ? photos : undefined
+              };
+            });
 
             setObservationsData(mappedData);
           } else {
@@ -93,6 +129,12 @@ export default function ObservacionesPage() {
         }
       } catch (error) {
         console.error("Error al cargar observaciones:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las observaciones. Intente nuevamente.",
+          variant: "destructive"
+        });
+        setObservationsData([]);
       }
     }
 
@@ -102,6 +144,7 @@ export default function ObservacionesPage() {
   const filteredObservations = observationsData.filter((observation) => {
     const searchMatch =
       observation.facilityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      observation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       observation.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       observation.coordinatorName.toLowerCase().includes(searchTerm.toLowerCase())
 
@@ -123,41 +166,132 @@ export default function ObservacionesPage() {
     setIsActionDialogOpen(true)
   }
 
-  const handleActionConfirm = () => {
+  const handleActionConfirm = async () => {
     if (!selectedObservation || !actionType) return;
 
-    const updatedObservations = observationsData.map(obs => {
-      if (obs.id === selectedObservation.id) {
-        return {
-          ...obs,
-          status: actionType === "aprobar" ? "aprobada" : "rechazada"
+    try {
+      // Preparar datos para enviar al backend
+      const requestData = {
+        comentario: feedback
+      };
+
+      // Determinar la URL del endpoint según la acción
+      const endpoint = actionType === "aprobar"
+        ? `/api/observaciones/${selectedObservation.id}/aprobar`
+        : `/api/observaciones/${selectedObservation.id}/rechazar`;
+
+      // Realizar la petición al backend
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        // Si hay un error, mostrar mensaje como toast en lugar de lanzar un error
+        const errorData = await response.json();
+
+        // Mensaje personalizado para el caso de mantenimiento activo
+        let errorTitle = "No se pudo procesar la observación";
+        let errorDescription = errorData.mensaje || 'Error al procesar la observación';
+        let isMaintenanceError = false;
+
+        // Verificar si es el error específico de mantenimiento
+        if (errorData.mensaje && errorData.mensaje.includes("mantenimiento programado o en progreso")) {
+          errorTitle = "⚠️ INSTALACIÓN EN MANTENIMIENTO";
+          errorDescription = "Esta instalación ya tiene un mantenimiento programado o en progreso. No se puede aprobar esta observación hasta que el mantenimiento actual se complete.";
+          isMaintenanceError = true;
+
+          // Registrar en consola para depuración
+          console.error("Error de mantenimiento activo:", errorData);
         }
+
+        // Mostrar mensaje de error como toast
+        toast({
+          title: errorTitle,
+          description: errorDescription,
+          variant: "destructive",
+          duration: isMaintenanceError ? 6000 : 3000, // Mostrar por más tiempo si es error de mantenimiento
+        });
+
+        // Si es un error de mantenimiento, mostrar un diálogo de alerta adicional
+        if (isMaintenanceError) {
+          // Usar un alert nativo para asegurar que el usuario vea el mensaje
+          setTimeout(() => {
+            alert("IMPORTANTE: No se puede aprobar esta observación porque la instalación ya tiene un mantenimiento programado o en progreso. Debe esperar a que el mantenimiento actual se complete.");
+          }, 500);
+        }
+
+        // Cerrar el diálogo y limpiar el estado
+        setIsActionDialogOpen(false);
+        setFeedback('');
+
+        return; // Salir de la función sin continuar
       }
-      return obs
-    })
 
-    setObservationsData(updatedObservations)
+      // Actualizar el estado local con la respuesta del servidor
+      const responseData = await response.json();
 
-    toast({
-      title: actionType === 'aprobar' ? "Observación aprobada" : "Observación rechazada",
-      description: `La observación sobre ${selectedObservation.facilityName} ha sido ${actionType === 'aprobar' ? 'aprobada' : 'rechazada'}.`,
-    })
+      // Determinar el nuevo estado según la acción
+      const newStatus = actionType === "aprobar" ? "en_proceso" : "cancelada";
 
-    addNotification({
-      title: actionType === 'aprobar' ? "Observación aprobada" : "Observación rechazada",
-      message: `Se ha ${actionType === 'aprobar' ? 'aprobado' : 'rechazado'} la observación sobre ${selectedObservation.facilityName}.`,
-      type: "mantenimiento"
-    })
+      // Actualizar la lista de observaciones
+      const updatedObservations = observationsData.map(obs => {
+        if (obs.id === selectedObservation.id) {
+          return {
+            ...obs,
+            status: newStatus
+          }
+        }
+        return obs
+      });
 
-    setIsActionDialogOpen(false)
-    setFeedback('')
-    setSelectedObservation(null)
+      setObservationsData(updatedObservations);
+
+      // Mostrar notificación de éxito
+      toast({
+        title: actionType === 'aprobar' ? "Observación aprobada" : "Observación rechazada",
+        description: `La observación sobre ${selectedObservation.facilityName} ha sido ${actionType === 'aprobar' ? 'aprobada' : 'rechazada'}.`,
+      });
+
+      // Agregar notificación al sistema
+      addNotification({
+        title: actionType === 'aprobar' ? "Observación aprobada" : "Observación rechazada",
+        message: `Se ha ${actionType === 'aprobar' ? 'aprobado' : 'rechazado'} la observación sobre ${selectedObservation.facilityName}.`,
+        type: "mantenimiento"
+      });
+
+      // Cerrar el diálogo y limpiar el estado
+      setIsActionDialogOpen(false);
+      setFeedback('');
+      setSelectedObservation(null);
+
+    } catch (error) {
+      console.error('Error al procesar la observación:', error);
+
+      // Mostrar mensaje de error
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo procesar la observación. Intente nuevamente.",
+        variant: "destructive"
+      });
+    }
   }
 
   const getStatusBadge = (status: Observation['status']) => {
     switch (status) {
       case "pendiente":
         return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
+      case "en_proceso":
+        return <Badge className="bg-blue-100 text-blue-800">En Proceso</Badge>
+      case "resuelta":
+        return <Badge className="bg-green-100 text-green-800">Resuelta</Badge>
+      case "cancelada":
+        return <Badge className="bg-red-100 text-red-800">Cancelada</Badge>
+      // Mantener compatibilidad con estados anteriores
       case "aprobada":
         return <Badge className="bg-green-100 text-green-800">Aprobada</Badge>
       case "rechazada":
@@ -165,7 +299,7 @@ export default function ObservacionesPage() {
       case "completada":
         return <Badge className="bg-blue-100 text-blue-800">Completada</Badge>
       default:
-        return null
+        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>
     }
   }
 
@@ -213,9 +347,9 @@ export default function ObservacionesPage() {
                 <SelectContent>
                   <SelectItem value="todas">Todos los estados</SelectItem>
                   <SelectItem value="pendiente">Pendiente</SelectItem>
-                  <SelectItem value="aprobada">Aprobada</SelectItem>
-                  <SelectItem value="rechazada">Rechazada</SelectItem>
-                  <SelectItem value="completada">Completada</SelectItem>
+                  <SelectItem value="en_proceso">En Proceso</SelectItem>
+                  <SelectItem value="resuelta">Resuelta</SelectItem>
+                  <SelectItem value="cancelada">Cancelada</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
@@ -237,6 +371,7 @@ export default function ObservacionesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Instalación</TableHead>
+                  <TableHead>Título</TableHead>
                   <TableHead>Descripción</TableHead>
                   <TableHead>Coordinador</TableHead>
                   <TableHead>Fecha</TableHead>
@@ -250,6 +385,7 @@ export default function ObservacionesPage() {
                   filteredObservations.map((observation) => (
                     <TableRow key={observation.id}>
                       <TableCell className="font-medium">{observation.facilityName}</TableCell>
+                      <TableCell className="font-medium">{observation.title}</TableCell>
                       <TableCell>{observation.description}</TableCell>
                       <TableCell>{observation.coordinatorName}</TableCell>
                       <TableCell>{observation.date}</TableCell>
@@ -317,6 +453,10 @@ export default function ObservacionesPage() {
                 <p className="text-sm text-gray-700">{selectedObservation.facilityName}</p>
               </div>
               <div>
+                <h3 className="text-sm font-medium">Título</h3>
+                <p className="text-sm text-gray-700 font-medium">{selectedObservation.title}</p>
+              </div>
+              <div>
                 <h3 className="text-sm font-medium">Descripción</h3>
                 <p className="text-sm text-gray-700">{selectedObservation.description}</p>
               </div>
@@ -335,6 +475,43 @@ export default function ObservacionesPage() {
               <div>
                 <h3 className="text-sm font-medium">Prioridad</h3>
                 <div>{getPriorityBadge(selectedObservation.priority)}</div>
+              </div>
+
+              {/* Sección de imágenes */}
+              <div>
+                <h3 className="text-sm font-medium">Imágenes</h3>
+                {selectedObservation.photos && selectedObservation.photos.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {selectedObservation.photos.map((photo, index) => {
+                      // Asegurarse de que la URL es válida
+                      const photoUrl = typeof photo === 'string' ? photo :
+                                      (photo && typeof photo === 'object' && photo.url) ? photo.url :
+                                      '/placeholder.svg';
+
+                      return (
+                        <a
+                          key={index}
+                          href={photoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                        >
+                          <img
+                            src={photoUrl}
+                            alt={`Foto ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-md border border-gray-200 hover:opacity-90 transition-opacity"
+                            onError={(e) => {
+                              // Si la imagen no carga, mostrar un placeholder
+                              e.currentTarget.src = '/placeholder.svg';
+                            }}
+                          />
+                        </a>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No hay imágenes disponibles</p>
+                )}
               </div>
             </div>
           )}
@@ -355,8 +532,8 @@ export default function ObservacionesPage() {
             </DialogTitle>
             <DialogDescription>
               {actionType === "aprobar"
-                ? "La observación pasará a estado 'Aprobada' y se notificará al coordinador."
-                : "La observación pasará a estado 'Rechazada' y se notificará al coordinador."}
+                ? "La observación pasará a estado 'En Proceso', la instalación se marcará como 'Requiere Mantenimiento' y se notificará al coordinador."
+                : "La observación pasará a estado 'Cancelada' y se notificará al coordinador."}
             </DialogDescription>
           </DialogHeader>
           {selectedObservation && (
@@ -364,6 +541,10 @@ export default function ObservacionesPage() {
               <div>
                 <h3 className="text-sm font-medium">Instalación</h3>
                 <p className="text-sm text-gray-700">{selectedObservation.facilityName}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Título</h3>
+                <p className="text-sm text-gray-700 font-medium">{selectedObservation.title}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Descripción</h3>

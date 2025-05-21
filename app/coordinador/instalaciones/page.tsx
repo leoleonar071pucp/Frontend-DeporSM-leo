@@ -218,7 +218,7 @@ export default function InstalacionesCoordinador() {
       case "none":
         return null;
       case "required":
-        return <Badge className="bg-red-100 text-red-800">Requiere mantenimiento</Badge>
+        return <Badge className="bg-red-100 text-red-800">Requiere Mantenimiento</Badge>
       case "scheduled":
         return <Badge className="bg-yellow-100 text-yellow-800">Mantenimiento programado</Badge>
       case "in-progress":

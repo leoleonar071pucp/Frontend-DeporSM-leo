@@ -50,6 +50,7 @@ function NuevaObservacionForm() {
   // Estado del formulario
   const [formData, setFormData] = useState({
     facilityId: "",
+    title: "",
     description: "",
     priority: "media",
   });
@@ -234,6 +235,10 @@ function NuevaObservacionForm() {
       newErrors.facilityId = "Debes seleccionar una instalación";
     }
 
+    if (!formData.title.trim()) {
+      newErrors.title = "El título es obligatorio";
+    }
+
     if (!formData.description.trim()) {
       newErrors.description = "La descripción es obligatoria";
     }
@@ -279,7 +284,7 @@ function NuevaObservacionForm() {
       }      const observacionData = {
         usuarioId: 4, // Aquí deberías obtener el ID del usuario autenticado
         instalacionId: parseInt(formData.facilityId),
-        titulo: "Observación de instalación", // Título por defecto
+        titulo: formData.title, // Usar el título ingresado por el usuario
         descripcion: formData.description,
         prioridad: formData.priority,
         ubicacionLat: userLocation?.lat.toString(),
@@ -368,6 +373,21 @@ function NuevaObservacionForm() {
                   </SelectContent>
                 </Select>
                 {errors.facilityId && <p className="text-red-500 text-sm">{errors.facilityId}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="title">
+                  Título <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="title"
+                  name="title"
+                  placeholder="Ingresa un título para la observación"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  className={errors.title ? "border-red-500" : ""}
+                />
+                {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
               </div>
 
               <div className="space-y-2">

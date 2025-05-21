@@ -42,10 +42,21 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
         if (!response.ok) throw new Error("Error al cargar instalación")
         const data = await response.json()
 
+        // Verificar si la instalación requiere mantenimiento
+        const requiresMaintenanceResponse = await fetch(`${API_BASE_URL}/observaciones/instalacion/${facilityId}/requiere-mantenimiento`)
+        let requiereMantenimiento = false;
+        if (requiresMaintenanceResponse.ok) {
+          const requiresMaintenanceData = await requiresMaintenanceResponse.json()
+          requiereMantenimiento = requiresMaintenanceData.requiereMantenimiento === true;
+          console.log(`Instalación ${facilityId} - Requiere mantenimiento:`, requiereMantenimiento);
+        }
+
         // Determinar el estado de mantenimiento
         let maintenanceStatus = "none";
         if (data.estado === "mantenimiento") {
           maintenanceStatus = "in-progress";
+        } else if (requiereMantenimiento) {
+          maintenanceStatus = "required";
         }
 
         // Cargar información de mantenimiento
@@ -102,7 +113,8 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           status: enMantenimiento ? "mantenimiento" : (data.estado || "disponible"),
           maintenanceStatus: maintenanceStatus,
           tieneMantenimientoActivo: tieneMantenimientoActivo,
-          enMantenimiento: enMantenimiento
+          enMantenimiento: enMantenimiento,
+          requiereMantenimiento: requiereMantenimiento
         }
 
         setFacility(enrichedData)
@@ -159,6 +171,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     nextMaintenance?: string | null
     status: string
     maintenanceStatus: "none" | "required" | "scheduled" | "in-progress"
+    tieneMantenimientoActivo: boolean
+    enMantenimiento: boolean
+    requiereMantenimiento?: boolean
   }
 
   // Función para formatear la fecha
@@ -200,11 +215,32 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
       case "none":
         return null
       case "required":
-        return <Badge className="bg-red-100 text-red-800">Requiere mantenimiento</Badge>
+        return (
+          <Badge
+            className="bg-red-100 text-red-800 cursor-pointer hover:bg-red-200"
+            onClick={() => router.push(`/admin/instalaciones/${facility.id}/mantenimiento`)}
+          >
+            Requiere Mantenimiento
+          </Badge>
+        )
       case "scheduled":
-        return <Badge className="bg-yellow-100 text-yellow-800">Mantenimiento programado</Badge>
+        return (
+          <Badge
+            className="bg-yellow-100 text-yellow-800 cursor-pointer hover:bg-yellow-200"
+            onClick={() => router.push(`/admin/instalaciones/${facility.id}/mantenimiento`)}
+          >
+            Mantenimiento programado
+          </Badge>
+        )
       case "in-progress":
-        return <Badge className="bg-blue-100 text-blue-800">En progreso</Badge>
+        return (
+          <Badge
+            className="bg-blue-100 text-blue-800 cursor-pointer hover:bg-blue-200"
+            onClick={() => router.push(`/admin/instalaciones/${facility.id}/mantenimiento`)}
+          >
+            En progreso
+          </Badge>
+        )
       default:
         return null
     }
@@ -296,14 +332,26 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                       </CardDescription>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <Badge
-                        className={`${
-                          facility.status === "disponible" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {facility.status === "disponible" ? "Disponible" : "En mantenimiento"}
-                      </Badge>
-                      {getMaintenanceStatusBadge(facility.maintenanceStatus)}
+                      {/* Lógica de prioridad para mostrar un solo badge:
+                          1. Si está en mantenimiento (in-progress), mostrar "En progreso"
+                          2. Si tiene mantenimiento programado (scheduled), mostrar "Mantenimiento programado"
+                          3. Si requiere mantenimiento (required), mostrar "Requiere Mantenimiento"
+                          4. Si no, mostrar "Disponible" */}
+                      {(() => {
+                        if (facility.maintenanceStatus === "in-progress") {
+                          return getMaintenanceStatusBadge("in-progress");
+                        } else if (facility.maintenanceStatus === "scheduled") {
+                          return getMaintenanceStatusBadge("scheduled");
+                        } else if (facility.maintenanceStatus === "required") {
+                          return getMaintenanceStatusBadge("required");
+                        } else {
+                          return (
+                            <Badge className="bg-green-100 text-green-800">
+                              Disponible
+                            </Badge>
+                          );
+                        }
+                      })()}
                     </div>
                   </div>
                 </CardHeader>
@@ -462,7 +510,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                         <p className="font-medium">Estado</p>
                         <p className="text-sm text-gray-600">
                           {facility.maintenanceStatus === "required"
-                            ? "Requiere mantenimiento"
+                            ? "Requiere Mantenimiento"
                             : "No hay mantenimiento programado"}
                         </p>
                       </div>

@@ -38,6 +38,7 @@ interface Observation {
   id: number;
   facilityId: number;
   facilityName: string;
+  title: string; // Añadimos el título
   description: string;
   status: string;
   date: string;
@@ -56,6 +57,7 @@ const observationsData: Observation[] = [
     id: 1,
     facilityId: 1,
     facilityName: "Piscina Municipal",
+    title: "Problema con filtro de agua",
     description: "Filtro de agua requiere mantenimiento",
     status: "aprobada",
     date: "02/04/2025",
@@ -68,6 +70,7 @@ const observationsData: Observation[] = [
     id: 2,
     facilityId: 1,
     facilityName: "Piscina Municipal",
+    title: "Azulejos dañados",
     description: "Azulejos rotos en el borde sur de la piscina",
     status: "aprobada",
     date: "20/03/2025",
@@ -80,6 +83,7 @@ const observationsData: Observation[] = [
     id: 3,
     facilityId: 1,
     facilityName: "Piscina Municipal",
+    title: "Fuga en duchas",
     description: "Fuga de agua en las duchas de hombres",
     status: "completada",
     date: "10/03/2025",
@@ -93,6 +97,7 @@ const observationsData: Observation[] = [
     id: 4,
     facilityId: 2,
     facilityName: "Cancha de Fútbol (Grass)",
+    title: "Red dañada",
     description: "Daños en la red de la portería norte",
     status: "pendiente",
     date: "01/04/2025",
@@ -105,6 +110,7 @@ const observationsData: Observation[] = [
     id: 5,
     facilityId: 2,
     facilityName: "Cancha de Fútbol (Grass)",
+    title: "Grass en mal estado",
     description: "Grass desgastado en el área central",
     status: "aprobada",
     date: "15/03/2025",
@@ -226,6 +232,7 @@ export default function ObservacionesCoordinador() {
           return {            id: obs.idObservacion,
             facilityId: obs.idObservacion,
             facilityName: obs.instalacion,
+            title: obs.titulo || "Sin título", // Usar el título de la API o un valor por defecto
             description: obs.descripcion,
             status: mapApiStatusToFrontend(obs.estado),
             date: obs.fecha,
@@ -351,7 +358,6 @@ export default function ObservacionesCoordinador() {
               <DropdownMenuItem onClick={() => handlePriorityChange("baja")}>Baja</DropdownMenuItem>
               <DropdownMenuItem onClick={() => handlePriorityChange("media")}>Media</DropdownMenuItem>
               <DropdownMenuItem onClick={() => handlePriorityChange("alta")}>Alta</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handlePriorityChange("urgente")}>Urgente</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -399,9 +405,10 @@ export default function ObservacionesCoordinador() {
                 <Card key={observation.id} className="overflow-hidden hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-semibold text-lg line-clamp-2 flex-1">{observation.facilityName}</h3>
+                      <h3 className="font-semibold text-lg line-clamp-2 flex-1">{observation.title}</h3>
                       {getStatusBadge(observation.status)}
                     </div>
+                    <p className="text-xs text-gray-500 mb-2">{observation.facilityName}</p>
                     <p className="text-sm text-gray-600 line-clamp-3 mb-4">{observation.description}</p>
                     <div className="flex items-center text-xs text-gray-500 mb-2">
                       <Calendar className="h-3 w-3 mr-1" />
@@ -436,8 +443,8 @@ export default function ObservacionesCoordinador() {
         <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>{selectedObservation.facilityName}</DialogTitle>
-              <DialogDescription>Detalles de la observación</DialogDescription>
+              <DialogTitle>{selectedObservation.title}</DialogTitle>
+              <DialogDescription>{selectedObservation.facilityName}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="flex justify-between">

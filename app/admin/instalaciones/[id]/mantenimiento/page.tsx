@@ -300,12 +300,23 @@ export default function MantenimientoPage() {
     loadData();
   }, [facilityId, maintenanceId, toast])
 
+  // Variable para controlar si ya se ha enviado el formulario
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false);
+
   // Función para manejar el envío del formulario desde el componente MantenimientoForm
   const handleFormSubmit = async (formData) => {
+    // Evitar envíos múltiples
+    if (isFormSubmitted || isSaving) {
+      console.log("Formulario ya enviado o en proceso de guardado. Ignorando envío adicional.");
+      return;
+    }
+
+    // Marcar el formulario como enviado
+    setIsFormSubmitted(true);
     setIsSaving(true);
 
     try {
-      // Preparar los datos para enviar al backend
+      // Crear fechas con la zona horaria local correcta
       const startDateTime = new Date(formData.startDate);
       const [startHours, startMinutes] = formData.startTime.split(":").map(Number);
       startDateTime.setHours(startHours, startMinutes, 0, 0);
@@ -314,13 +325,36 @@ export default function MantenimientoPage() {
       const [endHours, endMinutes] = formData.endTime.split(":").map(Number);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
+      // Obtener el offset de la zona horaria local en minutos
+      const offsetInicio = startDateTime.getTimezoneOffset();
+      const offsetFin = endDateTime.getTimezoneOffset();
+
+      // Crear fechas ISO con ajuste de zona horaria
+      // Esto asegura que la fecha y hora que se envía al backend sea exactamente la que el usuario seleccionó
+      // sin ajustes de zona horaria
+      const fechaInicioISO = new Date(startDateTime.getTime() - offsetInicio * 60000).toISOString();
+      const fechaFinISO = new Date(endDateTime.getTime() - offsetFin * 60000).toISOString();
+
+      // Imprimir información detallada para depuración
+      console.log("=== INFORMACIÓN DE FECHAS Y HORAS ===");
+      console.log("Fecha inicio seleccionada:", formData.startDate);
+      console.log("Hora inicio seleccionada:", formData.startTime);
+      console.log("Fecha inicio objeto Date:", startDateTime);
+      console.log("Offset zona horaria (minutos):", offsetInicio);
+      console.log("Fecha inicio ISO ajustada:", fechaInicioISO);
+      console.log("Fecha fin seleccionada:", formData.endDate);
+      console.log("Hora fin seleccionada:", formData.endTime);
+      console.log("Fecha fin objeto Date:", endDateTime);
+      console.log("Fecha fin ISO ajustada:", fechaFinISO);
+      console.log("===================================");
+
       const requestData = {
         instalacionId: parseInt(facilityId),
         motivo: formData.description,
         tipo: formData.maintenanceType,
         descripcion: formData.description,
-        fechaInicio: startDateTime.toISOString(),
-        fechaFin: endDateTime.toISOString(),
+        fechaInicio: fechaInicioISO,
+        fechaFin: fechaFinISO,
         afectaDisponibilidad: formData.affectsAvailability,
         registradoPorId: 1 // ID del usuario administrador
       };
@@ -389,6 +423,9 @@ export default function MantenimientoPage() {
         description: error.message || `No se pudo ${isEditing ? 'actualizar' : 'guardar'} el mantenimiento.`,
         variant: "destructive",
       });
+
+      // Restablecer el estado para permitir un nuevo intento
+      setIsFormSubmitted(false);
     } finally {
       setIsSaving(false);
     }

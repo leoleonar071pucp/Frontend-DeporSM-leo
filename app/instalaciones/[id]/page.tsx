@@ -40,6 +40,7 @@ interface Facility {
   contactoNumero: string;
   horariosDisponibles: string[];
   activo: boolean;
+  estado?: string;
 }
 
 export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
@@ -73,6 +74,8 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           throw new Error(`Error al cargar la instalación: ${response.status}`)
         }
         const data = await response.json()
+
+        // Actualizar los datos de la instalación
         setFacility(data)
 
         // Consultar horarios disponibles para esta instalación
@@ -105,6 +108,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     loadData()
   }, [resolvedParams.id])
 
+  // Estado para almacenar los datos completos de disponibilidad
+  const [availabilityData, setAvailabilityData] = useState<any>(null);
+
   // Función para obtener horarios disponibles según la fecha seleccionada
   const fetchAvailableTimes = async (facilityId: string, selectedDate: Date) => {
     try {
@@ -133,6 +139,9 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
       const data = await response.json()
       console.log("Datos recibidos:", data);
 
+      // Guardar los datos completos para acceder a ellos más tarde
+      setAvailabilityData(data);
+
       // Transformar el formato de la respuesta del backend al formato que espera el frontend
       // El backend devuelve un objeto con un array de rangos de horas, pero el frontend espera un array de strings
       if (data.horariosDisponibles && Array.isArray(data.horariosDisponibles)) {
@@ -149,6 +158,13 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           const horaInicio = horario.horaInicio.substring(0, 5); // Obtener solo "HH:mm"
           const horaFin = horario.horaFin.substring(0, 5); // Obtener solo "HH:mm"
           const timeString = `${horaInicio} - ${horaFin}`;
+
+          // Verificar si el horario está en mantenimiento
+          if (horario.enMantenimiento) {
+            console.log(`Horario ${timeString} está bloqueado por mantenimiento: ${horario.razonBloqueo || 'Sin detalles'}`);
+            horariosBloqueados.push(timeString);
+            return; // Salir temprano, el mantenimiento tiene prioridad sobre otros estados
+          }
 
           // Verificar si el horario está bloqueado temporalmente
           if (horario.bloqueadoTemporalmente) {
@@ -182,7 +198,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
               horariosBloqueados.push(timeString);
             }
           } else {
-            // Si no está bloqueado, lo añadimos a la lista de disponibles
+            // Si no está bloqueado ni en mantenimiento, lo añadimos a la lista de disponibles
             horariosDisponibles.push(timeString);
           }
         });
@@ -341,11 +357,13 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader className="pb-0">
-                  <div className="flex items-center gap-2">
-                    {getIconForType(facility.tipo)}
-                    <CardTitle className="text-2xl">{facility.nombre}</CardTitle>
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      {getIconForType(facility.tipo)}
+                      <CardTitle className="text-2xl">{facility.nombre}</CardTitle>
+                    </div>
                   </div>
-                  <CardDescription className="flex items-center gap-1">
+                  <CardDescription className="flex items-center gap-1 mt-1">
                     <MapPin className="h-4 w-4" /> {facility.ubicacion}
                   </CardDescription>
                 </CardHeader>
@@ -513,19 +531,40 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                             })}
 
                             {/* Mostrar horarios temporalmente bloqueados (en proceso de reserva por otros usuarios) */}
-                            {blockedTimes.map((time: string) => (
-                              <div
-                                key={`blocked-${time}`}
-                                className="h-10 rounded-md border border-gray-300 bg-gray-200 flex items-center justify-center text-gray-500 cursor-not-allowed pointer-events-none select-none opacity-60"
-                                title="Este horario está temporalmente bloqueado mientras se completa una reserva (disponible en 10 minutos)"
-                                aria-disabled="true"
-                                onClick={(e) => e.preventDefault()}
-                                onKeyDown={(e) => e.preventDefault()}
-                                tabIndex={-1}
-                              >
-                                <span className="text-sm font-medium">{time}</span>
-                              </div>
-                            ))}
+                            {blockedTimes.map((time: string) => {
+                              // Buscar información adicional sobre este horario bloqueado
+                              const horarioInfo = availabilityData?.horariosDisponibles?.find((h: any) => {
+                                const horaInicio = h.horaInicio.substring(0, 5);
+                                const horaFin = h.horaFin.substring(0, 5);
+                                return `${horaInicio} - ${horaFin}` === time;
+                              });
+
+                              // Determinar si está bloqueado por mantenimiento
+                              const enMantenimiento = horarioInfo?.enMantenimiento === true;
+                              const razonBloqueo = horarioInfo?.razonBloqueo;
+
+                              // Estilo diferente para mantenimiento vs bloqueo temporal
+                              const bgColor = enMantenimiento ? "bg-blue-100" : "bg-gray-200";
+                              const textColor = enMantenimiento ? "text-blue-700" : "text-gray-500";
+                              const borderColor = enMantenimiento ? "border-blue-300" : "border-gray-300";
+                              const title = enMantenimiento
+                                ? (razonBloqueo || "Este horario no está disponible debido a mantenimiento programado")
+                                : "Este horario está temporalmente bloqueado mientras se completa una reserva (disponible en 10 minutos)";
+
+                              return (
+                                <div
+                                  key={`blocked-${time}`}
+                                  className={`h-10 rounded-md border ${borderColor} ${bgColor} flex items-center justify-center ${textColor} cursor-not-allowed pointer-events-none select-none opacity-80`}
+                                  title={title}
+                                  aria-disabled="true"
+                                  onClick={(e) => e.preventDefault()}
+                                  onKeyDown={(e) => e.preventDefault()}
+                                  tabIndex={-1}
+                                >
+                                  <span className="text-sm font-medium">{time}</span>
+                                </div>
+                              );
+                            })}
                           </>
                         ) : (
                           <p className="col-span-2 text-center text-gray-500 py-4">
@@ -556,7 +595,10 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                             // Si la reserva se completó hace menos de 30 minutos
                             if (tiempoTranscurrido < 30 * 60 * 1000) {
                               // Normalizar las fechas para comparar solo la parte de la fecha (YYYY-MM-DD)
-                              const fechaActual = date.toISOString().split('T')[0];
+                              // Ajustar la fecha para la zona horaria local
+                              const offset = date.getTimezoneOffset();
+                              const dateWithOffset = new Date(date.getTime() - offset * 60000);
+                              const fechaActual = dateWithOffset.toISOString().split('T')[0];
 
                               // Usar la fecha normalizada si está disponible, o calcularla si no
                               const fechaCompletada = reservaCompletada.fechaNormalizada ||
@@ -575,7 +617,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                               console.log("Comparando reserva actual con reserva completada:", {
                                 actual: {
                                   instalacionId: resolvedParams.id,
-                                  fecha: date.toISOString(),
+                                  fecha: dateWithOffset.toISOString(),
                                   fechaNormalizada: fechaActual,
                                   horario: selectedTime
                                 },
@@ -614,7 +656,20 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
 
                         // Si no hay reserva completada reciente, proceder a confirmar
                         const encodedTime = encodeURIComponent(selectedTime)
-                        const encodedDate = encodeURIComponent(date.toISOString())
+
+                        // Ajustar la fecha para la zona horaria local
+                        const offset = date.getTimezoneOffset();
+                        const dateWithOffset = new Date(date.getTime() - offset * 60000);
+
+                        // Imprimir información detallada para depuración
+                        console.log("=== INFORMACIÓN DE FECHA PARA RESERVA ===");
+                        console.log("Fecha seleccionada:", date);
+                        console.log("Offset zona horaria (minutos):", offset);
+                        console.log("Fecha ajustada:", dateWithOffset);
+                        console.log("Fecha ISO ajustada:", dateWithOffset.toISOString());
+                        console.log("===================================");
+
+                        const encodedDate = encodeURIComponent(dateWithOffset.toISOString())
 
                         // Ya no guardamos el token de bloqueo porque no lo estamos usando en esta etapa
                         // El bloqueo se realizará cuando el usuario llegue a la página de confirmación

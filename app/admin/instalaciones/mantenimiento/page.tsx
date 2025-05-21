@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -525,7 +526,20 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
               <td className="py-3 px-4">{m.instalacionNombre}</td>
               <td className="py-3 px-4">{m.descripcion}</td>
               <td className="py-3 px-4">
-                {format(new Date(m.fechaInicio), "dd/MM/yyyy")} - {format(new Date(m.fechaFin), "dd/MM/yyyy")}
+                {(() => {
+                  // Ajustar las fechas para manejar correctamente la zona horaria
+                  const inicio = new Date(m.fechaInicio);
+                  const fin = new Date(m.fechaFin);
+
+                  // Ajustar por la zona horaria local para evitar problemas con las horas
+                  const offsetInicio = inicio.getTimezoneOffset() * 60000;
+                  const offsetFin = fin.getTimezoneOffset() * 60000;
+
+                  const inicioLocal = new Date(inicio.getTime() - offsetInicio);
+                  const finLocal = new Date(fin.getTime() - offsetFin);
+
+                  return `${format(inicioLocal, "dd/MM/yyyy", { locale: es })} - ${format(finLocal, "dd/MM/yyyy", { locale: es })}`;
+                })()}
               </td>
               <td className="py-3 px-4">{getStatusBadge(getMaintenanceStatus(m))}</td>
               <td className="py-3 px-4">
