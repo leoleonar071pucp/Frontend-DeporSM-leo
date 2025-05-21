@@ -279,7 +279,11 @@ export default function AdminLayout({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{user?.nombre || "Administrador"}</DropdownMenuLabel>
+                    <DropdownMenuLabel>
+                      {user ?
+                        `${user.nombre.split(' ')[0]} ${user.apellidos ? user.apellidos.split(' ')[0] : ''}`
+                        : "Administrador"}
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href="/admin/perfil" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>

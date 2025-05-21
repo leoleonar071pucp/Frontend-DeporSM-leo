@@ -255,7 +255,11 @@ export default function SuperAdminLayout({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{user?.nombre || "Superadministrador"}</DropdownMenuLabel>
+                    <DropdownMenuLabel>
+                      {user ?
+                        `${user.nombre.split(' ')[0]} ${user.apellidos ? user.apellidos.split(' ')[0] : ''}`
+                        : "Superadministrador"}
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href="/superadmin/perfil" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>

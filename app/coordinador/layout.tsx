@@ -330,7 +330,11 @@ export default function CoordinadorLayout({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{user?.nombre || "Coordinador"}</DropdownMenuLabel>
+                    <DropdownMenuLabel>
+                      {user ?
+                        `${user.nombre.split(' ')[0]} ${user.apellidos ? user.apellidos.split(' ')[0] : ''}`
+                        : "Coordinador"}
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/coordinador/perfil" className="w-full">

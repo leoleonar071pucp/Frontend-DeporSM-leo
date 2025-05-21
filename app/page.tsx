@@ -73,7 +73,7 @@ export default function Home() {
               {isAuthenticated && user ? (
                 <>
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-                    ¡Bienvenido, {user.nombre}!
+                    ¡Bienvenido, {user.nombre.split(' ')[0]}!
                   </h1>
                   <p className="text-lg text-gray-700 mb-6">
                     Continúa explorando y reservando tus instalaciones deportivas favoritas en San Miguel.

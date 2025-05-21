@@ -31,6 +31,7 @@ export default function Perfil() {
 
   // Estados locales para los campos editables
   const [nombre, setNombre] = useState("")
+  const [apellidos, setApellidos] = useState("")
   const [email, setEmail] = useState("")
   const [telefono, setTelefono] = useState("")
   const [direccion, setDireccion] = useState("")
@@ -90,6 +91,7 @@ export default function Perfil() {
 
         // Actualizar estados con los datos del usuario
         setNombre(userData.nombre || "");
+        setApellidos(userData.apellidos || "");
         setEmail(userData.email || "");
         setTelefono(userData.telefono || "");
         setDireccion(userData.direccion || "");
@@ -449,8 +451,8 @@ export default function Perfil() {
                     <div className="flex flex-col items-center">
                       <Avatar className="h-24 w-24">
                         <AvatarFallback className="bg-primary text-white text-xl">
-                          {nombre
-                            ? nombre.charAt(0).toUpperCase()
+                          {nombre && apellidos
+                            ? (nombre.charAt(0) + apellidos.charAt(0)).toUpperCase()
                             : "U"}
                         </AvatarFallback>
                       </Avatar>

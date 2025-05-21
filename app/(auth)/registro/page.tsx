@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react"
+import { ArrowLeft, CheckCircle, Loader2, AlertCircle } from "lucide-react"
 import { useAuth } from "@/context/AuthContext" // Importar useAuth
+import { API_BASE_URL } from "@/lib/config"
 
 export default function Registro() {
   const [step, setStep] = useState<"verification" | "registration" | "success">("verification")
@@ -24,9 +25,10 @@ export default function Registro() {
   const [nombre, setNombre] = useState("") // Para almacenar el nombre (potencialmente de RENIEC)
   const [email, setEmail] = useState("")
   const [telefono, setTelefono] = useState("")
+  const [direccion, setDireccion] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const handleVerifyDNI = (e: React.FormEvent) => {
+  const handleVerifyDNI = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (dni.trim() === "" || !/^\d{8}$/.test(dni.trim())) {
@@ -36,32 +38,58 @@ export default function Registro() {
     setError(null)
     setIsLoading(true)
 
-    // --- Simulación de llamada a API RENIEC ---
-    console.log("Verificando DNI:", dni)
-    setTimeout(() => {
-      // Simular éxito o error de servicio
-      if (dni === "11111111") { // Simular error del servicio RENIEC
-         console.log("Verificación DNI simulada: Error de servicio")
-         setError("Hubo un problema al verificar el DNI con RENIEC. Inténtalo más tarde.")
-      } else { // Cualquier otro DNI válido (8 dígitos) simula éxito
-        console.log("Verificación DNI simulada exitosa (sin restricción de vecino)")
-        // Podríamos intentar obtener un nombre simulado o dejarlo vacío
-        // Para mantener consistencia, usamos el nombre simulado si es el DNI 'bueno'
-        const simulatedName = dni === "12345678" ? "Juan Pérez García (Simulado)" : "Usuario Verificado";
-        setNombre(simulatedName)
-        setStep("registration")
+    try {
+      // Primero verificamos si el DNI ya está registrado
+      const checkResponse = await fetch(`${API_BASE_URL}/usuarios/check-dni?dni=${dni}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).catch(() => {
+        // Si hay un error de conexión, continuamos con la simulación
+        console.log("Error al verificar DNI en el backend, continuando con simulación")
+        return { ok: true, json: () => Promise.resolve({ exists: false }) }
+      })
+
+      const checkData = await checkResponse.json().catch(() => ({ exists: false }))
+
+      if (checkData.exists) {
+        setError("Este DNI ya está registrado en el sistema. Si eres tú, por favor intenta iniciar sesión o recuperar tu contraseña.")
+        setIsLoading(false)
+        return
       }
-      setIsLoading(false);
-    }, 2000)
+
+      // --- Simulación de llamada a API RENIEC ---
+      console.log("Verificando DNI:", dni)
+
+      // Simulamos la verificación con RENIEC
+      setTimeout(() => {
+        // Simular éxito o error de servicio
+        if (dni === "11111111") { // Simular error del servicio RENIEC
+          console.log("Verificación DNI simulada: Error de servicio")
+          setError("Hubo un problema al verificar el DNI con RENIEC. Inténtalo más tarde.")
+        } else { // Cualquier otro DNI válido (8 dígitos) simula éxito
+          console.log("Verificación DNI simulada exitosa (sin restricción de vecino)")
+          // Usar el nombre completo especificado para la simulación
+          setNombre("Gerardo Jose Rabanal Callirgos")
+          setStep("registration")
+        }
+        setIsLoading(false)
+      }, 2000)
+    } catch (error) {
+      console.error("Error al verificar DNI:", error)
+      setError("Error de conexión. Por favor, verifica tu conexión a internet e inténtalo de nuevo.")
+      setIsLoading(false)
+    }
   }
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
 
     setError(null) // Limpiar errores previos
 
     // --- Validaciones ---
-    if (!email || !telefono || !password || !confirmPassword) {
+    if (!email || !telefono || !direccion || !password || !confirmPassword) {
       setError("Por favor, completa todos los campos requeridos.")
       return
     }
@@ -83,30 +111,99 @@ export default function Registro() {
     }
     // --- Fin Validaciones ---
 
-
     setIsLoading(true)
 
-    // --- Simulación de llamada a API de Registro ---
-    const registrationData = { dni, nombre, email, telefono, password }
-    console.log("Intentando registrar con:", registrationData)
-    setTimeout(() => {
-        // Simular éxito (en una app real, esto dependería de la respuesta de la API)
-        console.log("Registro simulado exitoso")
-        // Crear datos de usuario simulados para el login inmediato
-        const simulatedUser = {
-          id: `user-${dni}`, // Usar DNI para un ID único simulado
-          nombre: nombre,
-          email: email,
-          dni: dni, // Incluir DNI del formulario
-          telefono: telefono,
-          direccion: "Av. Registrada 456, San Miguel",
-          role: 'vecino' as const // Asignar rol vecino por defecto al registrarse
-          // avatarUrl: "url-del-avatar.jpg"
-        };
-        login(simulatedUser); // Llamar a login para establecer la sesión
-        setStep("success"); // Avanzar al paso de éxito
-        // No es necesario limpiar isLoading aquí porque el componente cambia
-    }, 2000)
+    try {
+      // Preparar los datos para el registro
+      // Dividir el nombre completo en nombre y apellidos (2 primeras palabras para nombre, resto para apellidos)
+      const nombreCompleto = nombre.split(' ');
+      const nombreParts = nombreCompleto.slice(0, 2);
+      const apellidosParts = nombreCompleto.slice(2);
+
+      const userData = {
+        nombre: nombreParts.join(' '), // 2 primeras palabras como nombre
+        apellidos: apellidosParts.join(' '), // Resto como apellidos
+        email: email,
+        telefono: telefono,
+        direccion: direccion, // Usar la dirección ingresada por el usuario
+        dni: dni,
+        password: password,
+        rol: {
+          id: 4, // ID del rol vecino
+          nombre: "vecino"
+        },
+        activo: true
+      }
+
+      console.log("Enviando datos de registro:", userData)
+
+      // Realizar la petición al backend
+      const response = await fetch(`${API_BASE_URL}/usuarios/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+      })
+
+      // Procesar la respuesta
+      if (response.ok) {
+        const data = await response.json()
+        console.log("Registro exitoso:", data)
+
+        // Nota: Ya no necesitamos crear un objeto de usuario aquí
+        // porque vamos a usar el login real con el backend
+
+        // Iniciar sesión automáticamente usando el endpoint de login
+        try {
+          const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include', // Importante para mantener la sesión
+            body: JSON.stringify({
+              email: data.email,
+              password: password
+            })
+          });
+
+          if (loginResponse.ok) {
+            const userData = await loginResponse.json();
+            // Actualizar el contexto de autenticación
+            login(userData);
+            console.log("Inicio de sesión automático exitoso");
+          } else {
+            console.error("Error en inicio de sesión automático:", await loginResponse.text());
+            // Aún así continuamos al paso de éxito
+          }
+        } catch (loginError) {
+          console.error("Error al intentar iniciar sesión automáticamente:", loginError);
+          // Continuamos al paso de éxito aunque falle el login
+        }
+
+        // Mostrar pantalla de éxito
+        setStep("success")
+      } else {
+        // Manejar errores de la API
+        const errorData = await response.text()
+        console.error("Error en el registro:", errorData)
+
+        // Mensajes de error específicos
+        if (errorData.includes("El correo ya está registrado")) {
+          setError("Este correo electrónico ya está registrado. Por favor, utiliza otro correo o intenta recuperar tu contraseña.")
+        } else if (errorData.includes("El DNI ya está registrado")) {
+          setError("Este DNI ya está registrado en el sistema. Si eres tú, por favor intenta iniciar sesión o recuperar tu contraseña.")
+        } else {
+          setError(errorData || "Error al registrar usuario. Por favor, inténtalo de nuevo.")
+        }
+      }
+    } catch (error) {
+      console.error("Error de conexión:", error)
+      setError("Error de conexión. Por favor, verifica tu conexión a internet e inténtalo de nuevo.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -140,7 +237,10 @@ export default function Registro() {
                     />
                   </div>
                   {error && step === "verification" && (
-                     <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md">{error}</p>
+                    <div className="bg-red-50 p-3 rounded-md flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-red-600">{error}</p>
+                    </div>
                   )}
                   <Button type="submit" className="w-full bg-primary hover:bg-primary-light" disabled={isLoading}>
                     {isLoading ? (
@@ -212,6 +312,18 @@ export default function Registro() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="direccion">Dirección</Label>
+                    <Input
+                      id="direccion"
+                      placeholder="Ingresa tu dirección completa"
+                      required
+                      value={direccion}
+                      onChange={(e) => setDireccion(e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
                     <Input
                       id="password"
@@ -238,7 +350,10 @@ export default function Registro() {
                   </div>
 
                   {error && step === "registration" && (
-                     <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md">{error}</p>
+                    <div className="bg-red-50 p-3 rounded-md flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-red-600">{error}</p>
+                    </div>
                   )}
                   <Button type="submit" className="w-full bg-primary hover:bg-primary-light" disabled={isLoading}>
                     {isLoading ? (

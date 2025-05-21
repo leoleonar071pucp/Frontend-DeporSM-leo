@@ -182,14 +182,20 @@ export function Navbar() {
                         {/* Idealmente usar user.avatarUrl si existe */}
                         <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || ""} />
                         <AvatarFallback className="bg-primary-light text-white">
-                          {/* Generar iniciales */}
-                          {user?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || <User />}
+                          {/* Generar iniciales del primer nombre y primer apellido */}
+                          {user?.nombre ?
+                            (user.nombre.charAt(0) + (user.apellidos ? user.apellidos.charAt(0) : '')).toUpperCase()
+                            : <User />}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{user?.nombre || "Mi Cuenta"}</DropdownMenuLabel>
+                    <DropdownMenuLabel>
+                      {user ?
+                        `${user.nombre.split(' ')[0]} ${user.apellidos ? user.apellidos.split(' ')[0] : ''}`
+                        : "Mi Cuenta"}
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link href="/perfil" className="w-full flex items-center" onClick={() => setIsProfileMenuOpen(false)}>
@@ -202,8 +208,8 @@ export function Navbar() {
                        </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onSelect={() => { logout(); setIsProfileMenuOpen(false); }} 
+                    <DropdownMenuItem
+                      onSelect={() => { logout(); setIsProfileMenuOpen(false); }}
                       className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50 flex items-center"
                       disabled={isLoggingOut}
                     >
@@ -317,12 +323,18 @@ export function Navbar() {
                     <Avatar>
                       <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || ""} />
                        <AvatarFallback className="bg-primary-light text-white">
-                          {user?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || <User />}
+                          {user?.nombre ?
+                            (user.nombre.charAt(0) + (user.apellidos ? user.apellidos.charAt(0) : '')).toUpperCase()
+                            : <User />}
                        </AvatarFallback>
                     </Avatar>
                   </div>
                   <div className="ml-3">
-                    <div className="text-base font-medium text-white">{user?.nombre}</div>
+                    <div className="text-base font-medium text-white">
+                      {user ?
+                        `${user.nombre.split(' ')[0]} ${user.apellidos ? user.apellidos.split(' ')[0] : ''}`
+                        : "Mi Cuenta"}
+                    </div>
                     <div className="text-sm font-medium text-primary-pale">{user?.email}</div>
                   </div>
                   <Link href="/notificaciones" className="ml-auto relative" onClick={toggleMenu}>

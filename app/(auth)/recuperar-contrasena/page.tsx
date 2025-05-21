@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Loader2, Mail, CheckCircle } from "lucide-react"
+import { ArrowLeft, Loader2, Mail, CheckCircle, AlertCircle } from "lucide-react"
+import { API_BASE_URL } from "@/lib/config"
 
 export default function RecuperarContrasena() {
   const [email, setEmail] = useState("")
@@ -15,7 +16,7 @@ export default function RecuperarContrasena() {
   const [error, setError] = useState<string | null>(null)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setIsSuccess(false)
@@ -27,19 +28,42 @@ export default function RecuperarContrasena() {
 
     setIsLoading(true)
 
-    // --- Simulación de envío de solicitud ---
-    console.log("Simulando envío de solicitud para:", email)
-    setTimeout(() => {
-      // Simular éxito o fracaso (ej. si el correo existe en la BD)
-      if (email === "test@example.com" || email === "usuario@registrado.com") { // Correos simulados que existen
-        console.log("Solicitud simulada enviada con éxito.")
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        console.log("Solicitud de restablecimiento enviada con éxito.")
         setIsSuccess(true)
       } else {
-        console.log("Correo no encontrado (simulado).")
-        setError("No se encontró una cuenta asociada a este correo electrónico.")
+        console.error("Error al solicitar restablecimiento:", data.error)
+
+        // Mensajes de error más amigables para el usuario
+        if (data.error && data.error.includes("Error al enviar el correo de restablecimiento")) {
+          setError("No se pudo enviar el correo de recuperación. Por favor, inténtalo más tarde o contacta al administrador.")
+        } else {
+          setError(data.error || "Error al procesar la solicitud. Por favor, inténtalo de nuevo.")
+        }
       }
+    } catch (error) {
+      console.error("Error de conexión:", error)
+      setError("Error de conexión. Por favor, verifica tu conexión a internet e inténtalo de nuevo.")
+
+      // Mostrar información adicional en la consola para depuración
+      if (error instanceof Error) {
+        console.error("Detalles del error:", error.message)
+        console.error("Stack trace:", error.stack)
+      }
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   return (
@@ -55,16 +79,16 @@ export default function RecuperarContrasena() {
           <CardHeader>
             <CardTitle>Recuperar Contraseña</CardTitle>
             <CardDescription>
-              Ingresa tu correo electrónico asociado a tu cuenta. Si existe, enviaremos una solicitud al administrador para restablecer tu contraseña.
+              Ingresa tu correo electrónico asociado a tu cuenta. Te enviaremos un enlace para restablecer tu contraseña.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isSuccess ? (
               <div className="text-center p-4 bg-green-50 border border-green-200 rounded-md">
                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <h3 className="font-medium text-green-800 mb-2">Solicitud Enviada</h3>
+                <h3 className="font-medium text-green-800 mb-2">Correo Enviado</h3>
                 <p className="text-sm text-green-700">
-                  Hemos enviado una solicitud al administrador. Se te notificará cuando tu contraseña haya sido restablecida.
+                  Hemos enviado un enlace de restablecimiento a tu correo electrónico. Por favor, revisa tu bandeja de entrada y sigue las instrucciones para crear una nueva contraseña.
                 </p>
               </div>
             ) : (
@@ -86,7 +110,10 @@ export default function RecuperarContrasena() {
                   </div>
 
                   {error && (
-                    <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md">{error}</p>
+                    <div className="bg-red-50 p-3 rounded-md flex items-start gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-red-600">{error}</p>
+                    </div>
                   )}
 
                   <Button type="submit" className="w-full bg-primary hover:bg-primary-light" disabled={isLoading}>
@@ -106,7 +133,7 @@ export default function RecuperarContrasena() {
           {!isSuccess && (
              <CardFooter>
                 <p className="text-xs text-gray-500 text-center w-full">
-                    El administrador revisará tu solicitud y podría contactarte o restablecer tu contraseña directamente.
+                    Si no recibes el correo en unos minutos, revisa tu carpeta de spam o verifica que el correo ingresado sea correcto.
                 </p>
              </CardFooter>
           )}
