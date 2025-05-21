@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +14,7 @@ import { CheckCircle, Loader2, Mail, MapPin, Phone, AlertCircle } from "lucide-r
 import { API_BASE_URL } from "@/lib/config"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useAuth } from "@/context/AuthContext"
 
 export default function Contacto() {
   const [formState, setFormState] = useState({
@@ -28,6 +29,22 @@ export default function Contacto() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const { toast } = useToast()
+  const { user, isAuthenticated } = useAuth()
+
+  // Autocompletar el formulario con los datos del usuario si está autenticado
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Usar el nombre completo del usuario
+      const nombreCompleto = user.nombre || "";
+
+      setFormState(prev => ({
+        ...prev,
+        nombre: nombreCompleto,
+        email: user.email || "",
+        telefono: user.telefono || "",
+      }));
+    }
+  }, [isAuthenticated, user]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -311,7 +328,7 @@ export default function Contacto() {
                     </div>
                     <div>
                       <h3 className="font-medium">Correo electrónico</h3>
-                      <p className="text-gray-600">deportes@munisanmiguel.gob.pe</p>
+                      <p className="text-gray-600">pucpdeporsm@gmail.com</p>
                       <p className="text-gray-600">Tiempo de respuesta: 24-48 horas</p>
                     </div>
                   </div>

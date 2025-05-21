@@ -273,7 +273,9 @@ export default function AdminLayout({
                       <Avatar>
                         <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || "Admin"} />
                         <AvatarFallback className="bg-primary-light text-white">
-                          {user?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || "AD"}
+                          {user && user.nombre ?
+                            user.nombre.split(' ').reduce((acc, n) => acc + (n[0] || ''), '').toUpperCase()
+                            : "AD"}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -281,7 +283,7 @@ export default function AdminLayout({
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>
                       {user ?
-                        `${user.nombre.split(' ')[0]} ${user.apellidos ? user.apellidos.split(' ')[0] : ''}`
+                        `${user.nombre ? user.nombre.split(' ')[0] : ''} ${(user as any).apellidos ? (user as any).apellidos.split(' ')[0] : ''}`
                         : "Administrador"}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />

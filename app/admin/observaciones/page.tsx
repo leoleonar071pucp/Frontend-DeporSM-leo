@@ -72,7 +72,10 @@ export default function ObservacionesPage() {
                 if (typeof obs.fotosUrl === 'string' &&
                     (obs.fotosUrl.startsWith('http://') || obs.fotosUrl.startsWith('https://'))) {
                   // Es una URL directa o múltiples URLs separadas por comas
-                  photos = obs.fotosUrl.split(',').map(url => url.trim());
+                  const urlsArray = obs.fotosUrl.split(',');
+                  for (let i = 0; i < urlsArray.length; i++) {
+                    photos.push(urlsArray[i].trim());
+                  }
                 } else {
                   try {
                     // Intentar parsear como JSON solo si no parece ser una URL directa
@@ -84,7 +87,10 @@ export default function ObservacionesPage() {
                     console.error("Error al parsear fotosUrl:", e);
                     // Si falla el parseo JSON, intentar como cadena separada por comas
                     if (typeof obs.fotosUrl === 'string') {
-                      photos = obs.fotosUrl.split(',').map(url => url.trim());
+                      const urlsArray = obs.fotosUrl.split(',');
+                      for (let i = 0; i < urlsArray.length; i++) {
+                        photos.push(urlsArray[i].trim());
+                      }
                     }
                   }
                 }
@@ -208,6 +214,15 @@ export default function ObservacionesPage() {
           // Registrar en consola para depuración
           console.error("Error de mantenimiento activo:", errorData);
         }
+        // Verificar si es el error específico de observación en proceso
+        else if (errorData.mensaje && errorData.mensaje.includes("Ya existe una observación en proceso para esta instalación")) {
+          errorTitle = "⚠️ OBSERVACIÓN EN PROCESO";
+          errorDescription = "Ya existe una observación en proceso para esta instalación. No se puede aprobar otra observación hasta que la actual sea resuelta.";
+          isMaintenanceError = true; // Usamos la misma variable para mostrar un alert
+
+          // Registrar en consola para depuración
+          console.error("Error de observación en proceso:", errorData);
+        }
 
         // Mostrar mensaje de error como toast
         toast({
@@ -217,11 +232,11 @@ export default function ObservacionesPage() {
           duration: isMaintenanceError ? 6000 : 3000, // Mostrar por más tiempo si es error de mantenimiento
         });
 
-        // Si es un error de mantenimiento, mostrar un diálogo de alerta adicional
+        // Si es un error de mantenimiento o de observación en proceso, mostrar un diálogo de alerta adicional
         if (isMaintenanceError) {
           // Usar un alert nativo para asegurar que el usuario vea el mensaje
           setTimeout(() => {
-            alert("IMPORTANTE: No se puede aprobar esta observación porque la instalación ya tiene un mantenimiento programado o en progreso. Debe esperar a que el mantenimiento actual se complete.");
+            alert("IMPORTANTE: " + errorDescription);
           }, 500);
         }
 
@@ -232,8 +247,9 @@ export default function ObservacionesPage() {
         return; // Salir de la función sin continuar
       }
 
-      // Actualizar el estado local con la respuesta del servidor
-      const responseData = await response.json();
+      // Actualizar el estado local
+      // Leer la respuesta para evitar errores, aunque no la usemos directamente
+      await response.json();
 
       // Determinar el nuevo estado según la acción
       const newStatus = actionType === "aprobar" ? "en_proceso" : "cancelada";
@@ -243,7 +259,7 @@ export default function ObservacionesPage() {
         if (obs.id === selectedObservation.id) {
           return {
             ...obs,
-            status: newStatus
+            status: newStatus as Observation['status']
           }
         }
         return obs
@@ -275,7 +291,7 @@ export default function ObservacionesPage() {
       // Mostrar mensaje de error
       toast({
         title: "Error",
-        description: error.message || "No se pudo procesar la observación. Intente nuevamente.",
+        description: "No se pudo procesar la observación. Intente nuevamente.",
         variant: "destructive"
       });
     }
@@ -370,6 +386,7 @@ export default function ObservacionesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Nº Observación</TableHead>
                   <TableHead>Instalación</TableHead>
                   <TableHead>Título</TableHead>
                   <TableHead>Descripción</TableHead>
@@ -384,6 +401,7 @@ export default function ObservacionesPage() {
                 {filteredObservations.length > 0 ? (
                   filteredObservations.map((observation) => (
                     <TableRow key={observation.id}>
+                      <TableCell className="font-medium">{`OBS-${observation.id}`}</TableCell>
                       <TableCell className="font-medium">{observation.facilityName}</TableCell>
                       <TableCell className="font-medium">{observation.title}</TableCell>
                       <TableCell>{observation.description}</TableCell>
@@ -425,7 +443,7 @@ export default function ObservacionesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-6 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-6 text-gray-500">
                       No se encontraron observaciones
                     </TableCell>
                   </TableRow>
@@ -484,9 +502,21 @@ export default function ObservacionesPage() {
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {selectedObservation.photos.map((photo, index) => {
                       // Asegurarse de que la URL es válida
-                      const photoUrl = typeof photo === 'string' ? photo :
-                                      (photo && typeof photo === 'object' && photo.url) ? photo.url :
-                                      '/placeholder.svg';
+                      let photoUrl = '/placeholder.svg';
+
+                      try {
+                        if (typeof photo === 'string') {
+                          photoUrl = photo;
+                        } else if (photo && typeof photo === 'object') {
+                          // Intentar acceder a la propiedad url de manera segura
+                          const photoObj = photo as any;
+                          if (photoObj.url) {
+                            photoUrl = photoObj.url;
+                          }
+                        }
+                      } catch (e) {
+                        console.error("Error al procesar foto:", e);
+                      }
 
                       return (
                         <a

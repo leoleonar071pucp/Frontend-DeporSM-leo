@@ -7,14 +7,25 @@ import { useToast } from "@/components/ui/use-toast"
 import { useNotification } from "@/context/NotificationContext"
 import { FormEvent } from "react"
 import { API_BASE_URL } from "@/lib/config"
+import { Search, Calendar, CheckCircle, Eye, X, AlertTriangle } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Importación de componentes
 import {
-  SearchFilters,
-  ReservationTabs,
   ReservationDetails,
   ActionDialogs,
 } from "./components"
+import { getStatusBadge, getPaymentStatusBadge } from "./components/utils"
 
 // Tipos
 interface Reservation {
@@ -69,6 +80,7 @@ export default function ReservasAdmin() {
   const { addNotification } = useNotification()
   const [isLoading, setIsLoading] = useState(true)
   const [reservations, setReservations] = useState<Reservation[]>([])
+  const [allReservations, setAllReservations] = useState<Reservation[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("todas")
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
@@ -133,7 +145,12 @@ export default function ReservasAdmin() {
           };
         });
 
-        setReservations(transformedData);
+        // Ordenar las reservas de mayor a menor número de reserva (ID)
+        const sortedData = transformedData.sort((a, b) => b.id - a.id);
+        setReservations(sortedData);
+
+        // Guardar todas las reservas para filtrado posterior
+        setAllReservations(sortedData);
       } catch (error) {
         console.error("Error al cargar reservas:", error);
         toast({
@@ -149,8 +166,10 @@ export default function ReservasAdmin() {
     loadData();
   }, [])
 
-  const handleSearch = async (e: FormEvent) => {
-    e.preventDefault()
+  const handleSearch = async (e: FormEvent | React.MouseEvent<HTMLButtonElement>) => {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
 
     setIsLoading(true)
     try {
@@ -215,7 +234,9 @@ export default function ReservasAdmin() {
         };
       });
 
-      setReservations(transformedData);
+      // Ordenar las reservas de mayor a menor número de reserva (ID)
+      const sortedData = transformedData.sort((a, b) => b.id - a.id);
+      setReservations(sortedData);
     } catch (error) {
       console.error("Error al filtrar reservas:", error);
       toast({
@@ -228,84 +249,33 @@ export default function ReservasAdmin() {
     }
   }
 
-  const handleTabChange = async (value: string) => {
-    setActiveTab(value)
-    setIsLoading(true)
+  // Modificar useEffect para guardar todas las reservas
+  useEffect(() => {
+    if (reservations.length > 0 && activeTab === "todas") {
+      setAllReservations(reservations);
+    }
+  }, [reservations, activeTab]);
 
-    try {
-      // Cargar todas las reservas
-      const response = await fetch(`${API_BASE_URL}/reservas/admin`, {
-        credentials: 'include'
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+
+    // Si no tenemos datos almacenados, no podemos filtrar
+    if (allReservations.length === 0) return;
+
+    // Filtrar según la pestaña seleccionada usando los datos almacenados
+    if (value === "todas") {
+      setReservations(allReservations);
+    } else {
+      const filteredReservations = allReservations.filter(reservation => {
+        if (value === "confirmadas") return reservation.status === "confirmada";
+        if (value === "pendientes") return reservation.status === "pendiente";
+        if (value === "completadas") return reservation.status === "completada";
+        if (value === "canceladas") return reservation.status === "cancelada";
+        return true; // Por defecto, mostrar todas
       });
 
-      if (!response.ok) {
-        throw new Error(`Error al cargar reservas: ${response.status}`);
-      }
-
-      const data: ReservaBackend[] = await response.json();
-
-      // Transformar los datos del backend al formato que espera el frontend
-      const transformedData: Reservation[] = data.map(reserva => {
-        // Formatear la fecha - Corregir problema de zona horaria
-        // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
-        const datePart = reserva.fecha.split('T')[0];
-        // Crear la fecha con la hora a mediodía para evitar problemas de zona horaria
-        const fechaObj = new Date(`${datePart}T12:00:00`);
-        const formattedDate = format(fechaObj, "dd/MM/yyyy", { locale: es });
-
-        // Formatear la hora
-        const horaInicio = reserva.horaInicio.substring(0, 5); // HH:MM
-        const horaFin = reserva.horaFin.substring(0, 5); // HH:MM
-        const timeRange = `${horaInicio} - ${horaFin}`;
-
-        // Calcular el precio (simulado por ahora)
-        const precio = Math.floor(Math.random() * 100) + 20;
-
-        return {
-          id: reserva.id,
-          reservationNumber: `RES-${reserva.id}`,
-          facilityId: 0, // No tenemos este dato directamente
-          facilityName: reserva.instalacionNombre,
-          facilityImage: reserva.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
-          date: formattedDate,
-          time: timeRange,
-          location: reserva.instalacionUbicacion,
-          status: reserva.estado as "pendiente" | "confirmada" | "completada" | "cancelada",
-          paymentMethod: reserva.metodoPago || "No especificado",
-          paymentStatus: reserva.estadoPago || 'Pendiente',
-          paymentAmount: `S/. ${precio.toFixed(2)}`,
-          paymentDate: formattedDate, // Usamos la misma fecha por ahora
-          userDetails: {
-            name: reserva.usuarioNombre,
-            dni: "No disponible", // No tenemos este dato directamente
-            email: "No disponible", // No tenemos este dato directamente
-            phone: "No disponible", // No tenemos este dato directamente
-          },
-          createdAt: formattedDate,
-        };
-      });
-
-      // Filtrar según la pestaña seleccionada
-      if (value === "todas") {
-        setReservations(transformedData);
-      } else if (value === "confirmadas") {
-        setReservations(transformedData.filter(r => r.status === "confirmada"));
-      } else if (value === "pendientes") {
-        setReservations(transformedData.filter(r => r.status === "pendiente"));
-      } else if (value === "completadas") {
-        setReservations(transformedData.filter(r => r.status === "completada"));
-      } else if (value === "canceladas") {
-        setReservations(transformedData.filter(r => r.status === "cancelada"));
-      }
-    } catch (error) {
-      console.error("Error al cambiar pestaña:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las reservas. Intente nuevamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      // Mantener el orden de mayor a menor número de reserva
+      setReservations(filteredReservations);
     }
   }
 
@@ -396,7 +366,7 @@ export default function ReservasAdmin() {
           const data = await response.json();
 
           // Transformar los datos como en handleTabChange
-          const transformedData = data.map(reserva => {
+          const transformedData = data.map((reserva: ReservaBackend) => {
             const datePart = reserva.fecha.split('T')[0];
             const fechaObj = new Date(`${datePart}T12:00:00`);
             const formattedDate = format(fechaObj, "dd/MM/yyyy", { locale: es });
@@ -431,7 +401,9 @@ export default function ReservasAdmin() {
             };
           });
 
-          setReservations(transformedData);
+          // Ordenar las reservas de mayor a menor número de reserva (ID)
+          const sortedData = transformedData.sort((a: Reservation, b: Reservation) => b.id - a.id);
+          setReservations(sortedData);
         }
       } catch (error) {
         console.error("Error al cargar todas las reservas:", error);
@@ -494,7 +466,7 @@ export default function ReservasAdmin() {
                 console.log('Total de vecinos obtenidos:', vecinos.length);
 
                 // Buscar el usuario por ID en la lista de vecinos
-                const foundVecino = vecinos.find(v => v.id === reservaData.usuarioId);
+                const foundVecino = vecinos.find((v: any) => v.id === reservaData.usuarioId);
                 if (foundVecino) {
                   console.log('Usuario encontrado en la lista de vecinos:', foundVecino);
                   userData = foundVecino;
@@ -518,7 +490,7 @@ export default function ReservasAdmin() {
                 console.log('Total de usuarios obtenidos:', allUsers.length);
 
                 // Buscar el usuario por ID
-                const foundUser = allUsers.find(u => u.id === reservaData.usuarioId);
+                const foundUser = allUsers.find((u: any) => u.id === reservaData.usuarioId);
                 if (foundUser) {
                   console.log('Usuario encontrado en la lista general:', foundUser);
                   userData = foundUser;
@@ -699,7 +671,9 @@ export default function ReservasAdmin() {
           : reservation,
       );
 
-      setReservations(updatedReservations);
+      // Ordenar las reservas de mayor a menor número de reserva (ID)
+      const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
+      setReservations(sortedReservations);
       setShowApproveDialog(false);
 
       // Mostrar toast de éxito
@@ -720,7 +694,7 @@ export default function ReservasAdmin() {
       console.error("Error al aprobar reserva:", error);
       toast({
         title: "Error",
-        description: `No se pudo aprobar la reserva: ${error.message}`,
+        description: `No se pudo aprobar la reserva: ${error instanceof Error ? error.message : 'Error desconocido'}`,
         variant: "destructive",
       });
     } finally {
@@ -770,7 +744,9 @@ export default function ReservasAdmin() {
           : reservation,
       );
 
-      setReservations(updatedReservations);
+      // Ordenar las reservas de mayor a menor número de reserva (ID)
+      const sortedReservations = updatedReservations.sort((a, b) => b.id - a.id);
+      setReservations(sortedReservations);
       setShowCancelDialog(false);
 
       // Mostrar toast de cancelación
@@ -792,7 +768,7 @@ export default function ReservasAdmin() {
       console.error("Error al cancelar reserva:", error);
       toast({
         title: "Error",
-        description: `No se pudo cancelar la reserva: ${error.message}`,
+        description: `No se pudo cancelar la reserva: ${error instanceof Error ? error.message : 'Error desconocido'}`,
         variant: "destructive",
       });
     } finally {
@@ -810,37 +786,180 @@ export default function ReservasAdmin() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Gestión de Reservas</h1>
-        <p className="text-muted-foreground">Administra todas las reservas de instalaciones deportivas</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Reservas</h1>
       </div>
 
-      {/* Filtros y búsqueda */}
-      <SearchFilters
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        handleSearch={handleSearch}
-        selectedDate={selectedDate}
-        handleDateFilter={handleDateFilter}
-        setReservations={setReservations}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestión de Reservas</CardTitle>
+          <CardDescription>Administra todas las reservas de instalaciones deportivas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Filtros y búsqueda */}
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                type="search"
+                placeholder="Buscar por número, usuario, instalación o DNI..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                className="bg-primary hover:bg-primary-light"
+              >
+                Buscar
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    {selectedDate
+                      ? format(selectedDate, "dd/MM/yyyy", { locale: es })
+                      : "Fecha"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="p-0">
+                  <div className="p-2">
+                    <CalendarComponent mode="single" selected={selectedDate} onSelect={handleDateFilter} locale={es} />
+                    {selectedDate && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => handleDateFilter(undefined)}
+                      >
+                        Limpiar filtro
+                      </Button>
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </form>
 
-      {/* Pestañas y tabla de reservas */}
-      <ReservationTabs
-        activeTab={activeTab}
-        handleTabChange={handleTabChange}
-        reservations={reservations}
-        handleViewDetails={handleViewDetails}
-        setSelectedReservation={setSelectedReservation}
-        setShowApproveDialog={setShowApproveDialog}
-        setShowCancelDialog={setShowCancelDialog}
-        searchQuery={searchQuery}
-        selectedDate={selectedDate}
-        setSearchQuery={setSearchQuery}
-        setSelectedDate={setSelectedDate}
-        setReservations={setReservations}
-        // Eliminamos la prop reservationsData
-      />
+          {/* Pestañas */}
+          <Tabs defaultValue="todas" value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="grid w-full grid-cols-5 mb-4">
+              <TabsTrigger value="todas">Todas</TabsTrigger>
+              <TabsTrigger value="confirmadas">Confirmadas</TabsTrigger>
+              <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
+              <TabsTrigger value="completadas">Completadas</TabsTrigger>
+              <TabsTrigger value="canceladas">Canceladas</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={activeTab}>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nº Reserva</TableHead>
+                      <TableHead>Usuario</TableHead>
+                      <TableHead>Instalación</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Hora</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Pago</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reservations.length > 0 ? (
+                      reservations.map((reservation) => (
+                        <TableRow key={reservation.id} className="hover:bg-gray-50">
+                          <TableCell className="font-medium">{reservation.reservationNumber}</TableCell>
+                          <TableCell className="font-medium">{reservation.userDetails.name}</TableCell>
+                          <TableCell className="font-medium">{reservation.facilityName}</TableCell>
+                          <TableCell>
+                            {reservation.date ?
+                              (() => {
+                                try {
+                                  if (/^\d{2}\/\d{2}\/\d{4}$/.test(reservation.date)) {
+                                    return reservation.date;
+                                  }
+                                  return new Date(reservation.date).toLocaleDateString("es-ES");
+                                } catch (e) {
+                                  return reservation.date;
+                                }
+                              })()
+                              : "Fecha no disponible"
+                            }
+                          </TableCell>
+                          <TableCell>{reservation.time}</TableCell>
+                          <TableCell>{getStatusBadge(reservation.status)}</TableCell>
+                          <TableCell>{getPaymentStatusBadge(reservation.paymentStatus)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="icon" onClick={() => handleViewDetails(reservation)}>
+                                <Eye className="h-4 w-4" />
+                                <span className="sr-only">Ver detalles</span>
+                              </Button>
+                              {reservation.status === "pendiente" && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="text-green-500"
+                                    onClick={() => {
+                                      setSelectedReservation(reservation)
+                                      setShowApproveDialog(true)
+                                    }}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span className="sr-only">Aprobar</span>
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="text-red-500"
+                                    onClick={() => {
+                                      setSelectedReservation(reservation)
+                                      setShowCancelDialog(true)
+                                    }}
+                                  >
+                                    <X className="h-4 w-4" />
+                                    <span className="sr-only">Rechazar</span>
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-6 text-gray-500">
+                          <div className="text-center py-6">
+                            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                            <h3 className="text-lg font-medium">No se encontraron reservas</h3>
+                            <p className="text-gray-500 mt-2">No hay reservas que coincidan con los criterios de búsqueda.</p>
+                            <Button
+                              variant="outline"
+                              className="mt-4"
+                              onClick={() => {
+                                setSearchQuery("")
+                                setSelectedDate(undefined)
+                                window.location.reload()
+                              }}
+                            >
+                              Limpiar filtros
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Diálogo de detalles de reserva */}
       <ReservationDetails

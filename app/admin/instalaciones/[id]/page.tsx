@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Loader2, CheckCircle, AlertCircle, Calendar, Clock, MapPin, Users, Info, Phone } from "lucide-react"
+import { ArrowLeft, Loader2, CheckCircle, AlertCircle, Calendar, Clock, MapPin, Users, Info, Phone, Eye } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Edit } from "lucide-react";
@@ -25,6 +25,18 @@ interface RecentReservation {
   estado: string;
 }
 
+// Interfaz para las observaciones recientes
+interface RecentObservation {
+  idObservacion: number;
+  nombreInstalacion: string;
+  titulo: string;
+  descripcion: string;
+  prioridad: string;
+  fecha: string;
+  estado: string;
+  coordinador: string;
+}
+
 export default function InstalacionDetalle({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
@@ -32,6 +44,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const [isEditing, setIsEditing] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [recentReservations, setRecentReservations] = useState<RecentReservation[]>([])
+  const [recentObservations, setRecentObservations] = useState<RecentObservation[]>([])
   const { id: facilityId } = React.use(params)
 
   useEffect(() => {
@@ -142,6 +155,18 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
           }
 
           setRecentReservations(reservationsData)
+        }
+
+        // Cargar observaciones recientes para esta instalación
+        try {
+          const observationsResponse = await fetch(`${API_BASE_URL}/observaciones/instalacion/${facilityId}`)
+          if (observationsResponse.ok) {
+            const observationsData = await observationsResponse.json()
+            console.log("Datos de observaciones recibidos:", observationsData);
+            setRecentObservations(observationsData)
+          }
+        } catch (error) {
+          console.error("Error al cargar observaciones:", error)
         }
       } catch (error) {
         console.error(error)
@@ -589,6 +614,82 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
             <CardFooter>
               <Button variant="outline" className="w-full" asChild>
                 <Link href="/admin/reservas">Ver todas las reservas</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Observaciones Recientes</CardTitle>
+              <CardDescription>Últimas observaciones reportadas para esta instalación</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-medium">Nº Observación</th>
+                      <th className="text-left py-3 px-4 font-medium">Título</th>
+                      <th className="text-left py-3 px-4 font-medium">Coordinador</th>
+                      <th className="text-left py-3 px-4 font-medium">Fecha</th>
+                      <th className="text-left py-3 px-4 font-medium">Prioridad</th>
+                      <th className="text-left py-3 px-4 font-medium">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentObservations && recentObservations.length > 0 ? (
+                      recentObservations.map((observation) => (
+                        <tr key={observation.idObservacion} className="border-b">
+                          <td className="py-3 px-4">{`OBS-${observation.idObservacion}`}</td>
+                          <td className="py-3 px-4">{observation.titulo}</td>
+                          <td className="py-3 px-4">{observation.coordinador}</td>
+                          <td className="py-3 px-4">{formatDate(observation.fecha)}</td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              className={
+                                observation.prioridad === "alta"
+                                  ? "bg-red-100 text-red-800"
+                                  : observation.prioridad === "media"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-blue-100 text-blue-800"
+                              }
+                            >
+                              {observation.prioridad.charAt(0).toUpperCase() + observation.prioridad.slice(1)}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              className={
+                                observation.estado === "resuelta"
+                                  ? "bg-green-100 text-green-800"
+                                  : observation.estado === "en_proceso"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : observation.estado === "pendiente"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-red-100 text-red-800"
+                              }
+                            >
+                              {observation.estado === "en_proceso"
+                                ? "En proceso"
+                                : observation.estado.charAt(0).toUpperCase() + observation.estado.slice(1)}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-gray-500">
+                          No hay observaciones recientes para esta instalación
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/admin/observaciones">Ver todas las observaciones</Link>
               </Button>
             </CardFooter>
           </Card>
