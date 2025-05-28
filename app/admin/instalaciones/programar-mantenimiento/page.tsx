@@ -269,36 +269,35 @@ export default function ProgramarMantenimientoPage() {
 
     setIsSaving(true)
 
-    // Crear fechas con la zona horaria local correcta
-    const fechaInicio = new Date(formData.startDate!)
+    // Crear fechas locales simples (Peru/Lima timezone)
+    const startYear = formData.startDate!.getFullYear()
+    const startMonth = formData.startDate!.getMonth()
+    const startDay = formData.startDate!.getDate()
     const [sh, sm] = formData.startTime.split(":").map(Number)
-    fechaInicio.setHours(sh, sm, 0, 0)
 
-    const fechaFin = new Date(formData.endDate!)
+    const endYear = formData.endDate!.getFullYear()
+    const endMonth = formData.endDate!.getMonth()
+    const endDay = formData.endDate!.getDate()
     const [eh, em] = formData.endTime.split(":").map(Number)
-    fechaFin.setHours(eh, em, 0, 0)
 
-    // Obtener el offset de la zona horaria local en minutos
-    const offsetInicio = fechaInicio.getTimezoneOffset()
-    const offsetFin = fechaFin.getTimezoneOffset()
+    // Crear fechas locales sin conversiones de zona horaria
+    const fechaInicio = new Date(startYear, startMonth, startDay, sh, sm, 0, 0)
+    const fechaFin = new Date(endYear, endMonth, endDay, eh, em, 0, 0)
 
-    // Crear fechas ISO con ajuste de zona horaria
-    // Esto asegura que la fecha y hora que se envía al backend sea exactamente la que el usuario seleccionó
-    // sin ajustes de zona horaria
-    const fechaInicioISO = new Date(fechaInicio.getTime() - offsetInicio * 60000).toISOString()
-    const fechaFinISO = new Date(fechaFin.getTime() - offsetFin * 60000).toISOString()
+    // Formatear como string local para enviar al backend
+    const fechaInicioStr = `${startYear}-${String(startMonth + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00`
+    const fechaFinStr = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-${String(endDay).padStart(2, '0')}T${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}:00`
 
-    // Imprimir información detallada para depuración
+    // Imprimir información para depuración
     console.log("=== INFORMACIÓN DE FECHAS Y HORAS ===");
     console.log("Fecha inicio seleccionada:", formData.startDate);
     console.log("Hora inicio seleccionada:", formData.startTime);
-    console.log("Fecha inicio objeto Date:", fechaInicio);
-    console.log("Offset zona horaria (minutos):", offsetInicio);
-    console.log("Fecha inicio ISO ajustada:", fechaInicioISO);
+    console.log("Fecha inicio local:", fechaInicio);
+    console.log("Fecha inicio string:", fechaInicioStr);
     console.log("Fecha fin seleccionada:", formData.endDate);
     console.log("Hora fin seleccionada:", formData.endTime);
-    console.log("Fecha fin objeto Date:", fechaFin);
-    console.log("Fecha fin ISO ajustada:", fechaFinISO);
+    console.log("Fecha fin local:", fechaFin);
+    console.log("Fecha fin string:", fechaFinStr);
     console.log("===================================");
 
     try {
@@ -308,8 +307,8 @@ export default function ProgramarMantenimientoPage() {
         motivo: formData.description,
         tipo: formData.maintenanceType,
         descripcion: formData.description,
-        fechaInicio: fechaInicioISO,
-        fechaFin: fechaFinISO,
+        fechaInicio: fechaInicioStr,
+        fechaFin: fechaFinStr,
         afectaDisponibilidad: formData.affectsAvailability,
         registradoPorId: 1 // Usamos un ID fijo para pruebas
       };

@@ -17,13 +17,39 @@ import {
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Calendar, Clock, Download, MapPin, User, CreditCard, CheckCircle, Info, Loader2 } from "lucide-react" // Añadir Loader2
+import { AlertTriangle, Calendar, Clock, Download, MapPin, User, CreditCard, CheckCircle, Info, Loader2, FileText, Eye } from "lucide-react" // Añadir iconos para PDF
 import Link from "next/link"
 import { useNotification } from "@/context/NotificationContext" // Importar useNotification
 import { differenceInHours, parse } from 'date-fns' // Importar date-fns
 import { API_BASE_URL,FRONTEND_URL } from "@/lib/config";
 import { calculateTotalPrice, formatPrice } from "@/lib/price-utils";
+import { createDateFromBackend, formatDateForDisplay } from "@/lib/date-utils";
 
+
+// Función utilitaria para detectar el tipo de archivo
+const getFileType = (url: string): 'image' | 'pdf' | 'unknown' => {
+  if (!url) return 'unknown';
+
+  const extension = url.split('.').pop()?.toLowerCase();
+
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension || '')) {
+    return 'image';
+  }
+
+  if (extension === 'pdf') {
+    return 'pdf';
+  }
+
+  return 'unknown';
+};
+
+// Función para obtener el nombre del archivo
+const getFileName = (url: string): string => {
+  if (!url) return 'comprobante';
+
+  const fileName = url.split('/').pop() || 'comprobante';
+  return fileName.split('?')[0]; // Remover query parameters si existen
+};
 
 // Definir interfaz para Reserva (mejor práctica)
 interface ReservationDetails {
@@ -213,10 +239,7 @@ export default function ReservaDetalle() {
         }
 
         // Formatear los datos obtenidos al formato que necesita la interfaz
-        // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
-        const datePart = reservaData.fecha.split('T')[0];
-        // Crear la fecha con la hora a mediodía para evitar problemas de zona horaria
-        const fechaReserva = new Date(`${datePart}T12:00:00`);
+        const fechaReserva = createDateFromBackend(reservaData.fecha);
         const horaInicio = reservaData.horaInicio.substring(0, 5);
         const horaFin = reservaData.horaFin.substring(0, 5);
 
@@ -231,12 +254,7 @@ export default function ReservaDetalle() {
           facilityId: reservaData.instalacion?.id || reservaData.instalacionId,
           facilityName: reservaData.instalacionNombre,
           facilityImage: reservaData.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
-          date: new Intl.DateTimeFormat('es-ES', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-          }).format(fechaReserva),
+          date: formatDateForDisplay(reservaData.fecha),
           time: `${horaInicio} - ${horaFin}`,
           dateTime: dateTime,
           location: reservaData.instalacionUbicacion || "Instalación Deportiva Municipal",
@@ -286,9 +304,14 @@ export default function ReservaDetalle() {
                             }).format(new Date(reservaData.createdAt))
                           : 'Pendiente',
           // Asegurarse de que la URL del comprobante sea válida
-          paymentReceiptUrl: pagoData && (pagoData.urlComprobante || pagoData.url_comprobante)
-                            ? (pagoData.urlComprobante || pagoData.url_comprobante)
-                            : null,
+          paymentReceiptUrl: (() => {
+            const url = pagoData && (pagoData.urlComprobante || pagoData.url_comprobante);
+            console.log("=== DEBUG COMPROBANTE ===");
+            console.log("pagoData:", pagoData);
+            console.log("URL del comprobante:", url);
+            console.log("========================");
+            return url || null;
+          })(),
           userDetails: {
             name: reservaData.usuarioNombre || 'Usuario',
             email: reservaData.usuario?.email || '',
@@ -475,8 +498,23 @@ export default function ReservaDetalle() {
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1"
-                      onClick={() => {                        // Iniciar la descarga del archivo usando la API de descarga del navegador
-                        const url = `${API_BASE_URL.replace('/api', '')}${reservation.paymentReceiptUrl}`;
+                      onClick={() => {                        // Determinar la URL correcta para la descarga
+                        const url = (() => {
+                          const receiptUrl = reservation.paymentReceiptUrl;
+                          if (!receiptUrl) return '';
+
+                          // Si ya es una URL completa de Supabase, usarla directamente
+                          if (receiptUrl.startsWith('http')) return receiptUrl;
+
+                          // Si es una URL relativa del backend local, concatenar con API_BASE_URL
+                          if (receiptUrl.startsWith('/')) {
+                            return `${API_BASE_URL.replace('/api', '')}${receiptUrl}`;
+                          }
+
+                          // Por defecto, asumir que es una URL relativa
+                          return `${API_BASE_URL.replace('/api', '')}/${receiptUrl}`;
+                        })();
+
                         const fileName = reservation.paymentReceiptUrl?.split('/').pop() || 'comprobante.jpg';
 
                         // Usar fetch para obtener el archivo como blob
@@ -669,17 +707,107 @@ export default function ReservaDetalle() {
                   <h3 className="text-lg font-medium mb-4">Comprobante de pago</h3>
                   {reservation.paymentReceiptUrl ? (
                     <div className="bg-white p-4 rounded-lg shadow-sm border">
-                      <div className="flex flex-col items-center">                        <img
-                          src={`${API_BASE_URL.replace('/api', '')}${reservation.paymentReceiptUrl}`}
-                          alt="Comprobante de depósito bancario"
-                          className="max-w-full max-h-96 object-contain rounded-md mb-4"
-                          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/placeholder.svg?text=Comprobante+no+disponible";
-                            target.alt = "Comprobante no disponible";
-                          }}
-                        />
-                      </div>
+                      {(() => {
+                        const fileUrl = (() => {
+                          const url = reservation.paymentReceiptUrl;
+                          if (!url) return '';
+
+                          // Si ya es una URL completa de Supabase, usarla directamente
+                          if (url.startsWith('http')) return url;
+
+                          // Si es una URL relativa del backend local, concatenar con API_BASE_URL
+                          if (url.startsWith('/')) {
+                            return `${API_BASE_URL.replace('/api', '')}${url}`;
+                          }
+
+                          // Por defecto, asumir que es una URL relativa
+                          return `${API_BASE_URL.replace('/api', '')}/${url}`;
+                        })();
+
+                        const fileType = getFileType(fileUrl);
+                        const fileName = getFileName(fileUrl);
+
+                        if (fileType === 'image') {
+                          // Mostrar imagen
+                          return (
+                            <div className="flex flex-col items-center">
+                              <img
+                                src={fileUrl}
+                                alt="Comprobante de depósito bancario"
+                                className="max-w-full max-h-96 object-contain rounded-md mb-4"
+                                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = "/placeholder.svg?text=Comprobante+no+disponible";
+                                  target.alt = "Comprobante no disponible";
+                                }}
+                              />
+                              <p className="text-sm text-gray-600 text-center">
+                                Comprobante de depósito bancario (imagen)
+                              </p>
+                            </div>
+                          );
+                        } else if (fileType === 'pdf') {
+                          // Mostrar vista de PDF
+                          return (
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="flex items-center justify-center w-24 h-24 bg-red-100 rounded-lg">
+                                <FileText className="h-12 w-12 text-red-600" />
+                              </div>
+                              <div className="text-center">
+                                <p className="font-medium text-gray-900 mb-1">Comprobante PDF</p>
+                                <p className="text-sm text-gray-600 mb-3">{fileName}</p>
+                                <div className="flex gap-2 justify-center">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(fileUrl, '_blank')}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    Ver PDF
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const link = document.createElement('a');
+                                      link.href = fileUrl;
+                                      link.download = fileName;
+                                      link.click();
+                                    }}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                    Descargar
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          // Tipo de archivo desconocido
+                          return (
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="flex items-center justify-center w-24 h-24 bg-gray-100 rounded-lg">
+                                <FileText className="h-12 w-12 text-gray-600" />
+                              </div>
+                              <div className="text-center">
+                                <p className="font-medium text-gray-900 mb-1">Comprobante</p>
+                                <p className="text-sm text-gray-600 mb-3">{fileName}</p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(fileUrl, '_blank')}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Abrir archivo
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
                   ) : (
                     <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">                      <p className="text-yellow-700 flex items-center gap-2">

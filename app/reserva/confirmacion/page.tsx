@@ -9,6 +9,7 @@ import { CheckCircle, Clock } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { formatDateForDisplay, createLocalDate } from "@/lib/date-utils"
 import { calculateTotalPrice, formatPrice } from "@/lib/price-utils"
 import { API_BASE_URL } from "@/lib/config"
 
@@ -72,7 +73,7 @@ function ConfirmacionReservaContent() {
   }, [resNum, status, dateParam, time]);
 
   const formattedDate = dateParam
-    ? format(new Date(dateParam), "EEEE d 'de' MMMM 'de' yyyy", { locale: es })
+    ? formatDateForDisplay(dateParam)
     : "Fecha Desconocida"
 
   const isSuccess = status === 'success'

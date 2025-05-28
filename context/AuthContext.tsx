@@ -7,6 +7,7 @@ import { API_BASE_URL, FRONTEND_URL } from '@/lib/config';
 interface User {
   id: string;
   nombre: string;
+  apellidos?: string;
   email: string;
   avatarUrl?: string;
   dni?: string;

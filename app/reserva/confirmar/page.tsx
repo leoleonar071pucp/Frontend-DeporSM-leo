@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { createLocalDate, formatDateToISO, convertLocalDateToBackendFormat } from "@/lib/date-utils"
+import { uploadPaymentVoucher, validateFile, ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE } from "@/lib/supabase-storage"
 import { Calendar, Clock, CreditCard, Upload, User, AlertCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useNotification } from "@/context/NotificationContext" // Importar useNotification
@@ -87,7 +89,8 @@ function ConfirmarReservaForm() {
   const { addNotification } = useNotification()
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth() // Obtener datos de Auth
 
-  const date = dateParam ? new Date(dateParam) : new Date()
+  // Crear fecha con manejo correcto de zona horaria usando utilidad
+  const date = dateParam ? createLocalDate(dateParam) : new Date()
 
   // Cargar detalles de la instalación
   useEffect(() => {
@@ -271,23 +274,15 @@ function ConfirmarReservaForm() {
           // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
           const [horaInicio, horaFin] = timeParam.split(' - ');
 
-          // Crear fecha con la zona horaria local correcta
-          const fecha = new Date(dateParam || new Date());
-
-          // Obtener el offset de la zona horaria local en minutos
-          const offset = fecha.getTimezoneOffset();
-
-          // Crear fecha ISO con ajuste de zona horaria
-          // Esto asegura que la fecha que se envía al backend sea exactamente la que el usuario seleccionó
-          // sin ajustes de zona horaria
-          const fechaISO = new Date(fecha.getTime() - offset * 60000).toISOString().split('T')[0];
+          // Crear fecha local y convertir a formato backend
+          const fecha = createLocalDate(dateParam || new Date().toISOString());
+          const fechaISO = convertLocalDateToBackendFormat(fecha);
 
           // Imprimir información detallada para depuración
           console.log("=== INFORMACIÓN DE FECHA PARA BLOQUEO TEMPORAL ===");
           console.log("Fecha original:", dateParam);
           console.log("Fecha objeto Date:", fecha);
-          console.log("Offset zona horaria (minutos):", offset);
-          console.log("Fecha ISO ajustada:", fechaISO);
+          console.log("Fecha ISO para backend:", fechaISO);
           console.log("===================================");
 
           // Crear el objeto de bloqueo temporal
@@ -436,21 +431,12 @@ function ConfirmarReservaForm() {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]
 
-      // Validar tipo de archivo
-      const validTypes = ["image/jpeg", "image/png", "application/pdf"]
-      if (!validTypes.includes(file.type)) {
+      // Validar archivo usando la función utilitaria
+      const validation = validateFile(file, ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE);
+      if (!validation.isValid) {
         setErrors((prev) => ({
           ...prev,
-          voucher: "El archivo debe ser JPG, PNG o PDF",
-        }))
-        return
-      }
-
-      // Validar tamaño (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({
-          ...prev,
-          voucher: "El archivo no debe superar los 5MB",
+          voucher: validation.error || "Archivo no válido",
         }))
         return
       }
@@ -539,21 +525,15 @@ function ConfirmarReservaForm() {
     try {
       if (!facilityId || !dateParam || !timeParam) return false;
 
-      // Crear fecha con la zona horaria local correcta
-      const fecha = new Date(dateParam || new Date());
-
-      // Obtener el offset de la zona horaria local en minutos
-      const offset = fecha.getTimezoneOffset();
-
-      // Crear fecha ISO con ajuste de zona horaria
-      const fechaISO = new Date(fecha.getTime() - offset * 60000).toISOString().split('T')[0];
+      // Crear fecha local y convertir a formato backend
+      const fecha = createLocalDate(dateParam || new Date().toISOString());
+      const fechaISO = convertLocalDateToBackendFormat(fecha);
 
       // Imprimir información detallada para depuración
       console.log("=== INFORMACIÓN DE FECHA PARA VERIFICAR DISPONIBILIDAD ===");
       console.log("Fecha original:", dateParam);
       console.log("Fecha objeto Date:", fecha);
-      console.log("Offset zona horaria (minutos):", offset);
-      console.log("Fecha ISO ajustada:", fechaISO);
+      console.log("Fecha ISO para backend:", fechaISO);
       console.log("===================================");
 
       const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}/disponibilidad?fecha=${fechaISO}`);
@@ -610,21 +590,15 @@ function ConfirmarReservaForm() {
         // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
         const [horaInicio, horaFin] = timeParam ? timeParam.split(' - ') : ['00:00', '00:00'];
 
-        // Crear fecha con la zona horaria local correcta
-        const fecha = new Date(dateParam || new Date());
-
-        // Obtener el offset de la zona horaria local en minutos
-        const offset = fecha.getTimezoneOffset();
-
-        // Crear fecha ISO con ajuste de zona horaria
-        const fechaISO = new Date(fecha.getTime() - offset * 60000).toISOString().split('T')[0];
+        // Crear fecha local y convertir a formato backend
+        const fecha = createLocalDate(dateParam || new Date().toISOString());
+        const fechaISO = convertLocalDateToBackendFormat(fecha);
 
         // Imprimir información detallada para depuración
         console.log("=== INFORMACIÓN DE FECHA PARA CREAR RESERVA ===");
         console.log("Fecha original:", dateParam);
         console.log("Fecha objeto Date:", fecha);
-        console.log("Offset zona horaria (minutos):", offset);
-        console.log("Fecha ISO ajustada:", fechaISO);
+        console.log("Fecha ISO para backend:", fechaISO);
         console.log("===================================");
 
         // Crear el objeto de reserva para enviar al backend
@@ -699,32 +673,47 @@ function ConfirmarReservaForm() {
               console.error('Error al actualizar el estado de pago:', updateError);
             }
           }        } else if (paymentMethod === 'deposito' && voucherFile && reservationId) {
-          // Para depósito bancario, enviar el comprobante de pago
+          // Para depósito bancario, subir comprobante a Supabase y luego al backend
           try {
-            const formData = new FormData();
-            formData.append('reservaId', reservationId.toString());
-            // Extraer solo el valor numérico del precio calculado
-            const precioNumerico = facility ? facility.price.replace('S/. ', '').trim() : '0';
-            formData.append('monto', precioNumerico);
-            formData.append('comprobante', voucherFile);
+            console.log('Subiendo comprobante a Supabase...');
 
-            const pagoResponse = await fetch(`${API_BASE_URL}/pagos/deposito`, {
+            // Subir archivo a Supabase
+            const supabaseUrl = await uploadPaymentVoucher(voucherFile, reservationId);
+
+            if (!supabaseUrl) {
+              throw new Error('Error al subir el comprobante a Supabase');
+            }
+
+            console.log('Comprobante subido a Supabase:', supabaseUrl);
+
+            // Enviar información del pago al backend con la URL de Supabase
+            const pagoData = {
+              reservaId: reservationId,
+              monto: facility ? parseFloat(facility.price.replace('S/. ', '').trim()) : 0,
+              urlComprobante: supabaseUrl,
+              metodo: 'deposito'
+            };
+
+            const pagoResponse = await fetch(`${API_BASE_URL}/pagos/deposito-supabase`, {
               method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
               credentials: 'include',
-              body: formData
+              body: JSON.stringify(pagoData)
             });
 
             if (!pagoResponse.ok) {
-              console.warn('Se creó la reserva pero hubo un problema al subir el comprobante');
+              console.warn('Se creó la reserva y se subió el comprobante, pero hubo un problema al registrar el pago en el backend');
             } else {
-              // Obtener la URL del comprobante
-              const urlComprobante = await pagoResponse.text();
-              console.log('Comprobante subido correctamente:', urlComprobante);
+              console.log('Pago registrado correctamente en el backend');
             }
 
             status = 'pending'; // Depósito siempre queda pendiente de verificación
           } catch (pagoError) {
-            console.error('Error al subir el comprobante de pago:', pagoError);
+            console.error('Error al procesar el comprobante de pago:', pagoError);
+            // Aún así continuar con la reserva, solo que sin comprobante
+            status = 'pending';
           }
         } else {
           status = 'pending'; // Depósito siempre queda pendiente
@@ -1112,7 +1101,7 @@ function ConfirmarReservaForm() {
                           )}
                         </div>
                         {errors.voucher && <p className="text-red-500 text-sm">{errors.voucher}</p>}
-                        <p className="text-xs text-gray-500">Formatos aceptados: JPG, PNG, PDF. Tamaño máximo: 5MB</p>
+                        <p className="text-xs text-gray-500">Formatos aceptados: JPG, PNG, PDF. Tamaño máximo: 10MB</p>
                       </div>
                     </TabsContent>
                   </Tabs>

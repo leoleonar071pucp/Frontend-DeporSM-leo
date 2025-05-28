@@ -34,8 +34,10 @@ export default function Contacto() {
   // Autocompletar el formulario con los datos del usuario si está autenticado
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Usar el nombre completo del usuario
-      const nombreCompleto = user.nombre || "";
+      // Combinar nombre y apellidos para el campo nombre completo
+      const nombreCompleto = user.nombre && user.apellidos
+        ? `${user.nombre} ${user.apellidos}`
+        : user.nombre || "";
 
       setFormState(prev => ({
         ...prev,
@@ -182,6 +184,16 @@ export default function Contacto() {
                     </Alert>
                   )}
 
+                  {isAuthenticated && (
+                    <Alert className="mb-4">
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertTitle>Información autocompletada</AlertTitle>
+                      <AlertDescription>
+                        Tus datos personales se han completado automáticamente desde tu perfil.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="space-y-2">
@@ -195,7 +207,7 @@ export default function Contacto() {
                           value={formState.nombre}
                           onChange={handleChange}
                           className={errors.nombre ? "border-red-500" : ""}
-                          disabled={isSubmitting || isSuccess}
+                          disabled={isSubmitting || isSuccess || isAuthenticated}
                         />
                         {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
                       </div>
@@ -211,7 +223,7 @@ export default function Contacto() {
                           value={formState.email}
                           onChange={handleChange}
                           className={errors.email ? "border-red-500" : ""}
-                          disabled={isSubmitting || isSuccess}
+                          disabled={isSubmitting || isSuccess || isAuthenticated}
                         />
                         {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
                       </div>
@@ -225,7 +237,7 @@ export default function Contacto() {
                           placeholder="Ingresa tu número de teléfono"
                           value={formState.telefono}
                           onChange={handleChange}
-                          disabled={isSubmitting || isSuccess}
+                          disabled={isSubmitting || isSuccess || isAuthenticated}
                         />
                       </div>
                       <div className="space-y-2">

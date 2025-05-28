@@ -531,14 +531,7 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
                   const inicio = new Date(m.fechaInicio);
                   const fin = new Date(m.fechaFin);
 
-                  // Ajustar por la zona horaria local para evitar problemas con las horas
-                  const offsetInicio = inicio.getTimezoneOffset() * 60000;
-                  const offsetFin = fin.getTimezoneOffset() * 60000;
-
-                  const inicioLocal = new Date(inicio.getTime() - offsetInicio);
-                  const finLocal = new Date(fin.getTime() - offsetFin);
-
-                  return `${format(inicioLocal, "dd/MM/yyyy", { locale: es })} - ${format(finLocal, "dd/MM/yyyy", { locale: es })}`;
+                  return `${format(inicio, "dd/MM/yyyy", { locale: es })} - ${format(fin, "dd/MM/yyyy", { locale: es })}`;
                 })()}
               </td>
               <td className="py-3 px-4">{getStatusBadge(getMaintenanceStatus(m))}</td>

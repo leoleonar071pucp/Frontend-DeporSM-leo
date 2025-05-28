@@ -38,10 +38,7 @@ const typeMapping: Record<string, string> = {
   "Pista de Atletismo": "pista-atletismo"
 };
 
-const supabase = createClient(
-  'https://goajrdpkfhunnfuqtoub.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYWpyZHBrZmh1bm5mdXF0b3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MTU1NTQsImV4cCI6MjA2MjI5MTU1NH0.-_GxSWv-1UZNsXcSwIcFUKlprJ5LMX_0iz5VbesGgPQ'
-)
+import { uploadInstallationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage"
 
 export default function EditFacilityPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -175,15 +172,14 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]
-      const validTypes = ["image/jpeg", "image/png", "image/webp"]
-      if (!validTypes.includes(file.type)) {
-        setErrors((prev) => ({ ...prev, image: "El archivo debe ser JPG, PNG o WEBP" }))
+
+      // Validar archivo usando la función utilitaria
+      const validation = validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
+      if (!validation.isValid) {
+        setErrors((prev) => ({ ...prev, image: validation.error || "Archivo no válido" }))
         return
       }
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, image: "El archivo no debe superar los 5MB" }))
-        return
-      }
+
       setImageFile(file)
       if (errors.image) {
         const newErrors = { ...errors }
@@ -194,18 +190,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
   }
 
   const uploadImageToSupabase = async (file: File): Promise<string | null> => {
-    const filePath = `instalaciones/${Date.now()}_${file.name}`
-    const { error } = await supabase.storage.from('instalaciones').upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: true,
-      contentType: file.type
-    })
-    if (error) {
-      console.error("Error al subir imagen:", error.message)
-      return null
-    }
-    const { data: publicUrlData } = supabase.storage.from('instalaciones').getPublicUrl(filePath)
-    return publicUrlData.publicUrl
+    return await uploadInstallationImage(file);
   }
 
   const validateForm = () => {

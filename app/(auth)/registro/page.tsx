@@ -39,46 +39,35 @@ export default function Registro() {
     setIsLoading(true)
 
     try {
-      // Primero verificamos si el DNI ya está registrado
-      const checkResponse = await fetch(`${API_BASE_URL}/usuarios/check-dni?dni=${dni}`, {
+      console.log("Verificando DNI con RENIEC:", dni)
+
+      // Llamar al endpoint de verificación con RENIEC
+      const response = await fetch(`${API_BASE_URL}/usuarios/verify-dni-reniec?dni=${dni}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
         }
-      }).catch(() => {
-        // Si hay un error de conexión, continuamos con la simulación
-        console.log("Error al verificar DNI en el backend, continuando con simulación")
-        return { ok: true, json: () => Promise.resolve({ exists: false }) }
       })
 
-      const checkData = await checkResponse.json().catch(() => ({ exists: false }))
+      const data = await response.json()
+      console.log("Respuesta de RENIEC:", data)
 
-      if (checkData.exists) {
-        setError("Este DNI ya está registrado en el sistema. Si eres tú, por favor intenta iniciar sesión o recuperar tu contraseña.")
-        setIsLoading(false)
-        return
+      if (response.ok && data.success) {
+        // Verificación exitosa con RENIEC
+        console.log("Verificación DNI exitosa con RENIEC:", data.nombreCompleto)
+        setNombre(data.nombreCompleto)
+        setStep("registration")
+      } else {
+        // Error en la verificación
+        const errorMessage = data.error || "Error al verificar el DNI con RENIEC"
+        console.log("Error en verificación DNI:", errorMessage)
+        setError(errorMessage)
       }
 
-      // --- Simulación de llamada a API RENIEC ---
-      console.log("Verificando DNI:", dni)
-
-      // Simulamos la verificación con RENIEC
-      setTimeout(() => {
-        // Simular éxito o error de servicio
-        if (dni === "11111111") { // Simular error del servicio RENIEC
-          console.log("Verificación DNI simulada: Error de servicio")
-          setError("Hubo un problema al verificar el DNI con RENIEC. Inténtalo más tarde.")
-        } else { // Cualquier otro DNI válido (8 dígitos) simula éxito
-          console.log("Verificación DNI simulada exitosa (sin restricción de vecino)")
-          // Usar el nombre completo especificado para la simulación
-          setNombre("Gerardo Jose Rabanal Callirgos")
-          setStep("registration")
-        }
-        setIsLoading(false)
-      }, 2000)
     } catch (error) {
       console.error("Error al verificar DNI:", error)
       setError("Error de conexión. Por favor, verifica tu conexión a internet e inténtalo de nuevo.")
+    } finally {
       setIsLoading(false)
     }
   }

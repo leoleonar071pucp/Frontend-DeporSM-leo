@@ -12,7 +12,32 @@ import {
 } from "@/components/ui/dialog"
 import { getStatusBadge, getPaymentStatusBadge } from "./utils"
 import { API_BASE_URL } from "@/lib/config"
-import { Calendar, Clock, MapPin, User, CreditCard, CheckCircle, Info } from "lucide-react"
+import { Calendar, Clock, MapPin, User, CreditCard, CheckCircle, Info, FileText, Eye, Download } from "lucide-react"
+
+// Función utilitaria para detectar el tipo de archivo
+const getFileType = (url: string): 'image' | 'pdf' | 'unknown' => {
+  if (!url) return 'unknown';
+
+  const extension = url.split('.').pop()?.toLowerCase();
+
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension || '')) {
+    return 'image';
+  }
+
+  if (extension === 'pdf') {
+    return 'pdf';
+  }
+
+  return 'unknown';
+};
+
+// Función para obtener el nombre del archivo
+const getFileName = (url: string): string => {
+  if (!url) return 'comprobante';
+
+  const fileName = url.split('/').pop() || 'comprobante';
+  return fileName.split('?')[0]; // Remover query parameters si existen
+};
 
 interface ReservationDetailsProps {
   showDetailsDialog: boolean
@@ -166,60 +191,105 @@ export default function ReservationDetails({
                   <div className="md:col-span-2 mt-2">
                     <p className="text-sm text-gray-500 mb-2 font-medium">Comprobante de pago</p>
                     <div className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex items-center justify-center">
-                        <img
-                          src={(() => {
-                            // Determinar la URL correcta para la imagen
-                            const url = selectedReservation.urlComprobante;
-                            if (!url) return "/placeholder.svg";
+                      {(() => {
+                        const fileUrl = (() => {
+                          const url = selectedReservation.urlComprobante;
+                          if (!url) return '';
 
-                            // Si ya es una URL completa, usarla directamente
-                            if (url.startsWith('http')) return url;
+                          // Si ya es una URL completa de Supabase, usarla directamente
+                          if (url.startsWith('http')) return url;
 
-                            // Si comienza con /, asegurarse de que no haya doble barra
-                            if (url.startsWith('/')) {
-                              const baseUrl = API_BASE_URL.endsWith('/')
-                                ? API_BASE_URL.slice(0, -1)
-                                : API_BASE_URL;
-                              return `${baseUrl}${url}`;
-                            }
+                          // Si es una URL relativa del backend local, concatenar con API_BASE_URL
+                          if (url.startsWith('/')) {
+                            const baseUrl = API_BASE_URL.replace('/api', '');
+                            return `${baseUrl}${url}`;
+                          }
 
-                            // En cualquier otro caso, concatenar normalmente
-                            return `${API_BASE_URL}/${url}`;
-                          })()}
-                          alt="Comprobante de pago"
-                          className="max-w-full h-auto max-h-96 rounded-md"
-                          onError={(e) => {
-                            // Evitamos mostrar errores en la consola, solo registramos la URL que falló
-                            const currentSrc = e.currentTarget.src;
+                          // En cualquier otro caso, concatenar normalmente
+                          return `${API_BASE_URL}/${url}`;
+                        })();
 
-                            // Si ya estamos mostrando el placeholder, no hacer nada más
-                            if (currentSrc.includes('/placeholder.svg')) return;
+                        const fileType = getFileType(fileUrl);
+                        const fileName = getFileName(fileUrl);
 
-                            // Intentar con URL alternativa sin mostrar errores
-                            try {
-                              const url = selectedReservation.urlComprobante;
-
-                              // Intentar con la URL sin API_BASE_URL si ya lo incluía
-                              if (currentSrc.includes(API_BASE_URL)) {
-                                const newSrc = url.startsWith('/') ? url : `/${url}`;
-                                e.currentTarget.src = newSrc;
-                                return;
-                              }
-
-                              // Intentar con la URL completa si no lo incluía
-                              const baseUrl = API_BASE_URL.replace('/api', '');
-                              const newSrc = url.startsWith('/')
-                                ? `${baseUrl}${url}`
-                                : `${baseUrl}/${url}`;
-                              e.currentTarget.src = newSrc;
-                            } catch {
-                              // Si todo falla, mostrar el placeholder sin mostrar errores
-                              e.currentTarget.src = "/placeholder.svg";
-                            }
-                          }}
-                        />
-                      </div>
+                        if (fileType === 'image') {
+                          // Mostrar imagen
+                          return (
+                            <div className="flex items-center justify-center">
+                              <img
+                                src={fileUrl}
+                                alt="Comprobante de pago"
+                                className="max-w-full h-auto max-h-96 rounded-md"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = "/placeholder.svg?text=Comprobante+no+disponible";
+                                  target.alt = "Comprobante no disponible";
+                                }}
+                              />
+                            </div>
+                          );
+                        } else if (fileType === 'pdf') {
+                          // Mostrar vista de PDF
+                          return (
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="flex items-center justify-center w-20 h-20 bg-red-100 rounded-lg">
+                                <FileText className="h-10 w-10 text-red-600" />
+                              </div>
+                              <div className="text-center">
+                                <p className="font-medium text-gray-900 mb-1">Comprobante PDF</p>
+                                <p className="text-sm text-gray-600 mb-3">{fileName}</p>
+                                <div className="flex gap-2 justify-center">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(fileUrl, '_blank')}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    Ver PDF
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const link = document.createElement('a');
+                                      link.href = fileUrl;
+                                      link.download = fileName;
+                                      link.click();
+                                    }}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                    Descargar
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          // Tipo de archivo desconocido
+                          return (
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="flex items-center justify-center w-20 h-20 bg-gray-100 rounded-lg">
+                                <FileText className="h-10 w-10 text-gray-600" />
+                              </div>
+                              <div className="text-center">
+                                <p className="font-medium text-gray-900 mb-1">Comprobante</p>
+                                <p className="text-sm text-gray-600 mb-3">{fileName}</p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(fileUrl, '_blank')}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Abrir archivo
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
                   </div>
                 )}

@@ -21,6 +21,7 @@ import { AlertTriangle, Calendar, Clock, MapPin, Loader2, RefreshCw } from "luci
 import Link from "next/link"
 import { differenceInHours } from 'date-fns' // Importar date-fns
 import { API_BASE_URL, FRONTEND_URL } from "@/lib/config";
+import { formatDateForDisplay } from "@/lib/date-utils";
 
 // Define la interfaz para una reserva adaptada al formato del backend
 interface Reservation {
@@ -48,18 +49,7 @@ export default function MisReservas() {
 
   // Función para formatear la fecha de la base de datos a un formato más amigable
   const formatDate = (dateStr: string): string => {
-    // Crear la fecha asegurando que no haya problemas de zona horaria
-    // Primero extraemos solo la parte de la fecha (YYYY-MM-DD)
-    const datePart = dateStr.split('T')[0];
-    // Luego creamos la fecha con la hora a mediodía para evitar problemas de zona horaria
-    const date = new Date(`${datePart}T12:00:00`);
-
-    return date.toLocaleDateString('es-ES', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    return formatDateForDisplay(dateStr, "EEEE d 'de' MMMM 'de' yyyy");
   }
 
   // Función para cargar las reservas del usuario desde el backend

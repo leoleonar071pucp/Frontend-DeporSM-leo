@@ -13,12 +13,8 @@ import Link from "next/link"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 
-import { createClient } from '@supabase/supabase-js'
 import { API_BASE_URL } from "@/lib/config" // Importar API_BASE_URL
-
-
-// Create a single supabase client for interacting with your database
-const supabase = createClient('https://goajrdpkfhunnfuqtoub.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYWpyZHBrZmh1bm5mdXF0b3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MTU1NTQsImV4cCI6MjA2MjI5MTU1NH0.-_GxSWv-1UZNsXcSwIcFUKlprJ5LMX_0iz5VbesGgPQ')
+import { uploadInstallationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage"
 
 
 
@@ -119,21 +115,12 @@ export default function NuevaInstalacion() {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]
 
-      // Validar tipo de archivo
-      const validTypes = ["image/jpeg", "image/png", "image/webp"]
-      if (!validTypes.includes(file.type)) {
+      // Validar archivo usando la función utilitaria
+      const validation = validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
+      if (!validation.isValid) {
         setErrors((prev) => ({
           ...prev,
-          image: "El archivo debe ser JPG, PNG o WEBP",
-        }))
-        return
-      }
-
-      // Validar tamaño (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({
-          ...prev,
-          image: "El archivo no debe superar los 5MB",
+          image: validation.error || "Archivo no válido",
         }))
         return
       }
@@ -189,29 +176,9 @@ export default function NuevaInstalacion() {
     return Object.keys(newErrors).length === 0
   }
 
+  // Función de subida usando la utilidad centralizada
   const uploadImageToSupabase = async (file: File): Promise<string | null> => {
-    const filePath = `instalaciones/${Date.now()}_${file.name}`
-
-    const { error } = await supabase
-      .storage
-      .from('instalaciones') // nombre de tu bucket
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: file.type
-      })
-
-    if (error) {
-      console.error("Error al subir imagen:", error.message)
-      return null
-    }
-
-    const { data: publicUrlData } = supabase
-      .storage
-      .from('instalaciones')
-      .getPublicUrl(filePath)
-
-    return publicUrlData.publicUrl
+    return await uploadInstallationImage(file);
   }
 
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import { createDateFromBackend, formatDateShort } from "@/lib/date-utils"
 import { useToast } from "@/components/ui/use-toast"
 import { useNotification } from "@/context/NotificationContext"
 import { FormEvent } from "react"
@@ -106,12 +107,8 @@ export default function ReservasAdmin() {
 
         // Transformar los datos del backend al formato que espera el frontend
         const transformedData: Reservation[] = data.map(reserva => {
-          // Formatear la fecha - Corregir problema de zona horaria
-          // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
-          const datePart = reserva.fecha.split('T')[0];
-          // Crear la fecha con la hora a mediodía para evitar problemas de zona horaria
-          const fechaObj = new Date(`${datePart}T12:00:00`);
-          const formattedDate = format(fechaObj, "dd/MM/yyyy", { locale: es });
+          // Formatear la fecha usando utilidad
+          const formattedDate = formatDateShort(reserva.fecha);
 
           // Formatear la hora
           const horaInicio = reserva.horaInicio.substring(0, 5); // HH:MM
@@ -195,12 +192,8 @@ export default function ReservasAdmin() {
 
       // Transformar los datos del backend al formato que espera el frontend
       const transformedData: Reservation[] = data.map(reserva => {
-        // Formatear la fecha - Corregir problema de zona horaria
-        // Extraer solo la parte de la fecha (YYYY-MM-DD) para evitar problemas de zona horaria
-        const datePart = reserva.fecha.split('T')[0];
-        // Crear la fecha con la hora a mediodía para evitar problemas de zona horaria
-        const fechaObj = new Date(`${datePart}T12:00:00`);
-        const formattedDate = format(fechaObj, "dd/MM/yyyy", { locale: es });
+        // Formatear la fecha usando utilidad
+        const formattedDate = formatDateShort(reserva.fecha);
 
         // Formatear la hora
         const horaInicio = reserva.horaInicio.substring(0, 5); // HH:MM
@@ -304,10 +297,8 @@ export default function ReservasAdmin() {
 
         // Transformar los datos del backend al formato que espera el frontend
         const transformedData: Reservation[] = data.map(reserva => {
-          // Formatear la fecha - Corregir problema de zona horaria
-          const datePart = reserva.fecha.split('T')[0];
-          const fechaObj = new Date(`${datePart}T12:00:00`);
-          const formattedDate = format(fechaObj, "dd/MM/yyyy", { locale: es });
+          // Formatear la fecha usando utilidad
+          const formattedDate = formatDateShort(reserva.fecha);
 
           // Formatear la hora
           const horaInicio = reserva.horaInicio.substring(0, 5); // HH:MM
@@ -367,9 +358,7 @@ export default function ReservasAdmin() {
 
           // Transformar los datos como en handleTabChange
           const transformedData = data.map((reserva: ReservaBackend) => {
-            const datePart = reserva.fecha.split('T')[0];
-            const fechaObj = new Date(`${datePart}T12:00:00`);
-            const formattedDate = format(fechaObj, "dd/MM/yyyy", { locale: es });
+            const formattedDate = formatDateShort(reserva.fecha);
 
             const horaInicio = reserva.horaInicio.substring(0, 5);
             const horaFin = reserva.horaFin.substring(0, 5);

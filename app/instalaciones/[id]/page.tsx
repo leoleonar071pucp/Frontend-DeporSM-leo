@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, isBefore, parse, isToday } from "date-fns"
 import { es } from "date-fns/locale"
+import { createLocalDate, convertLocalDateToBackendFormat, normalizeDateForComparison } from "@/lib/date-utils"
 import { CalendarIcon, Clock, Info, MapPin, Users, Droplets, Dumbbell, Timer, CheckCircle, Phone } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -245,7 +246,18 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
     } catch (err) {
       console.error("Error cargando horarios disponibles:", err)
       setAvailableTimes([])
-      setError("Error al cargar horarios disponibles. Por favor, intenta de nuevo más tarde.")
+      setBlockedTimes([])
+
+      // No establecer error general para evitar mostrar "Instalación no encontrada"
+      // cuando solo hay problemas con los horarios
+      if (err instanceof Error && err.message.includes('404')) {
+        console.error("La instalación no fue encontrada al cargar horarios");
+        // Solo establecer error si realmente es un problema de instalación no encontrada
+        setError("Error al cargar la instalación. Por favor, intenta de nuevo más tarde.");
+      } else {
+        console.warn("Error temporal al cargar horarios, pero la instalación existe");
+        // Para otros errores, no establecer error para evitar mostrar "Instalación no encontrada"
+      }
     }
   }
 
@@ -254,9 +266,25 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   // Actualizar horarios cuando cambia la fecha
   useEffect(() => {
     if (date && facility) {
+      // Limpiar horario seleccionado cuando cambia la fecha para evitar inconsistencias
+      setSelectedTime(null);
+
+      // Liberar cualquier bloqueo temporal existente
+      if (bloqueoToken) {
+        fetch(`${API_BASE_URL}/bloqueos-temporales/${bloqueoToken}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        }).catch(error => console.error('Error al liberar bloqueo:', error));
+        setBloqueoToken(null);
+      }
+
+      // Limpiar errores previos
+      setError(null);
+
+      console.log("Fecha cambiada, obteniendo nuevos horarios disponibles...");
       fetchAvailableTimes(String(facility.id), date)
     }
-  }, [date])
+  }, [date, facility?.id]) // Agregar facility.id como dependencia para mayor estabilidad
 
   // Verificar periódicamente si hay cambios en la disponibilidad
   useEffect(() => {
@@ -505,8 +533,12 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                                   variant={selectedTime === time ? "default" : "outline"}
                                   className={selectedTime === time ? "bg-primary hover:bg-primary-light" : ""}
                                   onClick={() => {
+                                    // Limpiar cualquier error previo
+                                    setError(null);
+
                                     // Si ya estaba seleccionado, deseleccionar
                                     if (selectedTime === time) {
+                                      console.log("Deseleccionando horario:", time);
                                       setSelectedTime(null);
                                       // Liberar el bloqueo temporal si existe
                                       if (bloqueoToken) {
@@ -518,6 +550,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                                       }
                                     } else {
                                       // Solo seleccionar el horario, sin bloquear temporalmente
+                                      console.log("Seleccionando horario:", time);
                                       setSelectedTime(time);
                                       // Ya no llamamos a bloquearHorarioTemporal aquí
                                       // El bloqueo se realizará cuando el usuario vaya a la página de confirmación
@@ -581,10 +614,17 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                     className="w-full bg-primary hover:bg-primary-light"
                     disabled={!date || !selectedTime}
                     onClick={() => {
+                      // Limpiar cualquier error previo antes de proceder
+                      setError(null);
+
                       if (!isAuthenticated) {
                         // Si no está autenticado, redirigir a login
                         router.push('/login');
-                      } else if (date && selectedTime) {
+                      } else if (date && selectedTime && facility) {
+                        console.log("=== INICIANDO PROCESO DE RESERVA ===");
+                        console.log("Instalación:", facility.nombre, "ID:", facility.id);
+                        console.log("Fecha seleccionada:", date);
+                        console.log("Horario seleccionado:", selectedTime);
                         // Verificar si hay una reserva completada recientemente
                         const reservaCompletadaStr = sessionStorage.getItem('reservaCompletada');
                         if (reservaCompletadaStr) {
@@ -595,10 +635,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                             // Si la reserva se completó hace menos de 30 minutos
                             if (tiempoTranscurrido < 30 * 60 * 1000) {
                               // Normalizar las fechas para comparar solo la parte de la fecha (YYYY-MM-DD)
-                              // Ajustar la fecha para la zona horaria local
-                              const offset = date.getTimezoneOffset();
-                              const dateWithOffset = new Date(date.getTime() - offset * 60000);
-                              const fechaActual = dateWithOffset.toISOString().split('T')[0];
+                              const fechaActual = normalizeDateForComparison(date);
 
                               // Usar la fecha normalizada si está disponible, o calcularla si no
                               const fechaCompletada = reservaCompletada.fechaNormalizada ||
@@ -617,7 +654,7 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                               console.log("Comparando reserva actual con reserva completada:", {
                                 actual: {
                                   instalacionId: resolvedParams.id,
-                                  fecha: dateWithOffset.toISOString(),
+                                  fecha: date.toISOString(),
                                   fechaNormalizada: fechaActual,
                                   horario: selectedTime
                                 },
@@ -657,19 +694,18 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                         // Si no hay reserva completada reciente, proceder a confirmar
                         const encodedTime = encodeURIComponent(selectedTime)
 
-                        // Ajustar la fecha para la zona horaria local
-                        const offset = date.getTimezoneOffset();
-                        const dateWithOffset = new Date(date.getTime() - offset * 60000);
+                        // Convertir fecha a formato ISO para enviar al backend
+                        const dateISO = convertLocalDateToBackendFormat(date);
 
                         // Imprimir información detallada para depuración
                         console.log("=== INFORMACIÓN DE FECHA PARA RESERVA ===");
                         console.log("Fecha seleccionada:", date);
-                        console.log("Offset zona horaria (minutos):", offset);
-                        console.log("Fecha ajustada:", dateWithOffset);
-                        console.log("Fecha ISO ajustada:", dateWithOffset.toISOString());
+                        console.log("Fecha ISO para backend:", dateISO);
                         console.log("===================================");
 
-                        const encodedDate = encodeURIComponent(dateWithOffset.toISOString())
+                        // Crear fecha completa para la URL (necesaria para el componente de confirmación)
+                        const fullDateForUrl = createLocalDate(dateISO);
+                        const encodedDate = encodeURIComponent(fullDateForUrl.toISOString())
 
                         // Ya no guardamos el token de bloqueo porque no lo estamos usando en esta etapa
                         // El bloqueo se realizará cuando el usuario llegue a la página de confirmación
@@ -683,7 +719,11 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                           setBloqueoToken(null);
                         }
 
+                        console.log("Navegando a página de confirmación...");
                         router.push(`/reserva/confirmar?id=${resolvedParams.id}&date=${encodedDate}&time=${encodedTime}`)
+                      } else {
+                        console.error("Faltan datos para proceder:", { date, selectedTime, facility });
+                        setError("Por favor, selecciona una fecha y horario válidos.");
                       }
                     }}
                   >

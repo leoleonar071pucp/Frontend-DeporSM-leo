@@ -40,32 +40,47 @@ export default function MantenimientoDetailsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("Cargando mantenimiento con ID:", id);
+
         // Incluir credenciales para asegurar que se envíen las cookies de autenticación
         const res = await fetch(`${API_BASE_URL}/mantenimientos/${id}`, {
           credentials: 'include'
         })
-        if (!res.ok) throw new Error("No se encontró el mantenimiento")
+
+        console.log("Respuesta del servidor:", res.status, res.statusText);
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("Error del servidor:", errorText);
+          throw new Error(`Error ${res.status}: ${errorText || "No se encontró el mantenimiento"}`);
+        }
+
         const data = await res.json()
+        console.log("Datos del mantenimiento recibidos:", data);
 
-        console.log("Datos del mantenimiento:", data);
+        // Validar que tenemos los datos necesarios
+        if (!data.fechaInicio || !data.fechaFin) {
+          console.error("Faltan fechas en los datos:", data);
+          throw new Error("Los datos del mantenimiento están incompletos");
+        }
 
-        // Ajustar las fechas para manejar correctamente la zona horaria
+        // Crear fechas locales simples sin conversiones de zona horaria
         const inicio = new Date(data.fechaInicio)
         const fin = new Date(data.fechaFin)
 
-        // Ajustar por la zona horaria local para evitar problemas con las horas
-        const offsetInicio = inicio.getTimezoneOffset() * 60000
-        const offsetFin = fin.getTimezoneOffset() * 60000
-
-        const inicioLocal = new Date(inicio.getTime() - offsetInicio)
-        const finLocal = new Date(fin.getTime() - offsetFin)
+        console.log("Fechas procesadas:", {
+          fechaInicio: data.fechaInicio,
+          fechaFin: data.fechaFin,
+          inicioDate: inicio,
+          finDate: fin
+        });
 
         // Calcular el estado basado en las fechas primero
         const now = new Date();
         let calculatedStatus = "unknown";
-        if (now < inicioLocal) calculatedStatus = "scheduled";
-        else if (now >= inicioLocal && now <= finLocal) calculatedStatus = "in-progress";
-        else if (now > finLocal) calculatedStatus = "completed";
+        if (now < inicio) calculatedStatus = "scheduled";
+        else if (now >= inicio && now <= fin) calculatedStatus = "in-progress";
+        else if (now > fin) calculatedStatus = "completed";
 
         // Usar el estado calculado, pero dar prioridad al estado del backend si es "cancelado"
         let status = data.estado || calculatedStatus;
@@ -116,10 +131,10 @@ export default function MantenimientoDetailsPage() {
           facilityLocation: facilityLocation,
           type: data.tipo || "preventivo", // Usar tipo en lugar de motivo
           description: data.descripcion || "",
-          startDate: format(inicioLocal, "dd/MM/yyyy", { locale: es }),
-          startTime: format(inicioLocal, "HH:mm"),
-          endDate: format(finLocal, "dd/MM/yyyy", { locale: es }),
-          endTime: format(finLocal, "HH:mm"),
+          startDate: format(inicio, "dd/MM/yyyy", { locale: es }),
+          startTime: format(inicio, "HH:mm"),
+          endDate: format(fin, "dd/MM/yyyy", { locale: es }),
+          endTime: format(fin, "HH:mm"),
           createdBy: data.registradoPor?.nombre || "Administrador",
           createdAt: format(new Date(data.createdAt || new Date()), "dd/MM/yyyy HH:mm", { locale: es }),
           affectsAvailability: data.afectaDisponibilidad !== undefined ? data.afectaDisponibilidad : true,
@@ -128,7 +143,9 @@ export default function MantenimientoDetailsPage() {
 
         setMaintenance(parsed)
       } catch (err) {
-        setError("No se pudo cargar el mantenimiento.")
+        console.error("Error completo al cargar mantenimiento:", err);
+        console.error("Stack trace:", err instanceof Error ? err.stack : "No stack available");
+        setError(`No se pudo cargar el mantenimiento: ${err instanceof Error ? err.message : String(err)}`)
       }
     }
 

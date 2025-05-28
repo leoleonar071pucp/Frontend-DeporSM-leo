@@ -15,10 +15,7 @@ import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/config";
-import { createClient } from '@supabase/supabase-js';
-
-// Create a single supabase client for interacting with your database
-const supabase = createClient('https://goajrdpkfhunnfuqtoub.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvYWpyZHBrZmh1bm5mdXF0b3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3MTU1NTQsImV4cCI6MjA2MjI5MTU1NH0.-_GxSWv-1UZNsXcSwIcFUKlprJ5LMX_0iz5VbesGgPQ');
+import { uploadMultipleObservationImages, uploadObservationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage";
 
 // Componente de carga para el Suspense
 function ObservacionLoading() {
@@ -158,24 +155,16 @@ function NuevaObservacionForm() {
     if (e.target.files && e.target.files.length > 0) {
       const newPhotos = Array.from(e.target.files);
 
-      // Validar tipo de archivo
-      const invalidFiles = newPhotos.filter((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type));
-      if (invalidFiles.length > 0) {
-        setErrors((prev) => ({
-          ...prev,
-          photos: "Solo se permiten archivos JPG, PNG o WEBP",
-        }));
-        return;
-      }
-
-      // Validar tamaño (máximo 5MB por archivo)
-      const oversizedFiles = newPhotos.filter((file) => file.size > 5 * 1024 * 1024);
-      if (oversizedFiles.length > 0) {
-        setErrors((prev) => ({
-          ...prev,
-          photos: "Cada archivo no debe superar los 5MB",
-        }));
-        return;
+      // Validar cada archivo usando la función utilitaria
+      for (const file of newPhotos) {
+        const validation = validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
+        if (!validation.isValid) {
+          setErrors((prev) => ({
+            ...prev,
+            photos: validation.error || "Archivo no válido",
+          }));
+          return;
+        }
       }
 
       // Validar cantidad máxima (3 fotos)
@@ -203,29 +192,9 @@ function NuevaObservacionForm() {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Función de subida usando la utilidad centralizada
   const uploadImageToSupabase = async (file: File): Promise<string | null> => {
-    const filePath = `instalaciones/observaciones/${Date.now()}_${file.name}`;
-
-    const { data, error } = await supabase
-      .storage
-      .from('instalaciones')  // nombre del bucket en Supabase
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: file.type
-      });
-
-    if (error) {
-      console.error("Error al subir imagen:", error.message);
-      return null;
-    }
-
-    const { data: publicUrlData } = supabase
-      .storage
-      .from('instalaciones')
-      .getPublicUrl(filePath);
-
-    return publicUrlData.publicUrl;
+    return await uploadObservationImage(file);
   };
 
   const validateForm = () => {
@@ -271,16 +240,14 @@ function NuevaObservacionForm() {
       const uploadedUrls: string[] = [];
 
       if (photos.length > 0) {
-        for (const photo of photos) {
-          const url = await uploadImageToSupabase(photo);
-          if (url) {
-            uploadedUrls.push(url);
-          }
-        }
+        console.log('Subiendo múltiples imágenes a Supabase...');
+        uploadedUrls = await uploadMultipleObservationImages(photos);
 
         if (uploadedUrls.length < photos.length) {
           throw new Error("No se pudieron subir todas las imágenes");
         }
+
+        console.log('Imágenes subidas exitosamente:', uploadedUrls);
       }      const observacionData = {
         usuarioId: 4, // Aquí deberías obtener el ID del usuario autenticado
         instalacionId: parseInt(formData.facilityId),
