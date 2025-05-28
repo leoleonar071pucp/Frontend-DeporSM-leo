@@ -16,90 +16,16 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  asignarInstalacionesYHorarios,
+  obtenerAsignacionesCoordinador,
+  obtenerDetalleCoordinador,
+  type CoordinadorAsignacionDTO,
+  type HorarioCoordinadorRequestDTO
+} from "@/lib/api-coordinadores"
+import { API_BASE_URL } from "@/lib/config"
 
-// Datos de ejemplo para las instalaciones
-const facilitiesData = [
-  { id: 1, name: "Cancha de Fútbol (Grass)", location: "Parque Juan Pablo II" },
-  { id: 2, name: "Piscina Municipal", location: "Complejo Deportivo Municipal" },
-  { id: 3, name: "Gimnasio Municipal", location: "Complejo Deportivo Municipal" },
-  { id: 4, name: "Pista de Atletismo", location: "Complejo Deportivo Municipal" },
-  { id: 5, name: "Cancha de Tenis", location: "Parque Juan Pablo II" },
-  { id: 6, name: "Cancha de Básquetbol", location: "Parque Juan Pablo II" },
-  { id: 7, name: "Cancha de Voleibol", location: "Complejo Deportivo Municipal" },
-  { id: 8, name: "Sala de Artes Marciales", location: "Gimnasio Municipal" },
-]
 
-// Datos de ejemplo para los coordinadores
-const coordinatorsData = [
-  {
-    id: 1,
-    name: "Carlos Rodríguez",
-    email: "carlos.rodriguez@example.com",
-    phone: "987-654-321",
-    assignedFacilities: [1, 2],
-    status: "activo",
-    lastLogin: "05/04/2025, 09:15",
-    facilitySchedules: {
-      "1": {
-        facilityId: 1,
-        schedules: [
-          { id: 101, day: "lunes", startTime: "08:00", endTime: "12:00" },
-          { id: 102, day: "miercoles", startTime: "08:00", endTime: "12:00" },
-          { id: 103, day: "viernes", startTime: "08:00", endTime: "12:00" }
-        ]
-      },
-      "2": {
-        facilityId: 2,
-        schedules: [
-          { id: 201, day: "martes", startTime: "14:00", endTime: "18:00" },
-          { id: 202, day: "jueves", startTime: "14:00", endTime: "18:00" }
-        ]
-      }
-    }
-  },
-  {
-    id: 2,
-    name: "María López",
-    email: "maria.lopez@example.com",
-    phone: "987-654-322",
-    assignedFacilities: [3, 4],
-    status: "activo",
-    lastLogin: "04/04/2025, 14:30",
-    facilitySchedules: {
-      "3": {
-        facilityId: 3,
-        schedules: [
-          { id: 301, day: "lunes", startTime: "14:00", endTime: "18:00" },
-          { id: 302, day: "miercoles", startTime: "14:00", endTime: "18:00" }
-        ]
-      },
-      "4": {
-        facilityId: 4,
-        schedules: [
-          { id: 401, day: "martes", startTime: "09:00", endTime: "13:00" },
-          { id: 402, day: "jueves", startTime: "09:00", endTime: "13:00" }
-        ]
-      }
-    }
-  },
-  {
-    id: 3,
-    name: "Juan Pérez",
-    email: "juan.perez@example.com",
-    phone: "987-654-323",
-    assignedFacilities: [5],
-    status: "inactivo",
-    lastLogin: "01/04/2025, 10:45",
-    facilitySchedules: {
-      "5": {
-        facilityId: 5,
-        schedules: [
-          { id: 501, day: "sabado", startTime: "09:00", endTime: "14:00" }
-        ]
-      }
-    }
-  },
-]
 
 // Días de la semana
 const weekDays = [
@@ -130,28 +56,43 @@ const timeSlots = [
   "21:00",
 ]
 
-import { use } from "react"
+interface Schedule {
+  id: number;
+  day: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface FacilitySchedule {
+  facilityId: number;
+  schedules: Schedule[];
+}
+
+interface Coordinator {
+  id: number;
+  nombre: string;
+  email: string;
+  telefono: string;
+  activo: boolean;
+  assignedFacilities: number[];
+  facilitySchedules: Record<number, FacilitySchedule>;
+}
 
 export default function EditarCoordinadorPage() {
   const { id } = useParams()
   const { toast } = useToast()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [coordinator, setCoordinator] = useState(null)
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    status: "activo",
-  })
-  const [selectedFacilities, setSelectedFacilities] = useState([])
+  const [coordinator, setCoordinator] = useState<Coordinator | null>(null)
+  const [instalacionesData, setInstalacionesData] = useState<any[]>([])
+  const [selectedFacilities, setSelectedFacilities] = useState<number[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  
+
   // Estado para manejar los horarios por instalación
-  const [facilitySchedules, setFacilitySchedules] = useState({})
-  const [selectedFacility, setSelectedFacility] = useState(null)
+  const [facilitySchedules, setFacilitySchedules] = useState<Record<number, FacilitySchedule>>({})
+  const [selectedFacility, setSelectedFacility] = useState<number | null>(null)
   const [selectedDay, setSelectedDay] = useState("lunes")
-  
+
   // Estado para manejar los horarios temporales que se están agregando
   const [tempSchedule, setTempSchedule] = useState({
     startTime: "08:00",
@@ -159,57 +100,126 @@ export default function EditarCoordinadorPage() {
   })
 
   useEffect(() => {
-    // Simulación de carga de datos
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      const foundCoordinator = coordinatorsData.find((c) => c.id === Number.parseInt(id))
+      if (!id || Array.isArray(id)) return
 
-      if (foundCoordinator) {
-        setCoordinator(foundCoordinator)
-        setFormData({
-          name: foundCoordinator.name,
-          email: foundCoordinator.email,
-          phone: foundCoordinator.phone || "",
-          status: foundCoordinator.status,
-        })
-        setSelectedFacilities(foundCoordinator.assignedFacilities)
-        
-        // Cargar los horarios de las instalaciones si existen
-        if (foundCoordinator.facilitySchedules) {
-          setFacilitySchedules(foundCoordinator.facilitySchedules)
+      try {
+        setIsLoading(true)
+
+        // Cargar detalles del coordinador
+        const coordinadorData = await obtenerDetalleCoordinador(Number(id))
+
+        // Cargar instalaciones disponibles
+        const responseInstalaciones = await fetch(`${API_BASE_URL}/instalaciones`)
+        if (responseInstalaciones.ok) {
+          const instalaciones = await responseInstalaciones.json()
+          setInstalacionesData(instalaciones)
         }
-        
+
+        // Cargar asignaciones del coordinador
+        let asignaciones = []
+        try {
+          console.log("Cargando asignaciones para coordinador ID:", id)
+          asignaciones = await obtenerAsignacionesCoordinador(Number(id))
+          console.log("Asignaciones recibidas del backend:", asignaciones)
+        } catch (error) {
+          console.warn("No se pudieron cargar las asignaciones del coordinador:", error)
+          // Continuar con asignaciones vacías
+        }
+
+        // Procesar los datos del coordinador
+        const coordinator: Coordinator = {
+          id: coordinadorData.id,
+          nombre: coordinadorData.nombre,
+          email: coordinadorData.email,
+          telefono: coordinadorData.telefono,
+          activo: coordinadorData.activo,
+          assignedFacilities: Array.isArray(asignaciones)
+            ? asignaciones
+                .filter((a: any) => a && a.instalacion && a.instalacion.id)
+                .map((a: any) => a.instalacion.id)
+            : [],
+          facilitySchedules: {}
+        }
+
+        // Procesar horarios por instalación
+        const schedulesByFacility: Record<number, FacilitySchedule> = {}
+
+        console.log("Procesando asignaciones:", asignaciones);
+
+        // Validar que asignaciones existe y es un array
+        if (Array.isArray(asignaciones)) {
+          asignaciones.forEach((asignacion: any) => {
+            console.log("Procesando asignación:", asignacion);
+
+            // Validar que la asignación tiene instalación
+            if (asignacion && asignacion.instalacion && asignacion.instalacion.id) {
+              const facilityId = asignacion.instalacion.id
+
+              console.log(`Procesando instalación ID: ${facilityId}`);
+              console.log("Horarios de esta instalación:", asignacion.horarios);
+
+              schedulesByFacility[facilityId] = {
+                facilityId: facilityId,
+                schedules: asignacion.horarios?.map((h: any, index: number) => {
+                  console.log("Procesando horario:", h);
+                  return {
+                    id: index + 1,
+                    day: h.diaSemana,
+                    startTime: h.horaInicio.substring(0, 5), // HH:mm format
+                    endTime: h.horaFin.substring(0, 5)
+                  };
+                }) || []
+              }
+
+              console.log(`Horarios procesados para instalación ${facilityId}:`, schedulesByFacility[facilityId]);
+            }
+          })
+        }
+
+        coordinator.facilitySchedules = schedulesByFacility
+        setCoordinator(coordinator)
+        setSelectedFacilities(coordinator.assignedFacilities)
+        setFacilitySchedules(schedulesByFacility)
+
+        // Debug: Verificar qué se está cargando
+        console.log("Coordinador cargado:", coordinator)
+        console.log("Instalaciones asignadas:", coordinator.assignedFacilities)
+        console.log("Horarios por instalación:", schedulesByFacility)
+
         // Seleccionar la primera instalación por defecto si hay alguna
-        if (foundCoordinator.assignedFacilities.length > 0) {
-          setSelectedFacility(foundCoordinator.assignedFacilities[0])
+        if (coordinator.assignedFacilities.length > 0) {
+          setSelectedFacility(coordinator.assignedFacilities[0])
         }
-      }
 
-      setIsLoading(false)
+      } catch (error) {
+        console.error("Error al cargar datos del coordinador:", error)
+        toast({
+          title: "Error",
+          description: "Error al cargar los datos del coordinador",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     loadData()
-  }, [id])
+  }, [id, toast])
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const toggleFacility = (facilityId) => {
+  const toggleFacility = (facilityId: number) => {
     setSelectedFacilities((prev) =>
       prev.includes(facilityId) ? prev.filter((id) => id !== facilityId) : [...prev, facilityId],
     )
   }
 
-  const handleStatusChange = (checked) => {
-    setFormData((prev) => ({ ...prev, status: checked ? "activo" : "inactivo" }))
-  }
-  
   // Efecto para inicializar los horarios cuando se seleccionan instalaciones
   useEffect(() => {
-    const newFacilitySchedules = {}
-    
+    // Solo ejecutar si no estamos en el proceso de carga inicial
+    if (isLoading) return
+
+    const newFacilitySchedules: Record<number, FacilitySchedule> = {}
+
     selectedFacilities.forEach(facilityId => {
       if (!facilitySchedules[facilityId]) {
         newFacilitySchedules[facilityId] = {
@@ -218,22 +228,26 @@ export default function EditarCoordinadorPage() {
         }
       }
     })
-    
-    setFacilitySchedules(prev => ({
-      ...prev,
-      ...newFacilitySchedules
-    }))
-    
+
+    // Solo agregar nuevas instalaciones, no sobrescribir las existentes
+    if (Object.keys(newFacilitySchedules).length > 0) {
+      setFacilitySchedules(prev => ({
+        ...prev,
+        ...newFacilitySchedules
+      }))
+    }
+
     // Limpiar horarios de instalaciones que ya no están seleccionadas
-    const updatedSchedules = {}
-    Object.keys(facilitySchedules).forEach(id => {
-      if (selectedFacilities.includes(Number(id))) {
-        updatedSchedules[id] = facilitySchedules[id]
-      }
+    setFacilitySchedules(prev => {
+      const updatedSchedules: Record<number, FacilitySchedule> = {}
+      Object.keys(prev).forEach(id => {
+        if (selectedFacilities.includes(Number(id))) {
+          updatedSchedules[Number(id)] = prev[Number(id)]
+        }
+      })
+      return updatedSchedules
     })
-    
-    setFacilitySchedules(updatedSchedules)
-    
+
     // Seleccionar la primera instalación por defecto si hay alguna
     if (selectedFacilities.length > 0 && !selectedFacility) {
       setSelectedFacility(selectedFacilities[0])
@@ -242,17 +256,17 @@ export default function EditarCoordinadorPage() {
     } else if (selectedFacility && !selectedFacilities.includes(selectedFacility)) {
       setSelectedFacility(selectedFacilities[0])
     }
-  }, [selectedFacilities])
-  
-  const handleFacilitySelect = (facilityId) => {
+  }, [selectedFacilities, isLoading])
+
+  const handleFacilitySelect = (facilityId: number) => {
     setSelectedFacility(facilityId)
   }
 
-  const handleDaySelect = (day) => {
+  const handleDaySelect = (day: string) => {
     setSelectedDay(day)
   }
 
-  const updateTempSchedule = (field, value) => {
+  const updateTempSchedule = (field: string, value: string) => {
     setTempSchedule(prev => ({
       ...prev,
       [field]: value
@@ -261,11 +275,11 @@ export default function EditarCoordinadorPage() {
 
   const addScheduleToFacility = () => {
     if (!selectedFacility || !selectedDay) return
-    
+
     // Validar que la hora de inicio sea anterior a la hora de fin
     const startHour = parseInt(tempSchedule.startTime.split(':')[0])
     const endHour = parseInt(tempSchedule.endTime.split(':')[0])
-    
+
     if (startHour >= endHour) {
       toast({
         title: "Error de horario",
@@ -274,23 +288,23 @@ export default function EditarCoordinadorPage() {
       })
       return
     }
-    
+
     // Verificar si hay solapamiento con otros horarios del mismo día en TODAS las instalaciones
     let hasOverlap = false
     let overlapFacilityName = ""
-    
+
     // Primero verificamos solapamiento en la misma instalación
     const existingSchedules = facilitySchedules[selectedFacility]?.schedules || []
     const sameDaySchedules = existingSchedules.filter(s => s.day === selectedDay)
-    
+
     hasOverlap = sameDaySchedules.some(schedule => {
       const existingStart = parseInt(schedule.startTime.split(':')[0])
       const existingEnd = parseInt(schedule.endTime.split(':')[0])
-      
+
       // Verificar solapamiento
       return (startHour < existingEnd && endHour > existingStart)
     })
-    
+
     if (hasOverlap) {
       toast({
         title: "Solapamiento de horarios",
@@ -299,30 +313,30 @@ export default function EditarCoordinadorPage() {
       })
       return
     }
-    
+
     // Ahora verificamos solapamiento con otras instalaciones asignadas al mismo coordinador
     for (const facilityId of selectedFacilities) {
       // Saltamos la instalación actual que ya verificamos
       if (facilityId === selectedFacility) continue
-      
+
       const otherFacilitySchedules = facilitySchedules[facilityId]?.schedules || []
       const otherSameDaySchedules = otherFacilitySchedules.filter(s => s.day === selectedDay)
-      
+
       const overlap = otherSameDaySchedules.some(schedule => {
         const existingStart = parseInt(schedule.startTime.split(':')[0])
         const existingEnd = parseInt(schedule.endTime.split(':')[0])
-        
+
         // Verificar solapamiento
         return (startHour < existingEnd && endHour > existingStart)
       })
-      
+
       if (overlap) {
         hasOverlap = true
-        overlapFacilityName = facilitiesData.find(f => f.id === facilityId)?.name || `ID: ${facilityId}`
+        overlapFacilityName = instalacionesData.find(f => f.id === facilityId)?.nombre || `ID: ${facilityId}`
         break
       }
     }
-    
+
     if (hasOverlap) {
       toast({
         title: "Solapamiento de horarios entre instalaciones",
@@ -331,7 +345,7 @@ export default function EditarCoordinadorPage() {
       })
       return
     }
-    
+
     // Agregar el nuevo horario
     const newSchedule = {
       id: Date.now(), // ID único para facilitar eliminación
@@ -339,7 +353,7 @@ export default function EditarCoordinadorPage() {
       startTime: tempSchedule.startTime,
       endTime: tempSchedule.endTime
     }
-    
+
     setFacilitySchedules(prev => ({
       ...prev,
       [selectedFacility]: {
@@ -349,13 +363,13 @@ export default function EditarCoordinadorPage() {
     }))
   }
 
-  const removeSchedule = (facilityId, scheduleId) => {
+  const removeSchedule = (facilityId: number, scheduleId: number) => {
     setFacilitySchedules(prev => {
       const updatedFacility = {
         ...prev[facilityId],
         schedules: prev[facilityId].schedules.filter(s => s.id !== scheduleId)
       }
-      
+
       return {
         ...prev,
         [facilityId]: updatedFacility
@@ -363,25 +377,17 @@ export default function EditarCoordinadorPage() {
     })
   }
 
-  const filteredFacilities = facilitiesData.filter(
+  const filteredFacilities = instalacionesData.filter(
     (facility) =>
-      facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      facility.location.toLowerCase().includes(searchTerm.toLowerCase()),
+      facility.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      facility.ubicacion.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validación básica
-    if (!formData.name || !formData.email) {
-      toast({
-        title: "Error",
-        description: "Por favor completa todos los campos obligatorios.",
-        variant: "destructive",
-      })
-      return
-    }
-    
+    if (!coordinator) return
+
     if (selectedFacilities.length === 0) {
       toast({
         title: "Error",
@@ -395,13 +401,13 @@ export default function EditarCoordinadorPage() {
     const facilitiesWithoutSchedules = selectedFacilities.filter(facilityId => {
       return !facilitySchedules[facilityId] || facilitySchedules[facilityId].schedules.length === 0
     })
-    
+
     if (facilitiesWithoutSchedules.length > 0) {
       const facilityNames = facilitiesWithoutSchedules.map(id => {
-        const facility = facilitiesData.find(f => f.id === id)
-        return facility ? facility.name : `ID: ${id}`
+        const facility = instalacionesData.find(f => f.id === id)
+        return facility ? facility.nombre : `ID: ${id}`
       }).join(", ")
-      
+
       toast({
         title: "Error",
         description: `Debes asignar al menos un horario a cada instalación. Faltan horarios en: ${facilityNames}`,
@@ -410,20 +416,51 @@ export default function EditarCoordinadorPage() {
       return
     }
 
-    // Aquí iría la lógica para actualizar el coordinador
-    console.log("Actualizando coordinador:", { 
-      ...formData, 
-      facilities: selectedFacilities,
-      facilitySchedules: facilitySchedules
-    })
+    try {
+      setIsLoading(true)
 
-    toast({
-      title: "Coordinador actualizado",
-      description: "El coordinador ha sido actualizado exitosamente.",
-    })
+      // Preparar los horarios en el formato correcto
+      const horarios: HorarioCoordinadorRequestDTO[] = []
 
-    // Redireccionar a la lista de coordinadores
-    router.push("/admin/coordinadores")
+      Object.keys(facilitySchedules).forEach(facilityIdStr => {
+        const facilityId = Number(facilityIdStr)
+        const facilitySchedule = facilitySchedules[facilityId]
+
+        facilitySchedule.schedules.forEach(schedule => {
+          horarios.push({
+            instalacionId: facilityId,
+            diaSemana: schedule.day,
+            horaInicio: schedule.startTime,
+            horaFin: schedule.endTime
+          })
+        })
+      })
+
+      const asignacionData: CoordinadorAsignacionDTO = {
+        coordinadorId: coordinator.id,
+        instalacionIds: selectedFacilities,
+        horarios: horarios
+      }
+
+      await asignarInstalacionesYHorarios(asignacionData)
+
+      toast({
+        title: "Coordinador actualizado",
+        description: "Las instalaciones y horarios han sido actualizados exitosamente.",
+      })
+
+      // Redireccionar a la lista de coordinadores
+      router.push("/admin/coordinadores")
+    } catch (error) {
+      console.error("Error al actualizar coordinador:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al actualizar el coordinador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (isLoading) {
@@ -484,14 +521,14 @@ export default function EditarCoordinadorPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <Label className="text-lg font-medium">{coordinator.name}</Label>
-                    <Badge variant={coordinator.status === "activo" ? "default" : "secondary"}>
-                      {coordinator.status === "activo" ? "Activo" : "Inactivo"}
+                    <Label className="text-lg font-medium">{coordinator.nombre}</Label>
+                    <Badge variant={coordinator.activo ? "default" : "secondary"}>
+                      {coordinator.activo ? "Activo" : "Inactivo"}
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-500">{coordinator.email}</p>
-                  {coordinator.phone && (
-                    <p className="text-sm text-gray-500">{coordinator.phone}</p>
+                  {coordinator.telefono && (
+                    <p className="text-sm text-gray-500">{coordinator.telefono}</p>
                   )}
                 </div>
               </CardContent>
@@ -508,22 +545,22 @@ export default function EditarCoordinadorPage() {
                     <TabsTrigger value="config">Configuración</TabsTrigger>
                     <TabsTrigger value="calendar">Vista Calendario</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="config">
                     {selectedFacilities.length > 0 ? (
                       <div className="space-y-6">
                         <div className="flex flex-wrap gap-2">
                           {selectedFacilities.map((facilityId) => {
-                            const facility = facilitiesData.find((f) => f.id === facilityId)
+                            const facility = instalacionesData.find((f) => f.id === facilityId)
                             const scheduleCount = facilitySchedules[facilityId]?.schedules.length || 0
                             return (
-                              <Badge 
-                                key={facilityId} 
-                                variant={selectedFacility === facilityId ? "default" : "outline"} 
+                              <Badge
+                                key={facilityId}
+                                variant={selectedFacility === facilityId ? "default" : "outline"}
                                 className="cursor-pointer flex items-center gap-1 py-2"
                                 onClick={() => handleFacilitySelect(facilityId)}
                               >
-                                {facility?.name}
+                                {facility?.nombre}
                                 <span className="ml-1 text-xs bg-gray-200 text-gray-800 rounded-full px-1.5">
                                   {scheduleCount}
                                 </span>
@@ -531,11 +568,11 @@ export default function EditarCoordinadorPage() {
                             )
                           })}
                         </div>
-                        
+
                         {selectedFacility && (
                           <div className="border rounded-md p-4">
-                            <h3 className="font-medium mb-4">Configurar horarios para: {facilitiesData.find(f => f.id === selectedFacility)?.name}</h3>
-                            
+                            <h3 className="font-medium mb-4">Configurar horarios para: {instalacionesData.find(f => f.id === selectedFacility)?.nombre}</h3>
+
                             <Tabs defaultValue={selectedDay} onValueChange={handleDaySelect}>
                               <TabsList className="mb-4 flex flex-wrap h-auto">
                                 {weekDays.map((day) => (
@@ -544,7 +581,7 @@ export default function EditarCoordinadorPage() {
                                   </TabsTrigger>
                                 ))}
                               </TabsList>
-                              
+
                               {weekDays.map((day) => (
                                 <TabsContent key={day.id} value={day.id} className="space-y-4">
                                   <div className="flex items-end gap-4">
@@ -588,8 +625,8 @@ export default function EditarCoordinadorPage() {
                                         </SelectContent>
                                       </Select>
                                     </div>
-                                    <Button 
-                                      type="button" 
+                                    <Button
+                                      type="button"
                                       onClick={addScheduleToFacility}
                                       className="mb-0.5"
                                     >
@@ -597,7 +634,7 @@ export default function EditarCoordinadorPage() {
                                       Agregar
                                     </Button>
                                   </div>
-                                  
+
                                   <div className="space-y-2">
                                     <h4 className="text-sm font-medium">Horarios asignados para {day.name}:</h4>
                                     {facilitySchedules[selectedFacility]?.schedules.filter(s => s.day === day.id).length > 0 ? (
@@ -613,9 +650,9 @@ export default function EditarCoordinadorPage() {
                                                   {schedule.startTime} - {schedule.endTime}
                                                 </span>
                                               </div>
-                                              <Button 
-                                                type="button" 
-                                                variant="ghost" 
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
                                                 size="sm"
                                                 onClick={() => removeSchedule(selectedFacility, schedule.id)}
                                                 className="text-red-500 h-8 w-8 p-0"
@@ -642,12 +679,12 @@ export default function EditarCoordinadorPage() {
                       </div>
                     )}
                   </TabsContent>
-                  
+
                   <TabsContent value="calendar">
                     {Object.keys(facilitySchedules).length > 0 ? (
                       <div className="border rounded-md p-4">
                         <h3 className="font-medium mb-4">Horario Semanal del Coordinador</h3>
-                        
+
                         <div className="overflow-x-auto">
                           <table className="w-full border-collapse">
                             <thead>
@@ -662,34 +699,40 @@ export default function EditarCoordinadorPage() {
                               {timeSlots.map((time, index) => {
                                 // Saltamos la última hora porque solo la usamos como hora de fin
                                 if (index === timeSlots.length - 1) return null;
-                                
+
                                 const startHour = parseInt(time.split(':')[0]);
                                 const endHour = parseInt(timeSlots[index + 1].split(':')[0]);
-                                
+
                                 return (
                                   <tr key={time}>
                                     <td className="border p-2 text-center text-sm font-medium">
                                       {time} - {timeSlots[index + 1]}
                                     </td>
-                                    
+
                                     {weekDays.map(day => {
                                       // Buscar todos los horarios que coinciden con este día y hora
-                                      const schedulesInThisSlot = [];
-                                      
-                                      Object.keys(facilitySchedules).forEach(facilityId => {
-                                        const facilityScheduleList = facilitySchedules[facilityId].schedules;
-                                        
-                                        facilityScheduleList.forEach(schedule => {
+                                      const schedulesInThisSlot: Array<{
+                                        facilityId: number;
+                                        facilityName: string;
+                                        startTime: string;
+                                        endTime: string;
+                                      }> = [];
+
+                                      Object.keys(facilitySchedules).forEach(facilityIdStr => {
+                                        const facilityId = Number(facilityIdStr);
+                                        const facilityScheduleList = facilitySchedules[facilityId]?.schedules || [];
+
+                                        facilityScheduleList.forEach((schedule: Schedule) => {
                                           if (schedule.day === day.id) {
                                             const scheduleStart = parseInt(schedule.startTime.split(':')[0]);
                                             const scheduleEnd = parseInt(schedule.endTime.split(':')[0]);
-                                            
+
                                             // Verificar si este horario cae en el slot actual
                                             if (scheduleStart <= startHour && scheduleEnd > startHour) {
-                                              const facility = facilitiesData.find(f => f.id === Number(facilityId));
+                                              const facility = instalacionesData.find(f => f.id === facilityId);
                                               schedulesInThisSlot.push({
-                                                facilityId: Number(facilityId),
-                                                facilityName: facility?.name || `ID: ${facilityId}`,
+                                                facilityId: facilityId,
+                                                facilityName: facility?.nombre || `ID: ${facilityId}`,
                                                 startTime: schedule.startTime,
                                                 endTime: schedule.endTime
                                               });
@@ -697,14 +740,14 @@ export default function EditarCoordinadorPage() {
                                           }
                                         });
                                       });
-                                      
+
                                       return (
                                         <td key={`${day.id}-${time}`} className="border p-1 align-top">
                                           {schedulesInThisSlot.length > 0 ? (
                                             <div className="space-y-1">
                                               {schedulesInThisSlot.map((schedule, idx) => (
-                                                <div 
-                                                  key={idx} 
+                                                <div
+                                                  key={idx}
                                                   className={`text-xs p-1 rounded ${schedulesInThisSlot.length > 1 ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}
                                                 >
                                                   {schedule.facilityName}
@@ -726,7 +769,7 @@ export default function EditarCoordinadorPage() {
                             </tbody>
                           </table>
                         </div>
-                        
+
                         <div className="mt-4 text-sm">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-4 h-4 bg-blue-100 rounded"></div>
@@ -776,8 +819,8 @@ export default function EditarCoordinadorPage() {
                             onCheckedChange={() => toggleFacility(facility.id)}
                           />
                           <Label htmlFor={`facility-${facility.id}`} className="flex-1 cursor-pointer text-sm">
-                            {facility.name}
-                            <span className="block text-xs text-gray-500">{facility.location}</span>
+                            {facility.nombre}
+                            <span className="block text-xs text-gray-500">{facility.ubicacion}</span>
                           </Label>
                         </div>
                       ))}
@@ -794,16 +837,16 @@ export default function EditarCoordinadorPage() {
                   <div className="flex flex-wrap gap-2">
                     {selectedFacilities.length > 0 ? (
                       selectedFacilities.map((facilityId) => {
-                        const facility = facilitiesData.find((f) => f.id === facilityId)
+                        const facility = instalacionesData.find((f) => f.id === facilityId)
                         const scheduleCount = facilitySchedules[facilityId]?.schedules.length || 0
                         return (
-                          <Badge 
-                            key={facilityId} 
-                            variant={selectedFacility === facilityId ? "default" : "secondary"} 
+                          <Badge
+                            key={facilityId}
+                            variant={selectedFacility === facilityId ? "default" : "secondary"}
                             className="flex items-center gap-1 py-1.5 cursor-pointer"
                             onClick={() => handleFacilitySelect(facilityId)}
                           >
-                            {facility?.name}
+                            {facility?.nombre}
                             <span className="ml-1 text-xs bg-gray-200 text-gray-800 rounded-full px-1.5">
                               {scheduleCount}
                             </span>
@@ -837,9 +880,9 @@ export default function EditarCoordinadorPage() {
                 <Button variant="outline" asChild>
                   <Link href="/admin/coordinadores">Cancelar</Link>
                 </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary-light">
+                <Button type="submit" className="bg-primary hover:bg-primary-light" disabled={isLoading}>
                   <Save className="h-4 w-4 mr-2" />
-                  Guardar Cambios
+                  {isLoading ? "Actualizando..." : "Guardar Cambios"}
                 </Button>
               </CardFooter>
             </Card>

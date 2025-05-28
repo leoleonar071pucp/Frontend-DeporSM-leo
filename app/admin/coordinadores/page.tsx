@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Edit, Trash2, MapPin } from "lucide-react"
+import { Search, Plus, Edit, Trash2, MapPin, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -17,14 +17,30 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { API_BASE_URL } from "@/lib/config";
+import { API_BASE_URL } from "@/lib/config"
+import { desactivarCoordinador, activarCoordinador, eliminarAsignacionesCoordinador } from "@/lib/api-coordinadores"
 
+
+interface Coordinator {
+  id: number;
+  nombre: string;
+  email: string;
+  telefono: string;
+  instalacionesAsignadas: string;
+  activo: boolean;
+  ultimoAcceso: string;
+  assignedFacilities: Array<{id: number; name: string}>;
+  status: string;
+  lastLogin: string;
+}
 
 export default function CoordinadoresPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedCoordinator, setSelectedCoordinator] = useState(null)
-  const [coordinators, setCoordinators] = useState([])
+  const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false)
+  const [selectedCoordinator, setSelectedCoordinator] = useState<Coordinator | null>(null)
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -34,16 +50,16 @@ export default function CoordinadoresPage() {
         const data = await response.json()
 
         // Procesar instalacionesAsignadas separadas por comas
-        const processedData = data.map((coordinator) => ({
+        const processedData = data.map((coordinator: any) => ({
           ...coordinator,
           assignedFacilities: coordinator.instalacionesAsignadas
-            ? coordinator.instalacionesAsignadas.split(",").map((name, index) => ({
+            ? coordinator.instalacionesAsignadas.split(",").map((name: string, index: number) => ({
                 id: index,
                 name: name.trim(),
               }))
             : [],
-          status: "activo", // Asumimos que todos están activos inicialmente
-          lastLogin: "-",   // Puedes reemplazar esto cuando tengas lastLogin real
+          status: coordinator.activo ? "activo" : "inactivo",
+          lastLogin: coordinator.ultimoAcceso || "Nunca",
         }))
         setCoordinators(processedData)
       } catch (error) {
@@ -60,29 +76,99 @@ export default function CoordinadoresPage() {
       coordinator.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleDeactivateClick = (coordinator) => {
+  const handleDeactivateClick = (coordinator: Coordinator) => {
     setSelectedCoordinator(coordinator)
     setIsDeleteDialogOpen(true)
   }
 
-  const handleDeactivateConfirm = () => {
-    setCoordinators(prev => prev.map(c => {
-      if (c.id === selectedCoordinator.id) {
-        return {
-          ...c,
-          status: "inactivo",
-          assignedFacilities: [] // Vaciar instalaciones
+  const handleActivateClick = (coordinator: Coordinator) => {
+    setSelectedCoordinator(coordinator)
+    setIsActivateDialogOpen(true)
+  }
+
+  const handleDeactivateConfirm = async () => {
+    if (!selectedCoordinator) return
+
+    try {
+      setIsLoading(true)
+
+      // Primero eliminar las asignaciones
+      await eliminarAsignacionesCoordinador(selectedCoordinator.id)
+
+      // Luego desactivar el coordinador
+      await desactivarCoordinador(selectedCoordinator.id)
+
+      // Actualizar el estado local
+      setCoordinators(prev => prev.map(c => {
+        if (c.id === selectedCoordinator.id) {
+          return {
+            ...c,
+            status: "inactivo",
+            assignedFacilities: [] // Vaciar instalaciones
+          }
         }
-      }
-      return c
-    }))
+        return c
+      }))
 
-    toast({
-      title: "Coordinador desactivado",
-      description: `El coordinador ${selectedCoordinator.nombre} ha sido desactivado exitosamente.`,
-    })
+      toast({
+        title: "Coordinador desactivado",
+        description: `El coordinador ${selectedCoordinator.nombre} ha sido desactivado exitosamente.`,
+      })
 
-    setIsDeleteDialogOpen(false)
+      setIsDeleteDialogOpen(false)
+      setSelectedCoordinator(null)
+    } catch (error) {
+      console.error("Error al desactivar coordinador:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al desactivar coordinador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+      setIsDeleteDialogOpen(false)
+      setSelectedCoordinator(null)
+    }
+  }
+
+  const handleActivateConfirm = async () => {
+    if (!selectedCoordinator) return
+
+    try {
+      setIsLoading(true)
+
+      // Activar el coordinador
+      await activarCoordinador(selectedCoordinator.id)
+
+      // Actualizar el estado local
+      setCoordinators(prev => prev.map(c => {
+        if (c.id === selectedCoordinator.id) {
+          return {
+            ...c,
+            status: "activo",
+            activo: true
+          }
+        }
+        return c
+      }))
+
+      toast({
+        title: "Coordinador activado",
+        description: `El coordinador ${selectedCoordinator.nombre} ha sido activado exitosamente.`,
+      })
+
+    } catch (error) {
+      console.error("Error al activar coordinador:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al activar el coordinador",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+      setIsActivateDialogOpen(false)
+      setSelectedCoordinator(null)
+    }
   }
 
   return (
@@ -156,7 +242,7 @@ export default function CoordinadoresPage() {
                       <TableCell>{coordinator.lastLogin}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {coordinator.status === "activo" && (
+                          {coordinator.status === "activo" ? (
                             <>
                               <Button variant="outline" size="icon" asChild>
                                 <Link href={`/admin/coordinadores/${coordinator.id}`}>
@@ -174,6 +260,16 @@ export default function CoordinadoresPage() {
                                 <span className="sr-only">Desactivar</span>
                               </Button>
                             </>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="text-green-500"
+                              onClick={() => handleActivateClick(coordinator)}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              <span className="sr-only">Activar</span>
+                            </Button>
                           )}
                         </div>
                       </TableCell>
@@ -202,11 +298,31 @@ export default function CoordinadoresPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleDeactivateConfirm}>
-              Desactivar
+            <Button variant="destructive" onClick={handleDeactivateConfirm} disabled={isLoading}>
+              {isLoading ? "Desactivando..." : "Desactivar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isActivateDialogOpen} onOpenChange={setIsActivateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar activación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas activar al coordinador{" "}
+              <span className="font-medium">{selectedCoordinator?.nombre}</span>? Podrá iniciar sesión nuevamente, pero deberás asignarle instalaciones manualmente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsActivateDialogOpen(false)} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleActivateConfirm} disabled={isLoading} className="bg-green-600 hover:bg-green-700">
+              {isLoading ? "Activando..." : "Activar"}
             </Button>
           </DialogFooter>
         </DialogContent>
