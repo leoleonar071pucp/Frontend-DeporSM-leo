@@ -53,6 +53,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const logoutTimestamp = localStorage.getItem('logoutTimestamp');
       const currentTime = Date.now();
 
+      // Limpiar cualquier rol almacenado en sessionStorage al inicio de la verificación
+      const storedRole = sessionStorage.getItem('userRole');
+      if (storedRole) {
+        console.log("Rol almacenado encontrado:", storedRole);
+      }
+
       // Si se cerró sesión hace menos de 10 segundos, no verificar la autenticación
       // Extendemos el tiempo para evitar reconexiones inmediatas después de logout
       if (logoutTimestamp && (currentTime - parseInt(logoutTimestamp)) < 10000) {
@@ -86,21 +92,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Guardar el rol en sessionStorage para acceso rápido y redundancia
         sessionStorage.setItem('userRole', userData.rol.nombre);
+        // También guardar el ID del usuario para verificaciones adicionales
+        sessionStorage.setItem('userId', userData.id.toString());
 
         setUser(userData);
         return userData;
       } else {
         console.log("No hay sesión activa:", response.status);
         setUser(null);
-        // Limpiar el rol almacenado
+        // Limpiar todos los datos almacenados
         sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('userId');
         return null;
       }
     } catch (error) {
       console.error("Error al verificar sesión:", error);
       setUser(null);
-      // Limpiar el rol almacenado
+      // Limpiar todos los datos almacenados
       sessionStorage.removeItem('userRole');
+      sessionStorage.removeItem('userId');
       return null;
     } finally {
       setIsLoading(false);
@@ -150,6 +160,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Guardar timestamp del logout para evitar reconexiones inmediatas
       localStorage.setItem('logoutTimestamp', Date.now().toString());
 
+      // Limpiar todos los datos de sesión almacenados
+      sessionStorage.removeItem('userRole');
+      sessionStorage.removeItem('userId');
+      localStorage.removeItem('redirectPath');
+
       // Limpiar todas las cookies del navegador (enfoque radical pero efectivo)
       document.cookie.split(";").forEach(function(c) {
         document.cookie = c
@@ -165,6 +180,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Aún así, limpiar estado local y redirigir
       setUser(null);
       localStorage.setItem('logoutTimestamp', Date.now().toString());
+
+      // Limpiar todos los datos de sesión almacenados
+      sessionStorage.removeItem('userRole');
+      sessionStorage.removeItem('userId');
+      localStorage.removeItem('redirectPath');
+
       window.location.href = '/';
     } finally {
       setIsLoggingOut(false);
@@ -173,7 +194,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Función para verificar si el usuario tiene un rol específico
   const hasRole = (role: 'vecino' | 'admin' | 'coordinador' | 'superadmin'): boolean => {
-    if (!user || !user.rol) return false;
+    if (!user || !user.rol) {
+      // Como fallback, verificar el rol almacenado en sessionStorage
+      const storedRole = sessionStorage.getItem('userRole');
+      return storedRole === role;
+    }
     return user.rol.nombre === role;
   };
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -26,6 +27,29 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Verificar rol del usuario y redirigir si es necesario
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && user && user.rol) {
+      // Si el usuario es coordinador, redirigir a su dashboard
+      if (user.rol.nombre === 'coordinador') {
+        router.push('/coordinador');
+        return;
+      }
+      // Si el usuario es administrador, redirigir a su dashboard
+      if (user.rol.nombre === 'admin') {
+        router.push('/admin');
+        return;
+      }
+      // Si el usuario es superadmin, redirigir a su dashboard
+      if (user.rol.nombre === 'superadmin') {
+        router.push('/superadmin');
+        return;
+      }
+      // Los vecinos pueden permanecer en la página principal
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   // Cargar instalaciones destacadas desde el backend
   useEffect(() => {
@@ -61,6 +85,18 @@ export default function Home() {
 
     fetchFeaturedFacilities();
   }, []);
+
+  // Mostrar loading mientras se verifica la autenticación
+  if (authLoading) {
+    return (
+      <main className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen flex flex-col">

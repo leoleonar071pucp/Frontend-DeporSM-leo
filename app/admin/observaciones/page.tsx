@@ -326,7 +326,7 @@ export default function ObservacionesPage() {
       case "media":
         return <Badge className="bg-yellow-100 text-yellow-800">Media</Badge>
       case "baja":
-        return <Badge className="bg-green-100 text-green-800">Baja</Badge>
+        return <Badge className="bg-blue-100 text-blue-800">Baja</Badge>
       default:
         return null
     }

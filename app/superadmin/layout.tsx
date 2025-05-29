@@ -107,9 +107,20 @@ export default function SuperAdminLayout({
   useEffect(() => {
     if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
       if (!isAuthenticated) {
+        console.log("Usuario no autenticado, redirigiendo a login");
         router.push('/login?redirect=/superadmin'); // Redirigir a login si no está autenticado
       } else if (!hasRole('superadmin')) {
         console.warn("Acceso denegado: Usuario no es superadministrador.");
+        console.log("Rol actual del usuario:", user?.rol?.nombre);
+
+        // Forzar logout si el usuario no tiene el rol correcto
+        // Esto previene que usuarios con otros roles accedan a rutas de superadmin
+        if (user?.rol?.nombre && user.rol.nombre !== 'superadmin') {
+          console.log("Forzando logout por acceso no autorizado a superadmin");
+          logout();
+          return;
+        }
+
         // Redirigir según el rol del usuario
         if (hasRole('vecino')) {
           router.push('/');
@@ -122,7 +133,7 @@ export default function SuperAdminLayout({
         }
       }
     }
-  }, [isAuthenticated, isAuthLoading, hasRole, router]);
+  }, [isAuthenticated, isAuthLoading, hasRole, router, user, logout]);
 
   // --- Renderizado Condicional por Carga/Autenticación/Rol ---
   if (isAuthLoading || !isAuthenticated || !hasRole('superadmin')) {

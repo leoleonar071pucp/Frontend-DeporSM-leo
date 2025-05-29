@@ -94,9 +94,20 @@ export default function AdminLayout({
   useEffect(() => {
     if (!isAuthLoading) { // Solo verificar después de que la carga inicial de Auth termine
       if (!isAuthenticated) {
+        console.log("Usuario no autenticado, redirigiendo a login");
         router.push('/login?redirect=/admin'); // Redirigir a login si no está autenticado
       } else if (!hasRole('admin')) {
         console.warn("Acceso denegado: Usuario no es administrador.");
+        console.log("Rol actual del usuario:", user?.rol?.nombre);
+
+        // Forzar logout si el usuario no tiene el rol correcto
+        // Esto previene que usuarios con otros roles accedan a rutas de admin
+        if (user?.rol?.nombre && user.rol.nombre !== 'admin') {
+          console.log("Forzando logout por acceso no autorizado a admin");
+          logout();
+          return;
+        }
+
         // Redirigir según el rol del usuario
         if (hasRole('vecino')) {
           router.push('/');
@@ -109,7 +120,7 @@ export default function AdminLayout({
         }
       }
     }
-  }, [isAuthenticated, isAuthLoading, hasRole, router]);
+  }, [isAuthenticated, isAuthLoading, hasRole, router, user, logout]);
 
   // --- Renderizado Condicional por Carga/Autenticación/Rol ---
   // Muestra un loader mientras carga o si el usuario no es admin (antes de redirigir)

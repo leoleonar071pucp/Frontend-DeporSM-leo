@@ -338,9 +338,42 @@ export default function EditarCoordinadorPage() {
     }
 
     if (hasOverlap) {
+      // Encontrar el horario específico que está causando el conflicto
+      let conflictDetails = ""
+
+      if (overlapFacilityName) {
+        // Buscar el horario específico que está en conflicto
+        const conflictingFacilityId = instalacionesData.find(f => f.nombre === overlapFacilityName)?.id
+        if (conflictingFacilityId) {
+          const conflictingSchedules = facilitySchedules[conflictingFacilityId]?.schedules || []
+          const conflictingSchedule = conflictingSchedules.find(s => {
+            if (s.day !== selectedDay) return false
+            const existingStart = parseInt(s.startTime.split(':')[0])
+            const existingEnd = parseInt(s.endTime.split(':')[0])
+            return (startHour < existingEnd && endHour > existingStart)
+          })
+
+          if (conflictingSchedule) {
+            conflictDetails = `\n\nHorario en conflicto:\n• ${overlapFacilityName}: ${conflictingSchedule.day} de ${conflictingSchedule.startTime} a ${conflictingSchedule.endTime}\n• Nuevo horario: ${selectedDay} de ${tempSchedule.startTime} a ${tempSchedule.endTime}`
+          }
+        }
+      } else {
+        // Conflicto en la misma instalación
+        const sameFacilityName = instalacionesData.find(f => f.id === selectedFacility)?.nombre || `ID: ${selectedFacility}`
+        const conflictingSchedule = sameDaySchedules.find(schedule => {
+          const existingStart = parseInt(schedule.startTime.split(':')[0])
+          const existingEnd = parseInt(schedule.endTime.split(':')[0])
+          return (startHour < existingEnd && endHour > existingStart)
+        })
+
+        if (conflictingSchedule) {
+          conflictDetails = `\n\nHorario en conflicto:\n• ${sameFacilityName}: ${conflictingSchedule.day} de ${conflictingSchedule.startTime} a ${conflictingSchedule.endTime}\n• Nuevo horario: ${selectedDay} de ${tempSchedule.startTime} a ${tempSchedule.endTime}`
+        }
+      }
+
       toast({
-        title: "Solapamiento de horarios entre instalaciones",
-        description: `El horario se solapa con otro ya asignado para este día en la instalación: ${overlapFacilityName}. Un coordinador no puede estar en dos instalaciones al mismo tiempo.`,
+        title: "Conflicto de horarios detectado",
+        description: `No se puede asignar este horario porque se solapa con otro ya existente.${conflictDetails}\n\nPor favor, elige un horario diferente o modifica el horario existente.`,
         variant: "destructive",
       })
       return
