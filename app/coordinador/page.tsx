@@ -9,6 +9,8 @@ import Link from "next/link"
 import { Progress } from "@/components/ui/progress"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { createLocalDate } from "@/lib/date-utils"
+import { useAuth } from "@/context/AuthContext"
 
 // Definir tipos para los datos
 type Visit = {
@@ -68,7 +70,7 @@ const dashboardData: DashboardData = {
       scheduleId: 103,
       facilityName: "Cancha de Fútbol (Grass)",
       location: "Parque Juan Pablo II",
-      date: "2025-04-19", 
+      date: "2025-04-19",
       scheduledTime: "08:00",
       scheduledEndTime: "12:00",
       status: "pendiente",
@@ -79,7 +81,7 @@ const dashboardData: DashboardData = {
       scheduleId: 102,
       facilityName: "Piscina Municipal",
       location: "Complejo Deportivo Municipal",
-      date: "2025-04-18", 
+      date: "2025-04-18",
       scheduledTime: "14:00",
       scheduledEndTime: "18:00",
       status: "pendiente",
@@ -90,7 +92,7 @@ const dashboardData: DashboardData = {
       scheduleId: 101,
       facilityName: "Cancha de Fútbol (Grass)",
       location: "Parque Juan Pablo II",
-      date: "2025-04-17", 
+      date: "2025-04-17",
       scheduledTime: "08:00",
       scheduledEndTime: "12:00",
       status: "pendiente",
@@ -143,17 +145,67 @@ const dashboardData: DashboardData = {
 export default function CoordinadorDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [data, setData] = useState<DashboardData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
-    // Simulación de carga de datos
     const loadData = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setData(dashboardData)
-      setIsLoading(false)
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Obtener el ID del coordinador desde el contexto de autenticación
+        const coordinadorId = user?.id ? parseInt(user.id) : 4 // Fallback para pruebas
+
+        console.log(`Cargando dashboard para coordinador ID: ${coordinadorId}`)
+
+        const response = await fetch(`/api/coordinador/dashboard/${coordinadorId}`, {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error(`Error al cargar dashboard: ${response.status}`)
+        }
+
+        const backendData = await response.json()
+
+        if (backendData.error) {
+          throw new Error(backendData.error)
+        }
+
+        console.log('Dashboard data received:', backendData)
+
+        // Transformar los datos del backend al formato esperado por el frontend
+        const transformedData: DashboardData = {
+          stats: {
+            totalFacilities: backendData.stats?.totalFacilities || 0,
+            pendingVisits: backendData.stats?.pendingVisits || 0,
+            completedVisits: backendData.stats?.completedVisits || 0,
+            pendingObservations: backendData.stats?.pendingObservations || 0,
+          },
+          upcomingVisits: backendData.upcomingVisits || [],
+          recentObservations: backendData.recentObservations || [],
+          attendanceStats: {
+            onTime: backendData.attendanceStats?.onTime || 0,
+            late: backendData.attendanceStats?.late || 0,
+            missed: backendData.attendanceStats?.missed || 0,
+            total: backendData.attendanceStats?.total || 0,
+          }
+        }
+
+        setData(transformedData)
+      } catch (error) {
+        console.error('Error loading dashboard data:', error)
+        setError(error instanceof Error ? error.message : 'Error desconocido')
+        // Usar datos de fallback en caso de error
+        setData(dashboardData)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     loadData()
-  }, [])
+  }, [user?.id])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -185,7 +237,7 @@ export default function CoordinadorDashboard() {
     }
   }
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -193,11 +245,47 @@ export default function CoordinadorDashboard() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">Bienvenido al panel de control del coordinador</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center p-8">
+              <div className="text-center">
+                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Error al cargar datos</h3>
+                <p className="text-gray-500 mb-4">{error}</p>
+                <Button onClick={() => window.location.reload()}>
+                  Reintentar
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">No se pudieron cargar los datos</p>
+        </div>
+      </div>
+    )
+  }
+
   // Calcular porcentajes para las estadísticas de asistencia
   const attendancePercentages = {
-    onTime: (data.attendanceStats.onTime / data.attendanceStats.total) * 100,
-    late: (data.attendanceStats.late / data.attendanceStats.total) * 100,
-    missed: (data.attendanceStats.missed / data.attendanceStats.total) * 100,
+    onTime: data.attendanceStats.total > 0 ? (data.attendanceStats.onTime / data.attendanceStats.total) * 100 : 0,
+    late: data.attendanceStats.total > 0 ? (data.attendanceStats.late / data.attendanceStats.total) * 100 : 0,
+    missed: data.attendanceStats.total > 0 ? (data.attendanceStats.missed / data.attendanceStats.total) * 100 : 0,
   }
 
   return (
@@ -301,7 +389,7 @@ export default function CoordinadorDashboard() {
                         <Calendar className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-gray-500">Fecha</p>
-                          <p className="font-medium">{format(new Date(visit.date), "dd/MM/yyyy")}</p>
+                          <p className="font-medium">{format(createLocalDate(visit.date), "dd/MM/yyyy")}</p>
                         </div>
                       </div>
                     </div>
@@ -352,15 +440,15 @@ export default function CoordinadorDashboard() {
                         {getPriorityBadge(observation.priority)}
                       </div>
                     </div>
-                    
+
                     <p className="text-gray-700 mb-3">{observation.description}</p>
-                    
+
                     <div className="flex flex-wrap gap-4">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <div>
                           <p className="text-sm text-gray-500">Fecha</p>
-                          <p>{format(new Date(observation.date), "dd/MM/yyyy")}</p>
+                          <p>{format(createLocalDate(observation.date), "dd/MM/yyyy")}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -451,9 +539,12 @@ export default function CoordinadorDashboard() {
             <div className="flex items-center justify-between mt-2">
               <span className="font-medium">Tasa de asistencia:</span>
               <span className="font-bold text-green-600">
-                {Math.round(
-                  ((data.attendanceStats.onTime + data.attendanceStats.late) / data.attendanceStats.total) * 100,
-                )}
+                {data.attendanceStats.total > 0
+                  ? Math.round(
+                      ((data.attendanceStats.onTime + data.attendanceStats.late) / data.attendanceStats.total) * 100,
+                    )
+                  : 0
+                }
                 %
               </span>
             </div>
@@ -466,27 +557,6 @@ export default function CoordinadorDashboard() {
               Ver estadísticas detalladas
             </Link>
           </Button>        </CardFooter>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Horario Semanal</CardTitle>
-          <CardDescription>Consulta tu horario de trabajo asignado</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center p-4 space-y-4">
-            <Clock className="h-12 w-12 text-primary" />
-            <h3 className="text-lg font-medium text-center">Consulta tus horarios de supervisión</h3>
-            <p className="text-gray-500 text-center">Revisa tu programación semanal para cada instalación asignada.</p>
-          </div>        </CardContent>
-        <CardFooter>
-          <Button className="w-full bg-primary hover:bg-primary-light" asChild>
-            <Link href="/coordinador/asistencia/calendario">
-              <Calendar className="h-4 w-4 mr-2" />
-              Ver mi horario semanal
-            </Link>
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   )

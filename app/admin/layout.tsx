@@ -273,9 +273,11 @@ export default function AdminLayout({
                       <Avatar>
                         <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || "Admin"} />
                         <AvatarFallback className="bg-primary-light text-white">
-                          {user && user.nombre ?
-                            user.nombre.split(' ').reduce((acc, n) => acc + (n[0] || ''), '').toUpperCase()
-                            : "AD"}
+                          {user?.nombre && user?.apellidos
+                            ? (user.nombre.charAt(0) + user.apellidos.charAt(0)).toUpperCase()
+                            : user?.nombre
+                              ? user.nombre.charAt(0).toUpperCase()
+                              : "AD"}
                         </AvatarFallback>
                       </Avatar>
                     </Button>

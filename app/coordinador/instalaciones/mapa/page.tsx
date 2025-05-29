@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, MapPin, Navigation } from "lucide-react"
 import Link from "next/link"
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api"
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Circle } from "@react-google-maps/api"
 import { useSearchParams } from "next/navigation"
 
 // Actualizamos la interfaz para que coincida con la estructura del backend
@@ -23,6 +23,9 @@ interface Instalacion {
   imagenUrl: string;
   precio: number;
   activo: boolean;
+  latitud?: number;
+  longitud?: number;
+  radioValidacion?: number;
 
   // Propiedades adicionales para el frontend
   status?: 'disponible' | 'mantenimiento';
@@ -39,10 +42,10 @@ const mapContainerStyle = {
   height: "500px",
 }
 
-// Establecer una ubicación predeterminada (centro de Lima, Perú)
+// Establecer una ubicación predeterminada (San Miguel, Lima, Perú)
 const center = {
-  lat: -12.046374,
-  lng: -77.042793,
+  lat: -12.0776,
+  lng: -77.0919,
 }
 
 export default function MapaInstalaciones() {
@@ -81,57 +84,74 @@ export default function MapaInstalaciones() {
         }
 
         const data = await response.json();
-          // Obtener datos completos para cada instalación        // Procesar los datos para agregar propiedades adicionales para el frontend
-        const processedData = await Promise.all(data.map(async (instalacionBasica: any) => {
-          try {
-            const detailResponse = await fetch(`${API_BASE_URL}/instalaciones/${instalacionBasica.id}`);
+        console.log("Datos recibidos del backend:", data);
 
-            if (!detailResponse.ok) {
-              throw new Error(`Error al obtener detalles de instalación: ${detailResponse.status}`);
-            }
+        // Obtener horarios del coordinador para verificar visitas programadas hoy
+        let horariosCoordinador: any[] = [];
+        try {
+          const horariosResponse = await fetch(`${API_BASE_URL}/horarios-coordinador/coordinador/${user.id}`, {
+            credentials: 'include'
+          });
 
-            const detailData = await detailResponse.json();
-
-            // Generar coordenadas aleatorias cerca de Lima (simulado)
-            // En un entorno real, estas coordenadas vendrían del backend
-            const latOffset = (Math.random() - 0.5) * 0.02;
-            const lngOffset = (Math.random() - 0.5) * 0.02;
-
-            // Agregar propiedades adicionales para el frontend
-            return {
-              ...detailData,
-              status: detailData.activo ? 'disponible' : 'mantenimiento',
-              maintenanceStatus: detailData.activo ? 'none' : 'in-progress',
-              coordinates: {
-                lat: center.lat + latOffset,
-                lng: center.lng + lngOffset
-              },
-              isToday: Math.random() > 0.7 // Simulación para demo
-            };
-          } catch (error) {
-            console.error(`Error al obtener detalles para instalación ${instalacionBasica.id}:`, error);
-            // Datos básicos en caso de error
-            const latOffset = (Math.random() - 0.5) * 0.02;
-            const lngOffset = (Math.random() - 0.5) * 0.02;
-
-            return {
-              ...instalacionBasica,
-              status: 'disponible',
-              maintenanceStatus: 'none',
-              coordinates: {
-                lat: center.lat + latOffset,
-                lng: center.lng + lngOffset
-              },
-              isToday: false
-            };
+          if (horariosResponse.ok) {
+            horariosCoordinador = await horariosResponse.json();
           }
-        }));
+        } catch (error) {
+          console.warn("Error al obtener horarios del coordinador:", error);
+        }
+
+        // Obtener fecha actual en zona horaria de Perú/Lima
+        const now = new Date();
+        const peruTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Lima"}));
+        const currentDay = peruTime.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const todayDayName = dayNames[currentDay];
+
+        // Procesar los datos para agregar propiedades adicionales para el frontend
+        const processedData = data.map((instalacion: any) => {
+          // Usar coordenadas reales de la base de datos si están disponibles
+          let coordinates = null;
+          if (instalacion.latitud && instalacion.longitud) {
+            coordinates = {
+              lat: instalacion.latitud,
+              lng: instalacion.longitud
+            };
+            console.log(`Instalación ${instalacion.nombre} tiene coordenadas: ${instalacion.latitud}, ${instalacion.longitud}`);
+          } else {
+            // Fallback: generar coordenadas cerca del centro de San Miguel
+            const latOffset = (Math.random() - 0.5) * 0.01;
+            const lngOffset = (Math.random() - 0.5) * 0.01;
+            coordinates = {
+              lat: center.lat + latOffset,
+              lng: center.lng + lngOffset
+            };
+            console.log(`Instalación ${instalacion.nombre} sin coordenadas, usando fallback`);
+          }
+
+          // Verificar si tiene visitas programadas hoy
+          const horariosParaEstaInstalacion = horariosCoordinador.filter((h: any) => h.instalacionId === instalacion.id);
+          const horarioHoy = horariosParaEstaInstalacion.find((h: any) => h.diaSemana.toLowerCase() === todayDayName.toLowerCase());
+          const hasVisitToday = !!horarioHoy;
+
+          // Agregar propiedades adicionales para el frontend
+          return {
+            ...instalacion,
+            // Agregar campos que podrían faltar
+            descripcion: instalacion.descripcion || '',
+            horario: instalacion.horario || '',
+            precio: instalacion.precio || 0,
+            status: instalacion.activo ? 'disponible' : 'mantenimiento',
+            maintenanceStatus: instalacion.activo ? 'none' : 'in-progress',
+            coordinates,
+            isToday: hasVisitToday
+          };
+        });
 
         setFacilities(processedData);
 
         // Si hay un ID seleccionado en los parámetros de consulta, encontrar y seleccionar esa instalación
         if (selectedId) {
-          const selected = processedData.find(facility => facility.id === parseInt(selectedId));
+          const selected = processedData.find((facility: Instalacion) => facility.id === parseInt(selectedId));
           if (selected) {
             setSelectedFacility(selected);
           }
@@ -246,12 +266,25 @@ export default function MapaInstalaciones() {
                 {/* Marcadores de instalaciones */}
                 {facilities.map((facility) => (
                   facility.coordinates && (
-                    <Marker
-                      key={facility.id}
-                      position={facility.coordinates}
-                      icon={getMarkerIcon(facility.status, facility.maintenanceStatus)}
-                      onClick={() => setSelectedFacility(facility)}
-                    />
+                    <div key={facility.id}>
+                      <Marker
+                        position={facility.coordinates}
+                        icon={getMarkerIcon(facility.status, facility.maintenanceStatus)}
+                        onClick={() => setSelectedFacility(facility)}
+                      />
+                      {/* Círculo de validación para registro de asistencia */}
+                      <Circle
+                        center={facility.coordinates}
+                        radius={facility.radioValidacion || 100}
+                        options={{
+                          fillColor: facility.maintenanceStatus === "in-progress" ? "#ef4444" : "#22c55e",
+                          fillOpacity: 0.1,
+                          strokeColor: facility.maintenanceStatus === "in-progress" ? "#ef4444" : "#22c55e",
+                          strokeOpacity: 0.8,
+                          strokeWeight: 2,
+                        }}
+                      />
+                    </div>
                   )
                 ))}
 
@@ -277,24 +310,31 @@ export default function MapaInstalaciones() {
                     <div className="p-2">
                       <h3 className="font-bold mb-1">{selectedFacility.nombre}</h3>
                       <p className="text-sm text-gray-600 mb-2">{selectedFacility.ubicacion}</p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Radio de validación: {selectedFacility.radioValidacion || 100}m
+                      </p>
                       {getStatusBadge(selectedFacility.status, selectedFacility.maintenanceStatus)}
                     </div>
                   </InfoWindow>
                 )}
               </GoogleMap>
 
-              <div className="flex flex-wrap gap-4 mt-4 justify-center">
+              <div className="grid grid-cols-2 gap-2 mt-4 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-sm">Disponible</span>
+                  <span>Disponible</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span className="text-sm">En mantenimiento</span>
+                  <span>En mantenimiento</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
-                  <span className="text-sm">Tu ubicación</span>
+                  <span>Tu ubicación</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500 opacity-20 border border-green-500"></div>
+                  <span>Radio de validación</span>
                 </div>
               </div>
             </div>
@@ -311,21 +351,29 @@ export default function MapaInstalaciones() {
                 <div className="p-4 border rounded-lg">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold">{selectedFacility.nombre}</h3>
-                    {getStatusBadge(selectedFacility.status, selectedFacility.maintenanceStatus)}
+                    <div className="flex flex-col items-end gap-1">
+                      {getStatusBadge(selectedFacility.status, selectedFacility.maintenanceStatus)}
+                      {selectedFacility.isToday && (
+                        <Badge className="bg-blue-100 text-blue-800">Visita Hoy</Badge>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm text-gray-500 mb-2">{selectedFacility.ubicacion}</p>
-                  {selectedFacility.isToday && (
-                    <Badge className="bg-blue-100 text-blue-800">Visita programada hoy</Badge>
-                  )}
-                  <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
+                  <div className="text-xs text-gray-400 mb-4">
+                    <p>Coordenadas: {selectedFacility.latitud?.toFixed(6)}, {selectedFacility.longitud?.toFixed(6)}</p>
+                    <p>Radio de validación: {selectedFacility.radioValidacion || 100}m</p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" size="sm" className="w-full" asChild>
                       <Link href={`/coordinador/instalaciones/${selectedFacility.id}`}>Ver Detalles</Link>
                     </Button>
-                    <Button size="sm" className="flex-1 bg-primary hover:bg-primary-light" asChild>
-                      <Link href={`/coordinador/asistencia/registrar?facilityId=${selectedFacility.id}`}>
-                        Registrar Asistencia
-                      </Link>
-                    </Button>
+                    {selectedFacility.isToday && (
+                      <Button size="sm" className="w-full bg-primary hover:bg-primary-light" asChild>
+                        <Link href="/coordinador/asistencia/programadas">
+                          Registrar Asistencia
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <Button variant="outline" className="w-full" onClick={() => setSelectedFacility(null)}>
@@ -356,15 +404,17 @@ export default function MapaInstalaciones() {
                     >
                       <div className="flex justify-between items-start">
                         <h3 className="font-medium">{facility.nombre}</h3>
-                        {getStatusBadge(facility.status, facility.maintenanceStatus)}
+                        <div className="flex flex-col items-end gap-1">
+                          {getStatusBadge(facility.status, facility.maintenanceStatus)}
+                          {facility.isToday && (
+                            <Badge className="bg-blue-100 text-blue-800">Visita Hoy</Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
                         <MapPin className="h-4 w-4" />
                         <span>{facility.ubicacion}</span>
                       </div>
-                      {facility.isToday && (
-                        <Badge className="bg-blue-100 text-blue-800 mt-2">Visita programada hoy</Badge>
-                      )}
                     </div>
                   ))}
               </div>

@@ -15,7 +15,17 @@ interface AttendanceDetailsDialogProps {
 
 export function AttendanceDetailsDialog({ open, onClose, attendance }: AttendanceDetailsDialogProps) {
   if (!attendance) return null
-  
+
+  // Función para formatear horarios (eliminar segundos si existen)
+  const formatTime = (time: string | null): string => {
+    if (!time) return "No registrada";
+    // Si el tiempo incluye segundos (HH:MM:SS), extraer solo HH:MM
+    if (time.includes(":") && time.length > 5) {
+      return time.substring(0, 5);
+    }
+    return time;
+  }
+
   const getStatusBadge = (status: AttendanceRecord["status"] | AttendanceRecord["departureStatus"]) => {
     switch (status) {
       case "a-tiempo":
@@ -40,7 +50,7 @@ export function AttendanceDetailsDialog({ open, onClose, attendance }: Attendanc
             Información completa del registro de asistencia
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {/* Información de la instalación */}
           <Card>
@@ -56,7 +66,7 @@ export function AttendanceDetailsDialog({ open, onClose, attendance }: Attendanc
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Fecha y hora programada */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
@@ -67,12 +77,12 @@ export function AttendanceDetailsDialog({ open, onClose, attendance }: Attendanc
                   </div>
                   <div>
                     <h4 className="text-sm font-medium">Fecha</h4>
-                    <p className="text-sm">{format(new Date(attendance.date), "dd/MM/yyyy")}</p>
+                    <p className="text-sm">{format(new Date(attendance.date + 'T12:00:00'), "dd/MM/yyyy")}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -82,23 +92,23 @@ export function AttendanceDetailsDialog({ open, onClose, attendance }: Attendanc
                   <div>
                     <h4 className="text-sm font-medium">Horario Programado</h4>
                     <p className="text-sm">
-                      {attendance.scheduledTime} - {attendance.scheduledEndTime || "No definido"}
+                      {formatTime(attendance.scheduledTime)} - {formatTime(attendance.scheduledEndTime)}
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
-          
+
           {/* Registro de entrada */}
           <Card>
             <CardContent className="p-4 space-y-3">
               <h3 className="font-medium">Registro de Entrada</h3>
-              
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <h4 className="text-xs font-medium text-muted-foreground">Hora de Entrada</h4>
-                  <p className="text-sm">{attendance.arrivalTime || "No registrada"}</p>
+                  <p className="text-sm">{formatTime(attendance.arrivalTime)}</p>
                 </div>
                 <div>
                   <h4 className="text-xs font-medium text-muted-foreground">Estado</h4>
@@ -107,16 +117,16 @@ export function AttendanceDetailsDialog({ open, onClose, attendance }: Attendanc
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Registro de salida */}
           <Card>
             <CardContent className="p-4 space-y-3">
               <h3 className="font-medium">Registro de Salida</h3>
-              
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <h4 className="text-xs font-medium text-muted-foreground">Hora de Salida</h4>
-                  <p className="text-sm">{attendance.departureTime || "No registrada"}</p>
+                  <p className="text-sm">{formatTime(attendance.departureTime)}</p>
                 </div>
                 <div>
                   <h4 className="text-xs font-medium text-muted-foreground">Estado</h4>

@@ -107,12 +107,13 @@ export default function Notificaciones() {
     );
   }
 
-  // Actualizar notificaciones al cambiar de pestaña
+  // Solo cargar notificaciones una vez al montar el componente
+  // No es necesario recargar al cambiar de pestaña ya que solo filtramos los datos existentes
   useEffect(() => {
     if (isAuthenticated) {
       refreshNotifications();
     }
-  }, [activeTab, isAuthenticated, refreshNotifications]);
+  }, [isAuthenticated, refreshNotifications]);
 
   // --- Renderizado Principal (Solo si está autenticado) ---
   return (

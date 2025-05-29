@@ -171,7 +171,11 @@ export default function PerfilAdmin() {
                   <AvatarImage src={user.avatarUrl} alt={`@${profileData.nombre}`} />
                 )}
                 <AvatarFallback className="text-4xl bg-[#0cb7f2] text-white">
-                  {user?.nombre?.charAt(0).toUpperCase() || "U"}
+                  {user?.nombre && user?.apellidos
+                    ? (user.nombre.charAt(0) + user.apellidos.charAt(0)).toUpperCase()
+                    : user?.nombre
+                      ? user.nombre.charAt(0).toUpperCase()
+                      : "AD"}
                 </AvatarFallback>
               </Avatar>
               <h2 className="text-xl font-bold">

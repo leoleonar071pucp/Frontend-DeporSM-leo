@@ -28,4 +28,8 @@ export interface ScheduledVisit {
   isRegistered?: boolean // Flag to indicate if attendance has already been registered
   registrationDate?: string // Date when attendance was registered
   registrationExpires?: string // Date when registration expires (2 days after registration)
+  // Coordenadas para validación de ubicación
+  latitud?: number
+  longitud?: number
+  radioValidacion?: number
 }

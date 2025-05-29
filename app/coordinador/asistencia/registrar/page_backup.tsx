@@ -75,12 +75,12 @@ const validateScheduledVisit = (visit: Visit, schedules: CoordinatorSchedule[]):
   if (!visit || !schedules || schedules.length === 0) {
     return false;
   }
-  
+
   const visitDate = new Date(visit.date);
   // Obtenemos el nombre del día en español
   const dayOfWeek = visitDate.toLocaleDateString('es-ES', { weekday: 'long' }).toLowerCase();
-  
-  return schedules.some(schedule => 
+
+  return schedules.some(schedule =>
     schedule.instalacionId === visit.facilityId &&
     schedule.diaSemana.toLowerCase() === dayOfWeek &&
     schedule.horaInicio === visit.scheduledTime &&
@@ -113,7 +113,7 @@ export default function RegistrarAsistenciaPage() {
     const loadData = async () => {
       try {
         setIsLoading(true)
-        
+
         // Validar que tengamos tanto el ID de visita como el ID de instalación
         if (!visitId || !facilityId) {
           toast({
@@ -138,11 +138,11 @@ export default function RegistrarAsistenciaPage() {
 
         const numVisitId = Number(visitId)
         const numFacilityId = Number(facilityId)
-        
+
         // 1. Cargar los horarios del coordinador para la instalación específica
         const coordinatorSchedules = await getCoordinatorSchedules(user.id, numFacilityId)
         setSchedules(coordinatorSchedules)
-        
+
         if (coordinatorSchedules.length === 0) {
           toast({
             title: "Advertencia",
@@ -150,17 +150,17 @@ export default function RegistrarAsistenciaPage() {
             variant: "default",
           })
         }
-        
+
         // 2. Cargar los datos de la visita específica
-        const foundVisit = await getScheduledVisit(numVisitId, numFacilityId)
-        
+        const foundVisit = await getScheduledVisit(numVisitId, numFacilityId, user.id)
+
         if (foundVisit) {
           setVisit(foundVisit as Visit)
-          
+
           // Validar la correspondencia entre visita y horarios
           if (coordinatorSchedules.length > 0) {
             const isValidVisit = validateScheduledVisit(foundVisit as Visit, coordinatorSchedules)
-            
+
             if (!isValidVisit) {
               toast({
                 title: "Advertencia",
@@ -227,36 +227,36 @@ export default function RegistrarAsistenciaPage() {
         try {
           // Usar el servicio para validar la ubicación
           const isValid = await validateLocation(userCoords, visit.facilityId)
-          
+
           setIsLocationValid(isValid)
-          
+
           if (isValid) {
             // Actualizar automáticamente la hora de llegada
             const now = new Date()
             const hours = now.getHours().toString().padStart(2, "0")
             const minutes = now.getMinutes().toString().padStart(2, "0")
             const currentTime = `${hours}:${minutes}`
-            
+
             // Calcular el estado de asistencia basado en horario
             const attendanceStatus = determineAttendanceStatus(
-              visit.scheduledTime, 
-              visit.scheduledEndTime, 
+              visit.scheduledTime,
+              visit.scheduledEndTime,
               currentTime
             )
-            
+
             setFormData((prev) => ({
               ...prev,
               arrivalTime: currentTime,
               status: attendanceStatus
             }))
-            
+
             // Mostrar mensaje según el estado calculado
             const statusMessages = {
               "a-tiempo": "Llegada registrada a tiempo.",
               "tarde": "Llegada registrada con retraso.",
               "no-asistio": "Llegada registrada después del horario programado."
             }
-            
+
             toast({
               title: "Ubicación validada",
               description: statusMessages[attendanceStatus] || "Ubicación verificada correctamente.",
@@ -306,7 +306,7 @@ export default function RegistrarAsistenciaPage() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },    )
   }
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -350,7 +350,7 @@ export default function RegistrarAsistenciaPage() {
     }
 
     setIsSaving(true);
-    
+
     try {
       // Construir el objeto de registro de asistencia
       const attendanceRecord = {

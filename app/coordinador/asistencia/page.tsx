@@ -22,13 +22,15 @@ import { AttendanceRecord } from "./types"
 import { DepartureDialog } from "./components/departure-dialog"
 import { AttendanceDetailsDialog } from "./components/attendance-details-dialog"
 import { toast } from "@/components/ui/use-toast"
+import { useAuth } from "@/context/AuthContext"
+import { getAttendanceHistory, recordDeparture } from "./services"
 
 // Simulamos datos de asistencia que vendrían del backend
 // Estos datos representarían lo que obtendríamos de un endpoint de asistencia
 const mockFetchAsistencias = async () => {
   // Simulamos un delay como si fuera una llamada real a un API
   await new Promise(resolve => setTimeout(resolve, 800));
-  
+
   return [
     {
       id: 1,
@@ -134,15 +136,16 @@ const mockFetchAsistencias = async () => {
 const mockUpdateAsistencia = async (id: number, data: any) => {
   // Simulamos un delay como si fuera una llamada real a un API
   await new Promise(resolve => setTimeout(resolve, 800));
-  
+
   // En una implementación real, esto sería una llamada PUT al backend
   console.log("Actualizando asistencia:", id, data);
-  
+
   // Simulamos una respuesta exitosa
   return { success: true, message: "Registro actualizado correctamente" };
 };
 
 export default function AsistenciaPage() {
+  const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
@@ -151,19 +154,30 @@ export default function AsistenciaPage() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [selectedAttendance, setSelectedAttendance] = useState<AttendanceRecord | null>(null)
 
-  // Cargamos los datos de asistencia desde nuestro mock API
+  // Función para formatear horarios (eliminar segundos si existen)
+  const formatTime = (time: string | null): string => {
+    if (!time) return "-";
+    // Si el tiempo incluye segundos (HH:MM:SS), extraer solo HH:MM
+    if (time.includes(":") && time.length > 5) {
+      return time.substring(0, 5);
+    }
+    return time;
+  }
+
+  // Cargamos los datos de asistencia desde el backend
   useEffect(() => {
     const loadData = async () => {
+      if (!user || !user.id) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
-        
-        // Simulamos obtener los datos desde el backend
-        // En una implementación real, esto sería:
-        // const response = await fetch('${API_BASE_URL}/asistencias');
-        // const data = await response.json();
-        
-        const data = await mockFetchAsistencias();
-        
+
+        // Obtener datos reales del backend para el coordinador específico
+        const data = await getAttendanceHistory(user.id);
+
         setAttendanceData(data);
         setFilteredData(data);
       } catch (error) {
@@ -179,7 +193,7 @@ export default function AsistenciaPage() {
     };
 
     loadData();
-  }, [])
+  }, [user])
 
   // Aplicamos los filtros cuando cambia la consulta de búsqueda
   useEffect(() => {
@@ -229,7 +243,7 @@ export default function AsistenciaPage() {
     setSelectedAttendance(attendance)
     setDepartureDialogOpen(true)
   }
-  
+
   const openDetailsDialog = (attendance: AttendanceRecord) => {
     setSelectedAttendance(attendance)
     setDetailsDialogOpen(true)
@@ -238,51 +252,31 @@ export default function AsistenciaPage() {
   const handleRegisterDeparture = async (
     attendanceId: number,
     departureTime: string,
-    location: GeolocationCoordinates,
+    departureStatus: "a-tiempo" | "tarde",
+    location: { lat: number; lng: number },
     notes: string
   ) => {
     try {
-      // En una implementación real, aquí llamaríamos a una API para registrar la salida
-      // const response = await fetch(`${API_BASE_URL}/asistencias/${attendanceId}`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ departureTime, location, notes })
-      // });
-      
-      // Usamos la función mock para simular la llamada a la API
-      const result = await mockUpdateAsistencia(attendanceId, { 
-        departureTime, 
-        location, 
-        notes 
+      console.log(`[DEBUG] Registrando salida para asistencia ID: ${attendanceId}`);
+      console.log(`[DEBUG] Datos de salida:`, {
+        departureTime,
+        departureStatus,
+        location,
+        notes
       });
-      
+
+      // Usar la función real del servicio para registrar la salida
+      const result = await recordDeparture(attendanceId, departureTime, departureStatus, location, notes);
+
       if (result.success) {
         // Actualizar los datos en el estado local para reflejar la salida registrada
         setAttendanceData((prevData) =>
           prevData.map((item) => {
             if (item.id === attendanceId) {
-              // Determinar el estado de salida basado en la hora programada de fin y la hora actual
-              const scheduledEnd = item.scheduledEndTime || "00:00"
-              let departureStatus: "a-tiempo" | "tarde" = "a-tiempo"
-              
-              // Convertir las horas a minutos para comparar fácilmente
-              const schedEndParts = scheduledEnd.split(":")
-              const schedEndMinutes = parseInt(schedEndParts[0]) * 60 + parseInt(schedEndParts[1])
-              
-              const depParts = departureTime.split(":")
-              const depMinutes = parseInt(depParts[0]) * 60 + parseInt(depParts[1])
-              
-              // Si la diferencia es mayor a 5 minutos después, es tarde
-              if (depMinutes - schedEndMinutes > 5) {
-                departureStatus = "tarde"
-              } else {
-                departureStatus = "a-tiempo"
-              }
-              
               return {
                 ...item,
                 departureTime,
-                departureStatus,
+                departureStatus, // Usar el estado calculado en el diálogo
                 departureNotes: notes,
               }
             }
@@ -292,16 +286,19 @@ export default function AsistenciaPage() {
 
         toast({
           title: "Salida registrada",
-          description: `Has registrado tu salida a las ${departureTime}`,
+          description: `Has registrado tu salida a las ${departureTime} (${departureStatus === "a-tiempo" ? "A tiempo" : "Tarde"})`,
         });
+
+        // Los datos ya se actualizaron en el estado local arriba, no necesitamos recargar
       } else {
-        throw new Error("Error al actualizar el registro");
+        throw new Error(result.message || "Error al actualizar el registro");
       }
     } catch (error) {
       console.error("Error al registrar salida:", error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo registrar la salida";
       toast({
         title: "Error",
-        description: "No se pudo registrar la salida",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -420,20 +417,20 @@ export default function AsistenciaPage() {
                           <p className="text-sm text-gray-500">{item.location}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{format(new Date(item.date), "dd/MM/yyyy")}</TableCell>
+                      <TableCell>{format(new Date(item.date + 'T12:00:00'), "dd/MM/yyyy")}</TableCell>
                       <TableCell>
-                        {item.scheduledTime} - {item.scheduledEndTime || "N/A"}
+                        {formatTime(item.scheduledTime)} - {formatTime(item.scheduledEndTime)}
                       </TableCell>
-                      <TableCell>{item.arrivalTime || "-"}</TableCell>
+                      <TableCell>{formatTime(item.arrivalTime)}</TableCell>
                       <TableCell>{getStatusBadge(item.status)}</TableCell>
-                      <TableCell>{item.departureTime || "-"}</TableCell>
+                      <TableCell>{formatTime(item.departureTime)}</TableCell>
                       <TableCell>
-                        {item.status === "no-asistio" 
-                          ? getStatusBadge("no-asistio") 
-                          : (item.arrivalTime && !item.departureTime 
-                              ? getStatusBadge("pendiente") 
-                              : item.departureStatus 
-                                ? getStatusBadge(item.departureStatus) 
+                        {item.status === "no-asistio"
+                          ? getStatusBadge("no-asistio")
+                          : (item.arrivalTime && !item.departureTime
+                              ? getStatusBadge("pendiente")
+                              : item.departureStatus
+                                ? getStatusBadge(item.departureStatus)
                                 : "-"
                             )
                         }
@@ -441,18 +438,18 @@ export default function AsistenciaPage() {
                       <TableCell>
                         <div className="flex space-x-2">
                           {item.arrivalTime && !item.departureTime && (
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
+                            <Button
+                              size="sm"
+                              variant="outline"
                               className="h-8 border-2 border-primary"
                               onClick={() => openDepartureDialog(item)}
                             >
                               Registrar Salida
                             </Button>
                           )}
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             className="h-8 border-2 border-gray-300"
                             onClick={() => openDetailsDialog(item)}
                           >
@@ -482,7 +479,7 @@ export default function AsistenciaPage() {
         attendance={selectedAttendance}
         onRegisterDeparture={handleRegisterDeparture}
       />
-      
+
       {/* Diálogo de detalles de asistencia */}
       <AttendanceDetailsDialog
         open={detailsDialogOpen}

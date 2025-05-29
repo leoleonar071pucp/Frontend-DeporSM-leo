@@ -6,101 +6,139 @@ import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { toast } from "@/components/ui/use-toast"
 import { AttendanceRecord } from "../types"
-import { MapPin, Loader2 } from "lucide-react"
+import { Loader2, MapPin, Navigation, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
+import { Coordinates, getCurrentLocation, calculateDistance } from "@/lib/google-maps"
+import { API_BASE_URL } from "@/lib/config"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface DepartureDialogProps {
   open: boolean
   onClose: () => void
   attendance: AttendanceRecord | null
-  onRegisterDeparture: (attendanceId: number, departureTime: string, location: GeolocationCoordinates, notes: string) => void
+  onRegisterDeparture: (attendanceId: number, departureTime: string, departureStatus: "a-tiempo" | "tarde", location: Coordinates, notes: string) => void
 }
 
 export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture }: DepartureDialogProps) {
-  const [location, setLocation] = useState<GeolocationCoordinates | null>(null)
+  const [userLocation, setUserLocation] = useState<Coordinates | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [locationError, setLocationError] = useState("")
   const [isLocationValid, setIsLocationValid] = useState(false)
+  const [facilityCoordinates, setFacilityCoordinates] = useState<Coordinates | null>(null)
+  const [facilityRadius, setFacilityRadius] = useState<number>(100)
   const [isCheckingLocation, setIsCheckingLocation] = useState(false)
-  
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [distance, setDistance] = useState<number | null>(null)
+
+  // Función para formatear horarios (eliminar segundos si existen)
+  const formatTime = (time: string | null): string => {
+    if (!time) return "No definida";
+    // Si el tiempo incluye segundos (HH:MM:SS), extraer solo HH:MM
+    if (time.includes(":") && time.length > 5) {
+      return time.substring(0, 5);
+    }
+    return time;
+  }
+
   // Resetear el estado cuando se abre o cierra el diálogo
   useEffect(() => {
     if (open) {
-      setLocation(null)
-      setLocationError("")
+      setUserLocation(null)
       setIsLocationValid(false)
+      setFacilityCoordinates(null)
+      setFacilityRadius(100)
+      setIsCheckingLocation(false)
+      setLocationError(null)
+      setDistance(null)
     }
   }, [open])
-  
-  const checkLocation = () => {
+
+  // Obtener coordenadas de la instalación cuando se abre el diálogo
+  useEffect(() => {
+    const fetchFacilityCoordinates = async () => {
+      if (open && attendance?.facilityId) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/instalaciones/${attendance.facilityId}`, {
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            const facilityData = await response.json();
+            if (facilityData.latitud && facilityData.longitud) {
+              setFacilityCoordinates({
+                lat: facilityData.latitud,
+                lng: facilityData.longitud
+              });
+              setFacilityRadius(facilityData.radioValidacion || 100);
+              console.log(`[DEBUG] Coordenadas obtenidas para instalación ${attendance.facilityId}:`, {
+                lat: facilityData.latitud,
+                lng: facilityData.longitud,
+                radio: facilityData.radioValidacion || 100
+              });
+            } else {
+              console.warn(`[DEBUG] Instalación ${attendance.facilityId} no tiene coordenadas configuradas`);
+            }
+          } else {
+            console.error(`[DEBUG] Error al obtener instalación: ${response.status}`);
+          }
+        } catch (error) {
+          console.error("Error al obtener coordenadas de la instalación:", error);
+        }
+      }
+    };
+
+    fetchFacilityCoordinates();
+  }, [open, attendance?.facilityId])
+
+  // Función para validar ubicación de salida (debe estar FUERA del radio)
+  const handleGetLocation = async () => {
     setIsCheckingLocation(true)
-    setLocationError("")
-    
-    if (!navigator.geolocation) {
-      setLocationError("Tu navegador no soporta geolocalización")
-      setIsCheckingLocation(false)
-      return
-    }
-    
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation(position.coords)
-        
-        // Simulación de validación de ubicación 
-        // En producción, aquí se verificaría si las coordenadas están dentro del rango permitido
-        const isValid = Math.random() > 0.3 // 70% de probabilidad de éxito para la demo
-        
-        setIsLocationValid(isValid)
-        setIsCheckingLocation(false)
-        
-        if (isValid) {
+    setLocationError(null)
+
+    try {
+      const location = await getCurrentLocation({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 30000
+      })
+
+      setUserLocation(location)
+
+      if (facilityCoordinates) {
+        // Calcular distancia
+        const distanceToFacility = calculateDistance(location, facilityCoordinates)
+        setDistance(Math.round(distanceToFacility))
+
+        // Para salidas: válido si está FUERA del radio
+        const isOutsideFacility = distanceToFacility > facilityRadius
+        setIsLocationValid(isOutsideFacility)
+
+        if (isOutsideFacility) {
           toast({
-            title: "Ubicación validada",
-            description: "Tu ubicación ha sido validada correctamente."
+            title: "Ubicación validada para salida",
+            description: `Has salido de la instalación. Distancia: ${Math.round(distanceToFacility)}m del centro.`
           })
         } else {
           toast({
-            title: "Ubicación no válida",
-            description: "Debes estar físicamente en la instalación para registrar tu salida.",
+            title: "Aún dentro de la instalación",
+            description: `Estás a ${Math.round(distanceToFacility)}m del centro. Debes salir del radio de ${facilityRadius}m para registrar tu salida.`,
             variant: "destructive"
           })
         }
-      },
-      (error) => {
-        console.error("Error getting geolocation:", error)
-        
-        let errorMessage = "Error desconocido al obtener la ubicación."
-        
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = "Permiso de geolocalización denegado."
-            break
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = "La información de ubicación no está disponible."
-            break
-          case error.TIMEOUT:
-            errorMessage = "La solicitud de ubicación ha expirado."
-            break
-        }
-        
-        setLocationError(errorMessage)
-        setIsCheckingLocation(false)
-        
-        toast({
-          title: "Error de ubicación",
-          description: errorMessage,
-          variant: "destructive"
-        })
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    )
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al obtener ubicación'
+      setLocationError(errorMessage)
+      console.error('Error obteniendo ubicación:', error)
+    } finally {
+      setIsCheckingLocation(false)
+    }
   }
-  
+
   const handleRegisterDeparture = () => {
     if (!attendance) return
-    
-    if (!isLocationValid || !location) {
+
+    if (!isLocationValid || !userLocation) {
       toast({
         title: "Ubicación no validada",
         description: "Debes validar tu ubicación antes de registrar la salida.",
@@ -108,20 +146,44 @@ export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture
       })
       return
     }
-    
+
     setIsLoading(true)
-    
+
     // Obtener la hora actual formateada
     const currentTime = format(new Date(), "HH:mm")
-    
+
+    // Determinar el estado de salida basado en la lógica especificada
+    const departureStatus = determineDepartureStatus(attendance.scheduledEndTime, currentTime)
+
     // Llamar a la función para registrar la salida
-    onRegisterDeparture(attendance.id, currentTime, location, "")
-    
+    onRegisterDeparture(attendance.id, currentTime, departureStatus, userLocation, "")
+
     // Cerrar el diálogo después de procesar
     setIsLoading(false)
     onClose()
   }
-  
+
+  // Función para determinar el estado de salida
+  const determineDepartureStatus = (scheduledEndTime: string | null, departureTime: string): "a-tiempo" | "tarde" => {
+    if (!scheduledEndTime) return "a-tiempo"
+
+    // Convertir las horas a minutos para comparar fácilmente
+    const [schedHours, schedMinutes] = scheduledEndTime.split(":").map(Number)
+    const [depHours, depMinutes] = departureTime.split(":").map(Number)
+
+    const schedTotalMinutes = schedHours * 60 + schedMinutes
+    const depTotalMinutes = depHours * 60 + depMinutes
+
+    // Si sale más de 10 minutos después de la hora programada, es tarde
+    const diffMinutes = depTotalMinutes - schedTotalMinutes
+
+    if (diffMinutes > 10) {
+      return "tarde"
+    } else {
+      return "a-tiempo"
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -131,99 +193,137 @@ export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture
             Confirma tu salida de la instalación. Esto registrará tu ubicación y hora actual.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           {attendance && (
             <div className="grid gap-2">
               <h3 className="font-medium">{attendance.facilityName}</h3>
               <p className="text-sm text-gray-500">{attendance.location}</p>
               <p className="text-sm">
-                Hora programada: {attendance.scheduledTime} - {attendance.scheduledEndTime || "No definida"}
+                Hora programada: {formatTime(attendance.scheduledTime)} - {formatTime(attendance.scheduledEndTime)}
               </p>
+              <div className="text-xs text-gray-500 mt-1 space-y-1">
+                <p>• Hasta 10 minutos después: A tiempo</p>
+                <p>• Más de 10 minutos después: Tarde</p>
+              </div>
             </div>
           )}
-          
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="text-sm font-medium mb-2">Validación de Ubicación</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Debes validar tu ubicación para confirmar que estás saliendo de la instalación
-              </p>
-              
-              {!isLocationValid ? (
-                <div className="bg-blue-50 p-4 rounded-md mb-4">
-                  <h4 className="text-sm font-medium text-blue-800 mb-1">Importante</h4>
-                  <p className="text-sm text-blue-700">
-                    El sistema validará tu ubicación mediante geolocalización.
-                  </p>
-                </div>
-              ) : null}
-              
-              {location && isLocationValid ? (
-                <div className="grid gap-2 mb-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <MapPin className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Ubicación actual</h4>
-                      <p className="text-sm text-gray-500">
-                        Latitud: {location.latitude.toFixed(6)}, Longitud: {location.longitude.toFixed(6)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-              
-              {locationError ? (
-                <div className="bg-red-100 text-red-800 p-3 rounded-md text-sm mb-4">
-                  <p className="font-medium">Error:</p>
-                  <p>{locationError}</p>
-                </div>
-              ) : null}
-              
-              <div className="flex flex-col items-center gap-3">
-                {!isLocationValid ? (
+
+          {/* Validación de ubicación personalizada para salidas */}
+          {attendance && facilityCoordinates ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Validación de Salida
+                </CardTitle>
+                <CardDescription>
+                  Verifica que hayas salido de {attendance.facilityName} para registrar tu salida
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-3">
                   <Button
-                    type="button"
-                    className="w-full"
-                    onClick={checkLocation}
+                    onClick={handleGetLocation}
                     disabled={isCheckingLocation}
+                    className="flex items-center gap-2"
                   >
-                    {isCheckingLocation ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Validando...
-                      </>
-                    ) : (
-                      <>
-                        <MapPin className="mr-2 h-4 w-4" />
-                        Validar Ubicación
-                      </>
-                    )}
+                    <Navigation className="h-4 w-4" />
+                    {isCheckingLocation ? 'Verificando ubicación...' : 'Verificar que he salido'}
                   </Button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-green-100 text-green-800">Ubicación validada</Badge>
+
+                  {locationError && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        {locationError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {userLocation && distance !== null && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium">Tu ubicación actual:</p>
+                          <p className="text-xs text-gray-600">
+                            Lat: {userLocation.lat.toFixed(6)}, Lng: {userLocation.lng.toFixed(6)}
+                          </p>
+                        </div>
+                        {isLocationValid ? (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-500" />
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          {isLocationValid ? (
+                            <Badge className="bg-green-100 text-green-800">
+                              Fuera de la instalación
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-800">
+                              Dentro de la instalación
+                            </Badge>
+                          )}
+                          <span className="text-sm text-gray-600">
+                            Distancia: {distance}m
+                          </span>
+                        </div>
+
+                        <Alert variant={isLocationValid ? "default" : "destructive"}>
+                          <AlertDescription>
+                            {isLocationValid
+                              ? `Ubicación válida. Estás a ${distance} metros del centro de la instalación, fuera del radio de ${facilityRadius}m.`
+                              : `Ubicación inválida. Estás a ${distance} metros del centro. Debes salir del radio de ${facilityRadius} metros para registrar tu salida.`
+                            }
+                          </AlertDescription>
+                        </Alert>
+
+                        {!isLocationValid && (
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <p>• Debes estar fuera de {facilityRadius} metros de la instalación</p>
+                            <p>• Asegúrate de que el GPS esté activado</p>
+                            <p>• Sal completamente de las instalaciones antes de registrar</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <p>• Se requiere permiso de geolocalización</p>
+                    <p>• La validación usa GPS de alta precisión</p>
+                    <p>• Debes estar FUERA del radio de {facilityRadius} metros</p>
                   </div>
-                )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            /* Mensaje de carga mientras se obtienen las coordenadas */
+            attendance && (
+              <div className="text-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Obteniendo información de la instalación...</p>
               </div>
-            </CardContent>
-          </Card>
+            )
+          )}
         </div>
-        
+
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={onClose} 
+          <Button
+            variant="outline"
+            onClick={onClose}
             className="sm:flex-1"
             disabled={isLoading || isCheckingLocation}
           >
             Cancelar
           </Button>
-          <Button 
-            onClick={handleRegisterDeparture} 
-            disabled={isLoading || !isLocationValid || isCheckingLocation}
+          <Button
+            onClick={handleRegisterDeparture}
+            disabled={isLoading || isCheckingLocation || !isLocationValid}
             className="bg-primary hover:bg-primary/90 sm:flex-1"
           >
             {isLoading ? (

@@ -22,7 +22,6 @@ interface Coordinador {
   telefono: string;
   instalacionesAsignadas?: string[];
   activo: boolean;
-  ultimoAcceso?: string;
 }
 
 export default function CoordinadoresPage() {
@@ -47,11 +46,11 @@ export default function CoordinadoresPage() {
       if (!response.ok) {
         throw new Error('Error al cargar los coordinadores')
       }
-      
+
       const data = await response.json();
       const processedData = data.map((coordinador: any) => ({
         ...coordinador,
-        instalacionesAsignadas: coordinador.instalacionesAsignadas 
+        instalacionesAsignadas: coordinador.instalacionesAsignadas
           ? typeof coordinador.instalacionesAsignadas === 'string'
             ? coordinador.instalacionesAsignadas.split(',').map((s: string) => s.trim())
             : Array.isArray(coordinador.instalacionesAsignadas)
@@ -81,12 +80,12 @@ export default function CoordinadoresPage() {
     const searchMatch =
       coordinador.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       coordinador.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (coordinador.instalacionesAsignadas || []).some(facility => 
+      (coordinador.instalacionesAsignadas || []).some(facility =>
         facility.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
     // Filtro de estado
-    const statusMatch = statusFilter === "all" || 
+    const statusMatch = statusFilter === "all" ||
       (statusFilter === "activo" ? coordinador.activo : !coordinador.activo);
 
     return searchMatch && statusMatch;
@@ -109,7 +108,7 @@ export default function CoordinadoresPage() {
 
   const handleDeleteConfirm = async () => {
     if (!selectedCoordinador) return;
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/usuarios/coordinadores/${selectedCoordinador.id}/desactivar`, {
         method: 'PUT',
@@ -118,14 +117,14 @@ export default function CoordinadoresPage() {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const error = await response.text();
         throw new Error(error || 'Error al desactivar el coordinador');
       }
-      
+
       await fetchCoordinadores(); // Recargar la lista después de desactivar
-      
+
       toast({
         title: "Coordinador desactivado",
         description: `El coordinador ${selectedCoordinador.nombre} ha sido desactivado con éxito.`,
@@ -138,13 +137,13 @@ export default function CoordinadoresPage() {
         variant: "destructive",
       });
     }
-    
+
     setIsDeleteDialogOpen(false);
   };
 
   const handleRestoreConfirm = async () => {
     if (!selectedCoordinador) return;
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/usuarios/coordinadores/${selectedCoordinador.id}/activar`, {
         method: 'PUT',
@@ -153,14 +152,14 @@ export default function CoordinadoresPage() {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const error = await response.text();
         throw new Error(error || 'Error al activar el coordinador');
       }
-      
+
       await fetchCoordinadores(); // Recargar la lista después de activar
-      
+
       toast({
         title: "Coordinador activado",
         description: `El coordinador ${selectedCoordinador.nombre} ha sido activado nuevamente.`,
@@ -173,7 +172,7 @@ export default function CoordinadoresPage() {
         variant: "destructive",
       });
     }
-    
+
     setIsRestoreDialogOpen(false);
   };
 
@@ -238,14 +237,13 @@ export default function CoordinadoresPage() {
                   <TableHead>Coordinador</TableHead>
                   <TableHead>Instalaciones Asignadas</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Último Acceso</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCoordinadores.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center h-32">
+                    <TableCell colSpan={4} className="text-center h-32">
                       No se encontraron coordinadores
                     </TableCell>
                   </TableRow>
@@ -278,9 +276,6 @@ export default function CoordinadoresPage() {
                         ) : (
                           <Badge className="bg-gray-100 text-gray-800">Inactivo</Badge>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {coordinador.ultimoAcceso || '-'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -330,7 +325,7 @@ export default function CoordinadoresPage() {
           <DialogHeader>
             <DialogTitle>Desactivar Coordinador</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que quieres desactivar a {selectedCoordinador?.nombre}? 
+              ¿Estás seguro de que quieres desactivar a {selectedCoordinador?.nombre}?
               Esta acción impedirá que el coordinador acceda al sistema.
             </DialogDescription>
           </DialogHeader>
@@ -350,7 +345,7 @@ export default function CoordinadoresPage() {
           <DialogHeader>
             <DialogTitle>Activar Coordinador</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que quieres activar a {selectedCoordinador?.nombre}? 
+              ¿Estás seguro de que quieres activar a {selectedCoordinador?.nombre}?
               Esta acción permitirá que el coordinador vuelva a acceder al sistema.
             </DialogDescription>
           </DialogHeader>
@@ -410,10 +405,7 @@ export default function CoordinadoresPage() {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Último acceso</Label>
-                <div className="col-span-3">{selectedCoordinador.ultimoAcceso || "-"}</div>
-              </div>
+
             </div>
           )}
         </DialogContent>

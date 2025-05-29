@@ -28,10 +28,8 @@ interface Coordinator {
   telefono: string;
   instalacionesAsignadas: string;
   activo: boolean;
-  ultimoAcceso: string;
   assignedFacilities: Array<{id: number; name: string}>;
   status: string;
-  lastLogin: string;
 }
 
 export default function CoordinadoresPage() {
@@ -59,7 +57,6 @@ export default function CoordinadoresPage() {
               }))
             : [],
           status: coordinator.activo ? "activo" : "inactivo",
-          lastLogin: coordinator.ultimoAcceso || "Nunca",
         }))
         setCoordinators(processedData)
       } catch (error) {
@@ -211,7 +208,6 @@ export default function CoordinadoresPage() {
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Instalaciones Asignadas</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Último Acceso</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -239,7 +235,6 @@ export default function CoordinadoresPage() {
                           <Badge className="bg-gray-100 text-gray-800">Inactivo</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{coordinator.lastLogin}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           {coordinator.status === "activo" ? (

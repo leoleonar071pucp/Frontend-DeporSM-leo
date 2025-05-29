@@ -49,7 +49,7 @@ interface Facility {
 const typeMapping = {
   "Piscina": ["piscina"],
   "Cancha de Fútbol (Grass)": ["cancha-futbol-grass", "cancha de fútbol (grass)"],
-  "Cancha de Fútbol (Losa)": ["cancha-futbol-loza", "cancha de fútbol (losa)"],
+  "Cancha de Fútbol (Loza)": ["cancha-futbol-loza", "cancha de fútbol (loza)"],
   "Gimnasio": ["gimnasio"],
   "Pista de Atletismo": ["pista-atletismo", "pista de atletismo"]
 };

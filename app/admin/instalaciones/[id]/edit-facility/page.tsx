@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, CheckCircle } from "lucide-react"
+import { Loader2, CheckCircle, Upload, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { createClient } from '@supabase/supabase-js'
+import { Separator } from "@/components/ui/separator"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Select,
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { API_BASE_URL } from "@/lib/config";
-
+import AddressGeocoder from "@/components/forms/AddressGeocoder"
 
 // Estructura para representar un horario disponible
 interface AvailableTimeSlot {
@@ -33,10 +34,13 @@ interface AvailableTimeSlot {
 const typeMapping: Record<string, string> = {
   "Piscina": "piscina",
   "Cancha de Fútbol (Grass)": "cancha-futbol-grass",
-  "Cancha de Fútbol (Losa)": "cancha-futbol-loza",
+  "Cancha de Fútbol (Loza)": "cancha-futbol-loza",
   "Gimnasio": "gimnasio",
   "Pista de Atletismo": "pista-atletismo"
 };
+
+// Días de la semana para el formulario
+const diasSemana = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
 
 import { uploadInstallationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage"
 
@@ -90,7 +94,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
           } else if (tipoLower.includes("cancha") && (tipoLower.includes("grass") || tipoLower.includes("gras"))) {
             displayType = "Cancha de Fútbol (Grass)";
           } else if (tipoLower.includes("cancha") && (tipoLower.includes("loza") || tipoLower.includes("losa"))) {
-            displayType = "Cancha de Fútbol (Losa)";
+            displayType = "Cancha de Fútbol (Loza)";
           } else if (tipoLower.includes("gimnasio")) {
             displayType = "Gimnasio";
           } else if (tipoLower.includes("pista") || tipoLower.includes("atletismo")) {
@@ -119,10 +123,15 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
           capacity: data.capacidad.toString(),
           contactNumber: data.contactoNumero || "",
           imagenUrl: data.imagenUrl,
+          coordinates: (data.latitud && data.longitud) ? {
+            lat: data.latitud,
+            lng: data.longitud
+          } : null,
+          radioValidacion: data.radioValidacion ? data.radioValidacion.toString() : "100",
 
-          features: "",
-          amenities: "",
-          rules: "",
+          features: Array.isArray(data.caracteristicas) ? data.caracteristicas.join('\n') : "",
+          amenities: Array.isArray(data.comodidades) ? data.comodidades.join('\n') : "",
+          rules: Array.isArray(data.reglas) ? data.reglas.join('\n') : "",
           availableTimeSlots: []
         }
 
@@ -169,6 +178,51 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, [name]: value }))
+    if (errors[name]) {
+      const newErrors = { ...errors }
+      delete newErrors[name]
+      setErrors(newErrors)
+    }
+  }
+
+  const handleTimeSlotChange = (field: string, value: string) => {
+    setNewTimeSlot(prev => ({ ...prev, [field]: value }))
+  }
+
+  const addTimeSlot = () => {
+    // Validar que no haya solapamiento de horarios
+    const overlapping = (formData.availableTimeSlots || []).some(
+      (slot: AvailableTimeSlot) =>
+        slot.dayOfWeek === newTimeSlot.dayOfWeek &&
+        ((newTimeSlot.startTime >= slot.startTime && newTimeSlot.startTime < slot.endTime) ||
+         (newTimeSlot.endTime > slot.startTime && newTimeSlot.endTime <= slot.endTime) ||
+         (slot.startTime >= newTimeSlot.startTime && slot.startTime < newTimeSlot.endTime))
+    );
+
+    if (overlapping) {
+      setFormError("Este horario se solapa con otro ya definido para el mismo día");
+      return;
+    }
+
+    // Añadir el nuevo horario
+    setFormData((prev: any) => ({
+      ...prev,
+      availableTimeSlots: [...(prev.availableTimeSlots || []), {...newTimeSlot}]
+    }));
+
+    // Limpiar error si existe
+    if (formError) setFormError(null);
+  }
+
+  const removeTimeSlot = (index: number) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      availableTimeSlots: prev.availableTimeSlots.filter((_: any, i: number) => i !== index)
+    }))
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]
@@ -196,7 +250,13 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     if (!formData.name.trim()) newErrors.name = "El nombre es obligatorio"
-    if (!formData.location.trim()) newErrors.location = "La ubicación es obligatoria"
+    if (!formData.location.trim()) newErrors.location = "La dirección es obligatoria"
+    if (!formData.coordinates) newErrors.coordinates = "Las coordenadas son requeridas. Usa el geocodificador para obtenerlas."
+    if (!formData.radioValidacion.trim()) {
+      newErrors.radioValidacion = "El radio de validación es requerido"
+    } else if (isNaN(Number(formData.radioValidacion)) || Number(formData.radioValidacion) < 50 || Number(formData.radioValidacion) > 500) {
+      newErrors.radioValidacion = "El radio debe ser un número entre 50 y 500 metros"
+    }
     if (!formData.description.trim()) newErrors.description = "La descripción es obligatoria"
     if (!formData.type) newErrors.type = "El tipo de instalación es obligatorio"
 
@@ -247,6 +307,16 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
     console.log("Tipo original:", formData.type);
     console.log("Tipo convertido para almacenamiento:", tipoAlmacenamiento);
 
+    // Procesar características, comodidades y reglas (separadas por líneas)
+    const caracteristicas = formData.features.trim() ?
+        formData.features.split('\n').filter((line: string) => line.trim()) : [];
+
+    const comodidades = formData.amenities.trim() ?
+        formData.amenities.split('\n').filter((line: string) => line.trim()) : [];
+
+    const reglas = formData.rules.trim() ?
+        formData.rules.split('\n').filter((line: string) => line.trim()) : [];
+
     const updatedFacility = {
       nombre: formData.name,
       descripcion: formData.description,
@@ -256,7 +326,13 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
       contactoNumero: formData.contactNumber,
       imagenUrl: uploadedUrl,
       precio: parseFloat(formData.price),
-      activo: true
+      latitud: formData.coordinates?.lat,
+      longitud: formData.coordinates?.lng,
+      radioValidacion: parseInt(formData.radioValidacion),
+      activo: true,
+      caracteristicas: caracteristicas,
+      comodidades: comodidades,
+      reglas: reglas
     };
 
     // Mostrar los datos que se van a enviar para depuración
@@ -309,11 +385,23 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input name="name" value={formData.name} onChange={handleInputChange} />
+              <Label htmlFor="name">
+                Nombre <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                name="name"
+                placeholder="Ej: Piscina Municipal"
+                value={formData.name}
+                onChange={handleInputChange}
+                className={errors.name ? "border-red-500" : ""}
+              />
+              {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Tipo</Label>
+              <Label htmlFor="type">
+                Tipo <span className="text-red-500">*</span>
+              </Label>
               <Select
                 value={formData.type || ""}
                 defaultValue={formData.type || ""}
@@ -334,38 +422,98 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
                 <SelectContent>
                   <SelectItem value="Piscina">Piscina</SelectItem>
                   <SelectItem value="Cancha de Fútbol (Grass)">Cancha de Fútbol (Grass)</SelectItem>
-                  <SelectItem value="Cancha de Fútbol (Losa)">Cancha de Fútbol (Losa)</SelectItem>
+                  <SelectItem value="Cancha de Fútbol (Loza)">Cancha de Fútbol (Loza)</SelectItem>
                   <SelectItem value="Gimnasio">Gimnasio</SelectItem>
                   <SelectItem value="Pista de Atletismo">Pista de Atletismo</SelectItem>
                   {/* Agregar un elemento para mostrar el tipo actual si no coincide con ninguno de los anteriores */}
                   {formData.type &&
-                   !["Piscina", "Cancha de Fútbol (Grass)", "Cancha de Fútbol (Losa)", "Gimnasio", "Pista de Atletismo"].includes(formData.type) &&
+                   !["Piscina", "Cancha de Fútbol (Grass)", "Cancha de Fútbol (Loza)", "Gimnasio", "Pista de Atletismo"].includes(formData.type) &&
                    <SelectItem value={formData.type}>{formData.type}</SelectItem>}
                 </SelectContent>
               </Select>
               {errors.type && <p className="text-red-500 text-sm">{errors.type}</p>}
               {formData.type && <p className="text-xs text-gray-500 mt-1">Tipo actual: {formData.type}</p>}
             </div>
+
+            {/* Geocodificación de dirección */}
+            <AddressGeocoder
+              onCoordinatesChange={(coordinates) => {
+                setFormData((prev: any) => ({ ...prev, coordinates }));
+                // Limpiar error si existe
+                if (errors.coordinates) {
+                  setErrors((prev: Record<string, string>) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.coordinates;
+                    return newErrors;
+                  });
+                }
+              }}
+              onAddressChange={(address) => {
+                setFormData((prev: any) => ({ ...prev, location: address }));
+                // Limpiar error si existe
+                if (errors.location) {
+                  setErrors((prev: Record<string, string>) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.location;
+                    return newErrors;
+                  });
+                }
+              }}
+              initialAddress={formData.location}
+              initialCoordinates={formData.coordinates}
+              required
+            />
+            {errors.coordinates && <p className="text-red-500 text-sm">{errors.coordinates}</p>}
+            {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
+
             <div className="space-y-2">
-              <Label>Ubicación</Label>
-              <Input name="location" value={formData.location} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2">
-              <Label>Número de contacto</Label>
+              <Label htmlFor="radioValidacion">
+                Radio de validación (metros) <span className="text-red-500">*</span>
+              </Label>
               <Input
+                id="radioValidacion"
+                name="radioValidacion"
+                type="number"
+                min="50"
+                max="500"
+                placeholder="100"
+                value={formData.radioValidacion}
+                onChange={handleInputChange}
+                className={errors.radioValidacion ? "border-red-500" : ""}
+              />
+              {errors.radioValidacion && <p className="text-red-500 text-sm">{errors.radioValidacion}</p>}
+              <p className="text-xs text-gray-500">
+                Distancia en metros dentro de la cual los coordinadores pueden registrar asistencia (50-500m)
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="contactNumber">
+                Número de contacto <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="contactNumber"
                 name="contactNumber"
                 value={formData.contactNumber}
                 onChange={handleInputChange}
                 placeholder="Ej: 987-654-321"
+                className={errors.contactNumber ? "border-red-500" : ""}
               />
+              {errors.contactNumber && <p className="text-red-500 text-sm">{errors.contactNumber}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Capacidad</Label>
+              <Label htmlFor="capacity">
+                Capacidad <span className="text-red-500">*</span>
+              </Label>
               <Input
+                id="capacity"
                 name="capacity"
                 type="number"
                 min="1"
                 step="1"
+                placeholder="Ej: 30"
                 value={formData.capacity}
                 onChange={handleInputChange}
                 className={errors.capacity ? "border-red-500" : ""}
@@ -373,12 +521,16 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
               {errors.capacity && <p className="text-red-500 text-sm">{errors.capacity}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Precio</Label>
+              <Label htmlFor="price">
+                Precio <span className="text-red-500">*</span>
+              </Label>
               <Input
+                id="price"
                 name="price"
                 type="number"
                 min="0.01"
                 step="0.01"
+                placeholder="Ej: 15.00"
                 value={formData.price}
                 onChange={handleInputChange}
                 className={errors.price ? "border-red-500" : ""}
@@ -386,13 +538,17 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
               {errors.price && <p className="text-red-500 text-sm">{errors.price}</p>}
             </div>
 
-            {/* Sección para horarios disponibles */}
-            <div className="space-y-4 md:col-span-2 border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Horarios Disponibles</h3>
-              </div>
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Nueva sección para horarios disponibles */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">
+                Horarios Disponibles <span className="text-red-500">*</span>
+              </h3>
+            </div>
+
+            <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-md ${errors.availableTimeSlots ? "border-red-500" : ""}`}>
                 <div>
                   <Label htmlFor="dayOfWeek">Día</Label>
                   <Select
@@ -530,48 +686,132 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
               <p className="text-xs text-gray-500">Define los horarios en que la instalación estará disponible para reservas</p>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Descripción</Label>
-              <Textarea name="description" value={formData.description} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Características</Label>
-              <Textarea name="features" value={formData.features} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Comodidades</Label>
-              <Textarea name="amenities" value={formData.amenities} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Reglas</Label>
-              <Textarea name="rules" value={formData.rules} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Actualizar Imagen</Label>
-              <Input
-                id="image"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="cursor-pointer"
-                onChange={handleFileChange}
+            <div className="space-y-2">
+              <Label htmlFor="description">
+                Descripción <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="description"
+                name="description"
+                placeholder="Describe la instalación deportiva"
+                value={formData.description}
+                onChange={handleInputChange}
+                className={errors.description ? "border-red-500" : ""}
+                rows={3}
               />
-              {imageFile ? (
-                <img
-                  src={URL.createObjectURL(imageFile)}
-                  alt="Vista previa"
-                  className="w-full h-96 object-cover rounded-md mt-2"
-                />
-              ) : (
-                formData.imagenUrl && (
-                  <img
-                    src={formData.imagenUrl}
-                    alt="Vista previa"
-                    className="w-full h-96 object-cover rounded-md mt-2"
-                  />
-                )
-              )}
+              {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
+            </div>
+
+          <Separator />
+
+          {/* Características adicionales */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Características adicionales</h3>
+
+            <div className="space-y-2">
+              <Label htmlFor="features">Características</Label>
+              <Textarea
+                id="features"
+                name="features"
+                placeholder="Ingresa las características separadas por líneas"
+                value={formData.features}
+                onChange={handleInputChange}
+                rows={3}
+              />
+              <p className="text-xs text-gray-500">
+                Ingresa una característica por línea. Ej: Dimensiones: 25m x 12.5m
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amenities">Comodidades</Label>
+              <Textarea
+                id="amenities"
+                name="amenities"
+                placeholder="Ingresa las comodidades separadas por líneas"
+                value={formData.amenities}
+                onChange={handleInputChange}
+                rows={3}
+              />
+              <p className="text-xs text-gray-500">Ingresa una comodidad por línea. Ej: Vestuarios con casilleros</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="rules">Reglas</Label>
+              <Textarea
+                id="rules"
+                name="rules"
+                placeholder="Ingresa las reglas separadas por líneas"
+                value={formData.rules}
+                onChange={handleInputChange}
+                rows={3}
+              />
+              <p className="text-xs text-gray-500">
+                Ingresa una regla por línea. Ej: Uso obligatorio de gorro de baño
+              </p>
             </div>
           </div>
+
+          <Separator />
+
+          {/* Imagen */}
+          <div className="space-y-2">
+            <Label htmlFor="image">
+              Imagen <span className="text-red-500">*</span>
+            </Label>
+            <div className="border-2 border-dashed rounded-md p-6 text-center">
+              {imageFile ? (
+                <div className="space-y-2 flex flex-col items-center">
+                  <img
+                    src={URL.createObjectURL(imageFile)}
+                    alt="Previsualización"
+                    className="w-full max-w-xs rounded border"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">{imageFile.name}</p>
+                  <Button variant="outline" size="sm" onClick={() => setImageFile(null)}>
+                    Cambiar archivo
+                  </Button>
+                </div>
+              ) : formData.imagenUrl ? (
+                <div className="space-y-2 flex flex-col items-center">
+                  <img
+                    src={formData.imagenUrl}
+                    alt="Imagen actual"
+                    className="w-full max-w-xs rounded border"
+                  />
+                  <p className="text-sm text-gray-600">Imagen actual</p>
+                  <Input
+                    id="image"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept="image/jpeg,image/png,image/webp"
+                  />
+                  <Button type="button" variant="outline" onClick={() => document.getElementById("image")?.click()}>
+                    Cambiar imagen
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">Haz clic para seleccionar o arrastra y suelta una imagen</p>
+                  <Input
+                    id="image"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept="image/jpeg,image/png,image/webp"
+                  />
+                  <Button type="button" variant="outline" onClick={() => document.getElementById("image")?.click()}>
+                    Seleccionar archivo
+                  </Button>
+                </div>
+              )}
+            </div>
+            {errors.image && <p className="text-red-500 text-sm">{errors.image}</p>}
+            <p className="text-xs text-gray-500">Formatos aceptados: JPG, PNG, WEBP. Tamaño máximo: 5MB</p>
+          </div>
+
+
         </CardContent>
         <CardFooter className="flex justify-end space-x-4">
           <Button variant="outline" type="button" onClick={() => history.back()}>

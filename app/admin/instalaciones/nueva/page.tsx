@@ -15,9 +15,20 @@ import { Separator } from "@/components/ui/separator"
 
 import { API_BASE_URL } from "@/lib/config" // Importar API_BASE_URL
 import { uploadInstallationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage"
+import AddressGeocoder from "@/components/forms/AddressGeocoder"
+import { Coordinates } from "@/lib/google-maps"
 
 
 
+
+// Mapeo entre los valores de visualización y los valores de almacenamiento
+const typeMapping: Record<string, string> = {
+  "Piscina": "piscina",
+  "Cancha de Fútbol (Grass)": "cancha-futbol-grass",
+  "Cancha de Fútbol (Loza)": "cancha-futbol-loza",
+  "Gimnasio": "gimnasio",
+  "Pista de Atletismo": "pista-atletismo"
+};
 
 // --- Interfaz para los datos del formulario ---
 interface FacilityFormData {
@@ -33,6 +44,9 @@ interface FacilityFormData {
   rules: string; // Mantener como string
   // Nuevos campos para horarios disponibles
   availableTimeSlots: AvailableTimeSlot[];
+  // Campos de coordenadas
+  coordinates: Coordinates | null;
+  radioValidacion: string;
 }
 
 // Estructura para representar un horario disponible
@@ -64,8 +78,9 @@ export default function NuevaInstalacion() {
     features: "",
     amenities: "",
     rules: "",
-
     availableTimeSlots: [],
+    coordinates: null,
+    radioValidacion: "100",
   })
 
   // Días de la semana
@@ -144,7 +159,13 @@ export default function NuevaInstalacion() {
     // Validar campos obligatorios
     if (!formData.name.trim()) newErrors.name = "El nombre es obligatorio"
     if (!formData.type) newErrors.type = "El tipo de instalación es obligatorio"
-    if (!formData.location.trim()) newErrors.location = "La ubicación es obligatoria"
+    if (!formData.location.trim()) newErrors.location = "La dirección es obligatoria"
+    if (!formData.coordinates) newErrors.coordinates = "Las coordenadas son requeridas. Usa el geocodificador para obtenerlas."
+    if (!formData.radioValidacion.trim()) {
+      newErrors.radioValidacion = "El radio de validación es requerido"
+    } else if (isNaN(Number(formData.radioValidacion)) || Number(formData.radioValidacion) < 50 || Number(formData.radioValidacion) > 500) {
+      newErrors.radioValidacion = "El radio debe ser un número entre 50 y 500 metros"
+    }
     if (!formData.description.trim()) newErrors.description = "La descripción es obligatoria"
     if (!formData.capacity.trim()) {
         newErrors.capacity = "La capacidad es obligatoria"
@@ -225,6 +246,18 @@ export default function NuevaInstalacion() {
         horaFin: `${slot.endTime}:00`
       }))
 
+      // Convertir el tipo de visualización al formato de almacenamiento
+      let tipoAlmacenamiento = formData.type;
+      if (typeMapping[formData.type]) {
+        tipoAlmacenamiento = typeMapping[formData.type];
+      } else {
+        // Si no está en el mapeo, convertir a minúsculas y reemplazar espacios por guiones
+        tipoAlmacenamiento = formData.type.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '');
+      }
+
+      console.log("Tipo original:", formData.type);
+      console.log("Tipo convertido para almacenamiento:", tipoAlmacenamiento);
+
       const response = await fetch(`${API_BASE_URL}/instalaciones`, {
         method: "POST",
         headers: {
@@ -234,12 +267,15 @@ export default function NuevaInstalacion() {
           nombre: formData.name,
           descripcion: formData.description,
           ubicacion: formData.location,
-          tipo: formData.type,
+          tipo: tipoAlmacenamiento,
           capacidad: Number(formData.capacity),
           contactoNumero: formData.contactNumber,
           imagenUrl: imagenUrl,
           precio: parseFloat(formData.price),
           activo: true,
+          latitud: formData.coordinates?.lat,
+          longitud: formData.coordinates?.lng,
+          radioValidacion: parseInt(formData.radioValidacion),
           caracteristicas: caracteristicas,
           comodidades: comodidades,
           reglas: reglas,
@@ -362,7 +398,7 @@ export default function NuevaInstalacion() {
                   <SelectContent>
                     <SelectItem value="Piscina">Piscina</SelectItem>
                     <SelectItem value="Cancha de Fútbol (Grass)">Cancha de Fútbol (Grass)</SelectItem>
-                    <SelectItem value="Cancha de Fútbol (Losa)">Cancha de Fútbol (Losa)</SelectItem>
+                    <SelectItem value="Cancha de Fútbol (Loza)">Cancha de Fútbol (Loza)</SelectItem>
                     <SelectItem value="Gimnasio">Gimnasio</SelectItem>
                     <SelectItem value="Pista de Atletismo">Pista de Atletismo</SelectItem>
                   </SelectContent>
@@ -370,19 +406,55 @@ export default function NuevaInstalacion() {
                 {errors.type && <p className="text-red-500 text-sm">{errors.type}</p>}
               </div>
 
+              {/* Geocodificación de dirección */}
+              <AddressGeocoder
+                onCoordinatesChange={(coordinates) => {
+                  setFormData(prev => ({ ...prev, coordinates }));
+                  // Limpiar error si existe
+                  if (errors.coordinates) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.coordinates;
+                      return newErrors;
+                    });
+                  }
+                }}
+                onAddressChange={(address) => {
+                  setFormData(prev => ({ ...prev, location: address }));
+                  // Limpiar error si existe
+                  if (errors.location) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.location;
+                      return newErrors;
+                    });
+                  }
+                }}
+                initialAddress={formData.location}
+                required
+              />
+              {errors.coordinates && <p className="text-red-500 text-sm">{errors.coordinates}</p>}
+              {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
+
               <div className="space-y-2">
-                <Label htmlFor="location">
-                  Ubicación <span className="text-red-500">*</span>
+                <Label htmlFor="radioValidacion">
+                  Radio de validación (metros) <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="location"
-                  name="location"
-                  placeholder="Ej: Complejo Deportivo Municipal"
-                  value={formData.location}
+                  id="radioValidacion"
+                  name="radioValidacion"
+                  type="number"
+                  min="50"
+                  max="500"
+                  placeholder="100"
+                  value={formData.radioValidacion}
                   onChange={handleInputChange}
-                  className={errors.location ? "border-red-500" : ""}
+                  className={errors.radioValidacion ? "border-red-500" : ""}
                 />
-                {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
+                {errors.radioValidacion && <p className="text-red-500 text-sm">{errors.radioValidacion}</p>}
+                <p className="text-xs text-gray-500">
+                  Distancia en metros dentro de la cual los coordinadores pueden registrar asistencia (50-500m)
+                </p>
               </div>
 
               <div className="space-y-2">

@@ -62,7 +62,7 @@ export default function PerfilCoordinador() {
   useEffect(() => {
     const fetchProfileData = async () => {
       if (!user) return;
-      
+
       setIsLoading(true);
       try {
         // Obtener información del coordinador desde el backend
@@ -73,7 +73,7 @@ export default function PerfilCoordinador() {
             'Content-Type': 'application/json',
           }
         });
-        
+
         if (response.status === 401) {
           toast({
             variant: "destructive",
@@ -87,27 +87,105 @@ export default function PerfilCoordinador() {
           console.error("Error en la respuesta:", response.status, response.statusText);
           throw new Error(`Error al obtener datos del perfil: ${response.status}`);
         }
-        
+
         const userData = await response.json();
         console.log("Datos recibidos del perfil:", userData);
-        
-        // También obtener las instalaciones asignadas al coordinador
-        // En una implementación completa, aquí se haría otra llamada a la API
-        const instalacionesData = [
-          {
-            id: 1,
-            nombre: "Cancha de Fútbol (Grass)",
-            ubicacion: "Parque Juan Pablo II",
-            horarios: ["Lun, Mie, Vie: 08:00 - 12:00"]
-          },
-          {
-            id: 2,
-            nombre: "Piscina Municipal",
-            ubicacion: "Complejo Deportivo Municipal",
-            horarios: ["Mar, Jue: 14:00 - 18:00"]
+
+        // Obtener las instalaciones asignadas al coordinador desde el backend
+        let instalacionesData = [];
+        try {
+          const instalacionesResponse = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${userData.id}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (instalacionesResponse.ok) {
+            const instalaciones = await instalacionesResponse.json();
+            console.log("Instalaciones asignadas:", instalaciones);
+
+            // Para cada instalación, obtener sus horarios específicos
+            const instalacionesConHorarios = await Promise.all(
+              instalaciones.map(async (instalacion: any) => {
+                try {
+                  const horariosResponse = await fetch(`${API_BASE_URL}/horarios-coordinador/coordinador/${userData.id}/instalacion/${instalacion.id}`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    }
+                  });
+
+                  let horarios = ["Horarios por definir"];
+                  if (horariosResponse.ok) {
+                    const horariosData = await horariosResponse.json();
+                    console.log(`Horarios para instalación ${instalacion.id}:`, horariosData);
+
+                    if (horariosData && horariosData.length > 0) {
+                      // Agrupar horarios por día
+                      const horariosPorDia: { [key: string]: string[] } = {};
+
+                      horariosData.forEach((horario: any) => {
+                        const dia = horario.diaSemana;
+                        const horaInicio = horario.horaInicio.substring(0, 5); // HH:MM
+                        const horaFin = horario.horaFin.substring(0, 5); // HH:MM
+                        const horarioTexto = `${horaInicio} - ${horaFin}`;
+
+                        if (!horariosPorDia[dia]) {
+                          horariosPorDia[dia] = [];
+                        }
+                        horariosPorDia[dia].push(horarioTexto);
+                      });
+
+                      // Convertir a formato legible - usar minúsculas como en la BD
+                      const diasOrden = [
+                        { key: 'lunes', label: 'Lunes' },
+                        { key: 'martes', label: 'Martes' },
+                        { key: 'miercoles', label: 'Miércoles' },
+                        { key: 'jueves', label: 'Jueves' },
+                        { key: 'viernes', label: 'Viernes' },
+                        { key: 'sabado', label: 'Sábado' },
+                        { key: 'domingo', label: 'Domingo' }
+                      ];
+
+                      horarios = diasOrden
+                        .filter(dia => horariosPorDia[dia.key])
+                        .map(dia => `${dia.label}: ${horariosPorDia[dia.key].join(', ')}`);
+
+                      if (horarios.length === 0) {
+                        horarios = ["Sin horarios asignados"];
+                      }
+                    }
+                  }
+
+                  return {
+                    id: instalacion.id,
+                    nombre: instalacion.nombre,
+                    ubicacion: instalacion.ubicacion || "Ubicación no especificada",
+                    horarios: horarios
+                  };
+                } catch (error) {
+                  console.error(`Error al obtener horarios para instalación ${instalacion.id}:`, error);
+                  return {
+                    id: instalacion.id,
+                    nombre: instalacion.nombre,
+                    ubicacion: instalacion.ubicacion || "Ubicación no especificada",
+                    horarios: ["Error al cargar horarios"]
+                  };
+                }
+              })
+            );
+
+            instalacionesData = instalacionesConHorarios;
+          } else {
+            console.warn("No se pudieron obtener las instalaciones asignadas");
           }
-        ];
-        
+        } catch (error) {
+          console.error("Error al obtener instalaciones:", error);
+        }
+
         setProfileData({
           nombre: userData.nombre || "",
           apellidos: userData.apellidos || "",
@@ -135,7 +213,7 @@ export default function PerfilCoordinador() {
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
-    
+
     // Si se cancela la edición, restaurar los datos originales
     if (isEditing) {
       const fetchProfileData = async () => {
@@ -149,13 +227,13 @@ export default function PerfilCoordinador() {
               'Content-Type': 'application/json',
             }
           });
-          
+
           if (!response.ok) {
             throw new Error('Error al obtener datos del perfil');
           }
-          
+
           const userData = await response.json();
-          
+
           // Actualizar sólo los campos editables
           setProfileData(prev => ({
             ...prev,
@@ -168,7 +246,7 @@ export default function PerfilCoordinador() {
           setIsLoading(false);
         }
       };
-      
+
       fetchProfileData();
     }
   }
@@ -219,7 +297,7 @@ export default function PerfilCoordinador() {
           direccion: profileData.direccion
         })
       });
-      
+
       if (response.status === 401) {
         toast({
           variant: "destructive",
@@ -234,26 +312,26 @@ export default function PerfilCoordinador() {
         console.error("Error en la respuesta:", response.status, response.statusText);
         throw new Error(`Error al actualizar el perfil: ${response.status}`);
       }
-      
+
       // Obtener los datos actualizados
       const updatedData = await response.json();
-      
+
       // Actualizar el estado con los datos recibidos del servidor
       setProfileData(prev => ({
         ...prev,
         telefono: updatedData.telefono || prev.telefono,
         direccion: updatedData.direccion || prev.direccion
       }));
-      
+
       // Establecer éxito y cerrar modo edición
       setIsSuccess(true);
       setIsEditing(false);
-      
+
       toast({
         title: "Perfil actualizado",
         description: "Se han guardado los cambios correctamente",
       });
-      
+
       setTimeout(() => {
         setIsSuccess(false);
       }, 3000);
@@ -289,20 +367,18 @@ export default function PerfilCoordinador() {
           <Card>
             <CardContent className="pt-6 flex flex-col items-center">
               <Avatar className="h-32 w-32 mb-4">
-                {user?.avatarUrl ? (
-                  <AvatarImage src={user.avatarUrl} alt={`@${profileData.nombre}`} />
-                ) : (
-                  <AvatarImage src="/placeholder.svg?height=128&width=128" alt={`@${profileData.nombre}`} />
-                )}
                 <AvatarFallback className="text-4xl bg-primary text-white">
-                  {profileData.nombre.charAt(0)}{profileData.apellidos.charAt(0)}
+                  {profileData.nombre && profileData.apellidos
+                    ? (profileData.nombre.charAt(0) + profileData.apellidos.charAt(0)).toUpperCase()
+                    : profileData.nombre
+                      ? profileData.nombre.charAt(0).toUpperCase()
+                      : "CO"}
                 </AvatarFallback>
               </Avatar>
               <h2 className="text-xl font-bold">
                 {profileData.nombre} {profileData.apellidos}
               </h2>
               <p className="text-gray-500">{profileData.cargo}</p>
-              <p className="text-sm text-gray-500 mt-1">{profileData.departamento}</p>
 
               <Separator className="my-4" />
 

@@ -134,13 +134,11 @@ export default function SuperAdminLayout({
   }
 
   // Generar iniciales para el avatar desde el nombre del usuario
-  const userInitials = user?.nombre
-    ? user.nombre.split(' ')
-      .map(n => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase()
-    : 'SA';
+  const userInitials = user?.nombre && user?.apellidos
+    ? (user.nombre.charAt(0) + user.apellidos.charAt(0)).toUpperCase()
+    : user?.nombre
+      ? user.nombre.charAt(0).toUpperCase()
+      : 'SA';
 
   // --- Renderizado Principal (Solo si es SuperAdmin) ---
   return (

@@ -8,10 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, Mail, Phone, Shield, Lock, Save, Upload, CheckCircle, Loader2, Monitor, Smartphone, LogOut, MapPin } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { User, Mail, Phone, Shield, Lock, Save, CheckCircle, Loader2 } from "lucide-react"
+
 import { useAuth } from "@/context/AuthContext" // Importar el contexto de autenticación
 import { useToast } from "@/hooks/use-toast" // Importar el hook para toast
 import { Separator } from "@/components/ui/separator"
@@ -29,12 +29,12 @@ interface ProfileData {
 const formatPhoneNumber = (phoneNumber: string): string => {
   // Eliminar cualquier caracter que no sea un número
   const cleaned = phoneNumber.replace(/\D/g, '');
-  
+
   // Verificar si el teléfono tiene 9 dígitos (formato peruano)
   if (cleaned.length === 9) {
     return cleaned.replace(/(\d{3})(\d{3})(\d{3})/, '$1-$2-$3');
   }
-  
+
   // Si tiene otro número de dígitos, devolver con formato básico
   return cleaned.replace(/(\d{3})(\d{3})(\d+)/, '$1-$2-$3');
 }
@@ -60,18 +60,18 @@ export default function PerfilSuperadminPage() {
     if (user) {
       setProfileData(prevData => {
         // Verificar si el teléfono del usuario es el predeterminado "900000000" o similar
-        const isDefaultPhone = user.telefono && 
-          (user.telefono === "900000000" || 
-           user.telefono === "900-000-000" || 
+        const isDefaultPhone = user.telefono &&
+          (user.telefono === "900000000" ||
+           user.telefono === "900-000-000" ||
            user.telefono.replace(/\D/g, '') === "900000000");
-        
+
         return {
           ...prevData,
           name: user.nombre || prevData.name,
           email: user.email || prevData.email,
           // Usar el teléfono predeterminado "987-654-321" si es el número genérico "900000000"
-          phone: (user.telefono && !isDefaultPhone) ? 
-                 formatPhoneNumber(user.telefono) : 
+          phone: (user.telefono && !isDefaultPhone) ?
+                 formatPhoneNumber(user.telefono) :
                  "987-654-321",
         }
       })
@@ -81,12 +81,12 @@ export default function PerfilSuperadminPage() {
   // Manejadores de eventos
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    
+
     if (name === 'phone') {
       // Para el campo de teléfono, solo permitir números y máximo 9 dígitos
       const onlyNums = value.replace(/\D/g, '').substring(0, 9);
-      setProfileData((prev) => ({ 
-        ...prev, 
+      setProfileData((prev) => ({
+        ...prev,
         [name]: formatPhoneNumber(onlyNums)
       }))
     } else {
@@ -104,19 +104,19 @@ export default function PerfilSuperadminPage() {
 
   const handleSaveProfile = () => {
     setIsSaving(true)
-    
+
     // Simulación de guardado
     setTimeout(() => {
       setIsSaving(false)
       setIsSuccess(true)
       setIsEditing(false)
-      
+
       // Mostrar toast de éxito
       toast({
         title: "Perfil actualizado",
         description: "Tu información ha sido actualizada correctamente.",
       })
-      
+
       // Ocultar mensaje de éxito después de 3 segundos
       setTimeout(() => {
         setIsSuccess(false)
@@ -125,13 +125,11 @@ export default function PerfilSuperadminPage() {
   }
 
   // Generar iniciales para el avatar desde el nombre del usuario
-  const userInitials = user?.nombre
-    ? user.nombre.split(' ')
-      .map(n => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase()
-    : 'SA';
+  const userInitials = user?.nombre && user?.apellidos
+    ? (user.nombre.charAt(0) + user.apellidos.charAt(0)).toUpperCase()
+    : user?.nombre
+      ? user.nombre.charAt(0).toUpperCase()
+      : 'SA';
 
   return (
     <div className="space-y-6">
@@ -300,44 +298,7 @@ export default function PerfilSuperadminPage() {
                 </Button>
               </div>
 
-              <div className="pt-4 border-t">
-                <h3 className="text-lg font-medium">Sesiones Activas</h3>
-                <p className="text-sm text-muted-foreground mb-4">Gestiona los dispositivos donde has iniciado sesión</p>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-md">
-                    <div className="flex items-center gap-3">
-                      <Monitor className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="font-medium">Windows PC - Chrome</p>
-                        <p className="text-sm text-gray-500">Lima, Perú • Última actividad: Ahora</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-blue-100 text-blue-800">Actual</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-md">
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="h-5 w-5 text-gray-500" />
-                      <div>
-                        <p className="font-medium">iPhone - Safari</p>
-                        <p className="text-sm text-gray-500">Lima, Perú • Última actividad: Hace 2 días</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="text-gray-600 gap-1">
-                      <LogOut className="h-3.5 w-3.5" />
-                      Cerrar
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex justify-end">
-                  <Button variant="outline" className="text-gray-600 gap-1">
-                    <LogOut className="h-4 w-4 mr-1" />
-                    Cerrar todas las otras sesiones
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

@@ -659,33 +659,7 @@ export default function Perfil() {
                     </div>
                   </form>
 
-                  <Separator className="my-6" />
 
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Información de seguridad</h3>
-                    <div className="space-y-4">
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">Sesión actual</p>
-                            <p className="text-sm text-gray-500">Tu sesión está activa en este dispositivo</p>
-                          </div>
-                          <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Activa</div>
-                        </div>
-                      </div>
-                      <div className="p-4 border rounded-lg">
-                        <div>
-                          <p className="font-medium">Protección de cuenta</p>
-                          <p className="text-sm text-gray-500 mb-2">
-                            Te recomendamos cambiar tu contraseña regularmente para mantener tu cuenta segura.
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Última actualización de contraseña: Desconocida
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

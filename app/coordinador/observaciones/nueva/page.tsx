@@ -16,6 +16,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/config";
 import { uploadMultipleObservationImages, uploadObservationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage";
+import LocationValidator from "@/components/location/LocationValidator";
+import { Coordinates } from "@/lib/google-maps";
+import { useAuth } from "@/context/AuthContext";
+import { useNotification } from "@/context/NotificationContext";
 
 // Componente de carga para el Suspense
 function ObservacionLoading() {
@@ -31,6 +35,8 @@ function NuevaObservacionForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const facilityId = searchParams.get("id");
+  const { user } = useAuth();
+  const { addNotification } = useNotification();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,10 +45,26 @@ function NuevaObservacionForm() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLocationValid, setIsLocationValid] = useState(false);
-  const [isCheckingLocation, setIsCheckingLocation] = useState(false);
 
   // Estado para almacenar las instalaciones cargadas del backend
-  const [facilitiesData, setFacilitiesData] = useState<Array<{id: number, nombre: string, tipo?: string, ubicacion?: string}>>([]);
+  const [facilitiesData, setFacilitiesData] = useState<Array<{
+    id: number,
+    nombre: string,
+    tipo?: string,
+    ubicacion?: string,
+    latitud?: number,
+    longitud?: number,
+    radioValidacion?: number
+  }>>([]);
+
+  // Estado para la instalación seleccionada
+  const [selectedFacility, setSelectedFacility] = useState<{
+    id: number,
+    nombre: string,
+    latitud?: number,
+    longitud?: number,
+    radioValidacion?: number
+  } | null>(null);
 
   // Estado del formulario
   const [formData, setFormData] = useState({
@@ -58,12 +80,16 @@ function NuevaObservacionForm() {
     // Cargar datos reales desde el backend
     const loadData = async () => {
       try {
-        // Obtener el ID del usuario actual (podría obtenerse de un contexto de autenticación)
-        // Para pruebas, usamos el ID 4 que es un coordinador según los datos de ejemplo
-        const coordinadorId = 4; // En una implementación real, esto vendría de la sesión o un contexto de autenticación
+        // Verificar que hay usuario autenticado y es coordinador
+        if (!user || !user.rol || user.rol.nombre !== 'coordinador') {
+          console.log("No hay usuario coordinador autenticado");
+          setFormError("Debes estar autenticado como coordinador para crear observaciones.");
+          setIsLoading(false);
+          return;
+        }
 
-        // Obtener las instalaciones asignadas al coordinador
-        const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${coordinadorId}`, {
+        // Obtener las instalaciones asignadas al coordinador actual
+        const response = await fetch(`${API_BASE_URL}/instalaciones/coordinador/${user.id}`, {
           credentials: 'include'
         });
 
@@ -80,6 +106,18 @@ function NuevaObservacionForm() {
             ...prev,
             facilityId: facilityId,
           }));
+
+          // También establecer la instalación seleccionada
+          const facility = data.find((f: any) => f.id.toString() === facilityId);
+          if (facility) {
+            setSelectedFacility({
+              id: facility.id,
+              nombre: facility.nombre,
+              latitud: facility.latitud,
+              longitud: facility.longitud,
+              radioValidacion: facility.radioValidacion
+            });
+          }
         }
       } catch (error) {
         console.error("Error cargando las instalaciones:", error);
@@ -90,33 +128,9 @@ function NuevaObservacionForm() {
     };
 
     loadData();
-  }, [facilityId]);
+  }, [facilityId, user]);
 
-  const checkUserLocation = () => {
-    setIsCheckingLocation(true);
 
-    // Simulamos un pequeño retraso para que parezca que está verificando
-    setTimeout(() => {
-      // En modo de prueba, siempre establecemos la ubicación como válida
-      setUserLocation({
-        lat: -12.077, // Coordenadas de prueba (Cancha de Futbol)
-        lng: -77.083,
-      });
-
-      // Marcar la ubicación como válida
-      setIsLocationValid(true);
-
-      // Eliminar cualquier error de ubicación que pueda existir
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.location;
-        return newErrors;
-      });
-
-      // Finalizar verificación
-      setIsCheckingLocation(false);
-    }, 1000);
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -144,10 +158,20 @@ function NuevaObservacionForm() {
       });
     }
 
-    // Si se cambia la instalación, resetear la validación de ubicación
+    // Si se cambia la instalación, resetear la validación de ubicación y establecer la instalación seleccionada
     if (name === "facilityId") {
       setIsLocationValid(false);
       setUserLocation(null);
+
+      // Encontrar la instalación seleccionada
+      const facility = facilitiesData.find(f => f.id.toString() === value);
+      setSelectedFacility(facility ? {
+        id: facility.id,
+        nombre: facility.nombre,
+        latitud: facility.latitud,
+        longitud: facility.longitud,
+        radioValidacion: facility.radioValidacion
+      } : null);
     }
   };
 
@@ -216,10 +240,10 @@ function NuevaObservacionForm() {
       newErrors.priority = "Debes seleccionar una prioridad";
     }
 
-    // Temporalmente desactivada la validación de ubicación para pruebas
-    // if (!isLocationValid) {
-    //   newErrors.location = "Debes verificar tu ubicación antes de enviar la observación"
-    // }
+    // Validación de ubicación habilitada
+    if (!isLocationValid) {
+      newErrors.location = "Debes verificar tu ubicación antes de enviar la observación"
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -237,7 +261,7 @@ function NuevaObservacionForm() {
 
     try {
       // Subir las fotos a Supabase y obtener las URLs
-      const uploadedUrls: string[] = [];
+      let uploadedUrls: string[] = [];
 
       if (photos.length > 0) {
         console.log('Subiendo múltiples imágenes a Supabase...');
@@ -249,7 +273,7 @@ function NuevaObservacionForm() {
 
         console.log('Imágenes subidas exitosamente:', uploadedUrls);
       }      const observacionData = {
-        usuarioId: 4, // Aquí deberías obtener el ID del usuario autenticado
+        usuarioId: user?.id, // Usar el ID del usuario autenticado
         instalacionId: parseInt(formData.facilityId),
         titulo: formData.title, // Usar el título ingresado por el usuario
         descripcion: formData.description,
@@ -278,6 +302,14 @@ function NuevaObservacionForm() {
       console.log("Observación creada:", responseData);
 
       setIsSuccess(true);
+
+      // Agregar notificación de éxito (manteniendo consistencia con el resto del sistema)
+      const facilityName = selectedFacility?.nombre || "la instalación seleccionada";
+      await addNotification({
+        title: "Observación creada",
+        message: `Su observación sobre ${facilityName} ha sido registrada exitosamente y está pendiente de revisión.`,
+        type: "observacion"
+      });
 
       // Redireccionar después de 2 segundos
       setTimeout(() => {
@@ -357,42 +389,46 @@ function NuevaObservacionForm() {
                 {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">
-                  Verificación de ubicación <span className="text-red-500">*</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={checkUserLocation}
-                    disabled={isCheckingLocation || isLocationValid}
-                    className="flex-1"
-                  >
-                    {isCheckingLocation ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Verificando...
-                      </>
-                    ) : isLocationValid ? (
-                      <>
-                        <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                        Ubicación verificada
-                      </>
-                    ) : (
-                      <>
-                        <MapPin className="mr-2 h-4 w-4" />
-                        Verificar mi ubicación
-                      </>
-                    )}
-                  </Button>
-                  {isLocationValid && <Badge className="bg-green-100 text-green-800">Ubicación válida</Badge>}
+              {/* Validación de ubicación con LocationValidator */}
+              {selectedFacility && selectedFacility.latitud && selectedFacility.longitud ? (
+                <LocationValidator
+                  facilityLocation={{
+                    lat: selectedFacility.latitud,
+                    lng: selectedFacility.longitud
+                  }}
+                  facilityName={selectedFacility.nombre}
+                  allowedRadius={selectedFacility.radioValidacion || 100}
+                  onValidationResult={(isValid, distance) => {
+                    setIsLocationValid(isValid);
+                    if (isValid) {
+                      // Limpiar error de ubicación si existe
+                      setErrors((prev) => {
+                        const newErrors = { ...prev };
+                        delete newErrors.location;
+                        return newErrors;
+                      });
+                    }
+                  }}
+                  onLocationUpdate={(location: Coordinates) => {
+                    setUserLocation({ lat: location.lat, lng: location.lng });
+                  }}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <Label>
+                    Verificación de ubicación <span className="text-red-500">*</span>
+                  </Label>
+                  <Alert>
+                    <MapPin className="h-4 w-4" />
+                    <AlertDescription>
+                      {!formData.facilityId
+                        ? "Selecciona una instalación para habilitar la verificación de ubicación"
+                        : "La instalación seleccionada no tiene coordenadas configuradas. Contacta al administrador."
+                      }
+                    </AlertDescription>
+                  </Alert>
                 </div>
-                {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
-                <p className="text-xs text-gray-500">
-                  Debes estar físicamente en la instalación para reportar una observación
-                </p>
-              </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="description">

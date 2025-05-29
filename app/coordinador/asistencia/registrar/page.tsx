@@ -18,6 +18,8 @@ import { useAuth } from "@/context/AuthContext"
 import { ScheduledVisit } from "../types"
 import { getCoordinatorSchedules, getScheduledVisit, recordAttendance, validateLocation } from "../services"
 import { CoordinatorSchedule } from "../models"
+import LocationValidator from "@/components/location/LocationValidator"
+import { Coordinates } from "@/lib/google-maps"
 
 // Mock para desarrollo cuando no hay contexto de autenticación
 const useMockAuth = () => {
@@ -44,6 +46,9 @@ interface Visit {
   scheduledTime: string
   scheduledEndTime: string
   image?: string
+  latitud?: number
+  longitud?: number
+  radioValidacion?: number
 }
 
 interface FormData {
@@ -107,9 +112,7 @@ function RegistrarAsistenciaForm() {
     arrivalTime: "",
   })
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
-  const [locationError, setLocationError] = useState<string | null>(null)
   const [isLocationValid, setIsLocationValid] = useState(false)
-  const [isCheckingLocation, setIsCheckingLocation] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -154,7 +157,7 @@ function RegistrarAsistenciaForm() {
         }
 
         // 2. Cargar los datos de la visita específica
-        const foundVisit = await getScheduledVisit(numVisitId, numFacilityId)
+        const foundVisit = await getScheduledVisit(numVisitId, numFacilityId, user.id)
 
         if (foundVisit) {
           setVisit(foundVisit as Visit)
@@ -204,112 +207,99 @@ function RegistrarAsistenciaForm() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const checkLocation = () => {
-    setIsCheckingLocation(true)
-    setLocationError(null)
+  // Función para manejar la validación exitosa de ubicación
+  const handleLocationValidated = async (isValid: boolean, distance: number) => {
+    setIsLocationValid(isValid)
 
-    if (!navigator.geolocation) {
-      setLocationError("La geolocalización no está soportada por tu navegador.")
-      setIsCheckingLocation(false)
-      return
-    }
+    if (isValid && visit) {
+      // Actualizar automáticamente la hora de llegada
+      const now = new Date()
+      const hours = now.getHours().toString().padStart(2, "0")
+      const minutes = now.getMinutes().toString().padStart(2, "0")
+      const currentTime = `${hours}:${minutes}`
 
-    if (!visit) {
-      setLocationError("No hay información de visita para validar.")
-      setIsCheckingLocation(false)
-      return
-    }
+      // Calcular el estado de asistencia basado en horario
+      const attendanceStatus = determineAttendanceStatus(
+        visit.scheduledTime,
+        visit.scheduledEndTime,
+        currentTime
+      )
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const userCoords: UserLocation = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        }
-        setUserLocation(userCoords)
+      setFormData((prev) => ({
+        ...prev,
+        arrivalTime: currentTime,
+        status: attendanceStatus
+      }))
 
-        try {
-          // Usar el servicio para validar la ubicación
-          const isValid = await validateLocation(userCoords, visit.facilityId)
+      // Registrar automáticamente la asistencia en la base de datos
+      try {
+        setIsSaving(true)
 
-          setIsLocationValid(isValid)
-
-          if (isValid) {
-            // Actualizar automáticamente la hora de llegada
-            const now = new Date()
-            const hours = now.getHours().toString().padStart(2, "0")
-            const minutes = now.getMinutes().toString().padStart(2, "0")
-            const currentTime = `${hours}:${minutes}`
-
-            // Calcular el estado de asistencia basado en horario
-            const attendanceStatus = determineAttendanceStatus(
-              visit.scheduledTime,
-              visit.scheduledEndTime,
-              currentTime
-            )
-
-            setFormData((prev) => ({
-              ...prev,
-              arrivalTime: currentTime,
-              status: attendanceStatus
-            }))
-
-            // Mostrar mensaje según el estado calculado
-            const statusMessages = {
-              "a-tiempo": "Llegada registrada a tiempo.",
-              "tarde": "Llegada registrada con retraso.",
-              "no-asistio": "Llegada registrada después del horario programado."
-            }
-
-            toast({
-              title: "Ubicación validada",
-              description: statusMessages[attendanceStatus] || "Ubicación verificada correctamente.",
-            })
-          } else {
-            toast({
-              title: "Ubicación inválida",
-              description: "Debes estar físicamente en la instalación para registrar tu asistencia.",
-              variant: "destructive",
-            })
-          }
-        } catch (error) {
-          console.error("Error en la validación de ubicación:", error)
-          toast({
-            title: "Error de validación",
-            description: "No se pudo validar tu ubicación. Por favor, intenta nuevamente.",
-            variant: "destructive",
-          })
-          setIsLocationValid(false)
-        } finally {
-          setIsCheckingLocation(false)
-        }
-      },
-      (error) => {
-        let errorMessage = "Error desconocido al obtener la ubicación."
-
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = "Permiso de geolocalización denegado."
-            break
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = "La información de ubicación no está disponible."
-            break
-          case error.TIMEOUT:
-            errorMessage = "La solicitud de ubicación ha expirado."
-            break
+        const attendanceRecord = {
+          id: 0,
+          visitId: visit.id,
+          facilityId: visit.facilityId,
+          scheduleId: visit.scheduleId,
+          facilityName: visit.facilityName || `Instalación ${visit.facilityId}`,
+          location: visit.location || "Complejo Deportivo Municipal",
+          date: visit.date,
+          scheduledTime: visit.scheduledTime,
+          scheduledEndTime: visit.scheduledEndTime,
+          arrivalTime: currentTime,
+          status: attendanceStatus,
+          notes: "",
+          departureTime: null,
         }
 
-        setLocationError(errorMessage)
-        setIsCheckingLocation(false)
+        // Registrar la asistencia
+        await recordAttendance(attendanceRecord, parseInt(user.id))
+
+        // Mostrar mensaje según el estado calculado
+        const statusMessages = {
+          "a-tiempo": "Llegada registrada a tiempo. Redirigiendo al historial...",
+          "tarde": "Llegada registrada con retraso. Redirigiendo al historial...",
+          "no-asistio": "Llegada registrada después del horario programado. Redirigiendo al historial..."
+        }
 
         toast({
-          title: "Error de ubicación",
-          description: errorMessage,
-          variant: "destructive",
+          title: "Asistencia registrada",
+          description: statusMessages[attendanceStatus] || "Ubicación verificada y asistencia registrada correctamente.",
         })
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-    )
+
+        // Redireccionar al historial después de 1 segundo
+        setTimeout(() => {
+          router.push("/coordinador/asistencia")
+        }, 1000)
+
+      } catch (error) {
+        console.error("Error al registrar asistencia automáticamente:", error)
+
+        // Detectar error específico de registro duplicado
+        const errorMessage = error instanceof Error ? error.message : "Error al registrar la asistencia automáticamente.";
+
+        if (errorMessage.includes("Ya has registrado tu asistencia") ||
+            errorMessage.includes("registro duplicado") ||
+            errorMessage.includes("ya existe una asistencia registrada")) {
+          toast({
+            title: "Registro Duplicado",
+            description: "Ya has registrado tu asistencia para este horario. No puedes registrar la misma visita dos veces.",
+            variant: "destructive",
+          })
+          // Redireccionar al historial después de mostrar el error
+          setTimeout(() => {
+            router.push("/coordinador/asistencia")
+          }, 2000)
+        } else {
+          toast({
+            title: "Error",
+            description: errorMessage,
+            variant: "destructive",
+          })
+        }
+      } finally {
+        setIsSaving(false)
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -376,7 +366,7 @@ function RegistrarAsistenciaForm() {
         notes: "",
         departureTime: null,
       }// Usar el servicio para registrar la asistencia
-      await recordAttendance(attendanceRecord)
+      await recordAttendance(attendanceRecord, parseInt(user.id))
         // También guardar directamente el ID de la visita para asegurar su almacenamiento
       try {
         const registeredVisitsJson = localStorage.getItem('registeredVisits') || '[]';
@@ -435,15 +425,33 @@ function RegistrarAsistenciaForm() {
         description: "La asistencia ha sido registrada exitosamente.",
       })
 
-      // Redireccionar a la lista de asistencias programadas
-      router.push("/coordinador/asistencia/programadas")
+      // Redireccionar al historial de asistencias
+      router.push("/coordinador/asistencia")
     } catch (error) {
       console.error("Error al guardar asistencia:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Hubo un error al registrar la asistencia.",
-        variant: "destructive",
-      })
+
+      // Detectar error específico de registro duplicado
+      const errorMessage = error instanceof Error ? error.message : "Hubo un error al registrar la asistencia.";
+
+      if (errorMessage.includes("Ya has registrado tu asistencia") ||
+          errorMessage.includes("registro duplicado") ||
+          errorMessage.includes("ya existe una asistencia registrada")) {
+        toast({
+          title: "Registro Duplicado",
+          description: "Ya has registrado tu asistencia para este horario. No puedes registrar la misma visita dos veces.",
+          variant: "destructive",
+        })
+        // Redireccionar al historial después de mostrar el error
+        setTimeout(() => {
+          router.push("/coordinador/asistencia")
+        }, 2000)
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -479,17 +487,33 @@ function RegistrarAsistenciaForm() {
     return arrivalTotalMinutes >= endTotalMinutes
   }
 
+  // Función para formatear horarios (eliminar segundos si existen)
+  const formatTime = (time: string): string => {
+    if (!time) return "";
+    // Si el tiempo incluye segundos (HH:MM:SS), extraer solo HH:MM
+    if (time.includes(":") && time.length > 5) {
+      return time.substring(0, 5);
+    }
+    return time;
+  }
+
   // Determinar automáticamente el estado de la asistencia
   const determineAttendanceStatus = (scheduledTime: string, scheduledEndTime: string, arrivalTime: string): FormData["status"] => {
-    // Si es posterior a la hora de finalización, se considera no asistió
-    if (isPastEndTime(scheduledEndTime, arrivalTime)) {
-      return "no-asistio"
-    }
-    // Si es 10 minutos o más después de la hora de inicio, se considera tarde
-    else if (isLate(scheduledTime, arrivalTime)) {
+    if (!scheduledTime || !arrivalTime) return "a-tiempo"
+
+    const [schedHours, schedMinutes] = scheduledTime.split(":").map(Number)
+    const [arrivalHours, arrivalMinutes] = arrivalTime.split(":").map(Number)
+
+    // Convertir a minutos para comparar fácilmente
+    const schedTotalMinutes = schedHours * 60 + schedMinutes
+    const arrivalTotalMinutes = arrivalHours * 60 + arrivalMinutes
+    const diffMinutes = arrivalTotalMinutes - schedTotalMinutes
+
+    // Si llega 10 minutos o más tarde de la hora programada, se considera tarde
+    if (diffMinutes >= 10) {
       return "tarde"
     }
-    // En otro caso, se considera a tiempo
+    // En otro caso, se considera a tiempo (incluso si llega antes o hasta 9 minutos tarde)
     else {
       return "a-tiempo"
     }
@@ -582,7 +606,7 @@ function RegistrarAsistenciaForm() {
                         })()}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {visit.scheduledTime} - {visit.scheduledEndTime}
+                        {formatTime(visit.scheduledTime)} - {formatTime(visit.scheduledEndTime)}
                       </p>
                     </div>
                   </div>
@@ -661,93 +685,135 @@ function RegistrarAsistenciaForm() {
           </div>
 
           <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Validación de Ubicación</CardTitle>
-                <CardDescription>
-                  {formData.status === "no-asistio"
-                    ? "No es necesario validar la ubicación si no asististe"
-                    : "Debes validar tu ubicación para confirmar que estás físicamente en la instalación"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {formData.status !== "no-asistio" && (
-                  <>
-                    <div className="bg-primary-pale p-4 rounded-md">
-                      <h3 className="text-sm font-medium mb-2">Importante</h3>
-                      <p className="text-sm text-gray-700">
-                        El sistema validará tu ubicación mediante geolocalización.
+            {/* Validación de ubicación con LocationValidator */}
+            {!isSaving && formData.status !== "no-asistio" && !formData.status && visit && visit.latitud && visit.longitud ? (
+              <LocationValidator
+                facilityLocation={{
+                  lat: visit.latitud,
+                  lng: visit.longitud
+                }}
+                facilityName={visit.facilityName}
+                allowedRadius={visit.radioValidacion || 100}
+                onValidationResult={handleLocationValidated}
+                onLocationUpdate={(location: Coordinates) => {
+                  setUserLocation({ lat: location.lat, lng: location.lng });
+                }}
+              />
+            ) : formData.status && !isSaving ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Asistencia Registrada</CardTitle>
+                  <CardDescription>
+                    Tu asistencia ha sido registrada exitosamente
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-green-100 text-green-800 p-4 rounded-md">
+                    <p className="font-medium">✅ Asistencia registrada</p>
+                    <p className="text-sm mt-1">
+                      Estado: {formData.status === "a-tiempo" ? "A tiempo" :
+                              formData.status === "tarde" ? "Tarde" : "No asistió"}
+                    </p>
+                    <p className="text-sm mt-1">
+                      Redirigiendo al historial...
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : isSaving ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Registrando Asistencia</CardTitle>
+                  <CardDescription>
+                    Procesando tu registro de asistencia...
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-blue-100 text-blue-800 p-4 rounded-md flex items-center">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <div>
+                      <p className="font-medium">Guardando asistencia...</p>
+                      <p className="text-sm mt-1">
+                        Por favor espera mientras procesamos tu registro.
                       </p>
                     </div>
-
-                    <div className="flex justify-center">
-                      <Button
-                        type="button"
-                        className="bg-primary hover:bg-primary-light"
-                        onClick={checkLocation}
-                        disabled={isCheckingLocation}
-                      >
-                        <MapPin className="h-4 w-4 mr-2" />
-                        {isCheckingLocation ? "Validando..." : "Validar Ubicación"}
-                      </Button>
-                    </div>
-
-                    {locationError && (
-                      <div className="bg-red-100 text-red-800 p-3 rounded-md text-sm">
-                        <p className="font-medium">Error:</p>
-                        <p>{locationError}</p>
-                      </div>
-                    )}
-
-                    {isLocationValid && (
-                      <div className="bg-green-100 text-green-800 p-3 rounded-md text-sm">
-                        <p className="font-medium">Ubicación validada</p>
-                        <p>Tu ubicación ha sido verificada correctamente.</p>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Estado de la validación:</h3>
-                      {isLocationValid ? (
-                        <Badge className="bg-green-100 text-green-800">Ubicación validada</Badge>
-                      ) : (
-                        <Badge className="bg-yellow-100 text-yellow-800">Pendiente de validación</Badge>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {formData.status === "no-asistio" && (
+                  </div>
+                </CardContent>
+              </Card>
+            ) : formData.status === "no-asistio" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Validación de Ubicación</CardTitle>
+                  <CardDescription>
+                    No es necesario validar la ubicación si no asististe
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="bg-blue-100 text-blue-800 p-4 rounded-md">
                     <p className="font-medium">No es necesario validar la ubicación</p>
                     <p className="text-sm mt-1">
                       Se detectó que no asististe a esta visita.
                     </p>
                   </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button
-                  type="submit"
-                  className="w-full bg-primary hover:bg-primary-light"
-                  disabled={isSaving || (formData.status !== "no-asistio" && !isLocationValid)}
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Registrar Asistencia
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
-            </Card>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    type="submit"
+                    className="w-full bg-primary hover:bg-primary-light"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Registrar Asistencia
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Validación de Ubicación</CardTitle>
+                  <CardDescription>
+                    La instalación no tiene coordenadas configuradas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-yellow-100 text-yellow-800 p-4 rounded-md">
+                    <p className="font-medium">Coordenadas no disponibles</p>
+                    <p className="text-sm mt-1">
+                      La instalación seleccionada no tiene coordenadas configuradas.
+                      Contacta al administrador para que actualice la información de la instalación.
+                    </p>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    type="submit"
+                    className="w-full bg-primary hover:bg-primary-light"
+                    disabled={isSaving || !isLocationValid}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Registrar Asistencia
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            )}
           </div>
         </div>      </form>
     </div>

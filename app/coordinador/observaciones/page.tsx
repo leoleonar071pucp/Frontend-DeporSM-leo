@@ -152,6 +152,7 @@ export default function ObservacionesCoordinador() {
     if (query) {
       filtered = filtered.filter(
         (observation) =>
+          observation.title.toLowerCase().includes(query.toLowerCase()) ||
           observation.description.toLowerCase().includes(query.toLowerCase()) ||
           observation.facilityName.toLowerCase().includes(query.toLowerCase()),
       );
@@ -334,7 +335,7 @@ export default function ObservacionesCoordinador() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <form onSubmit={handleSearch} className="flex space-x-2">
           <Input
-            placeholder="Buscar por descripción o instalación..."
+            placeholder="Buscar por título o instalación..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="max-w-md"

@@ -324,7 +324,11 @@ export default function CoordinadorLayout({
                       <Avatar>
                         <AvatarImage src={user?.avatarUrl || ""} alt={user?.nombre || "Coordinador"} />
                         <AvatarFallback className="bg-primary-light text-white">
-                          {user?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || "CO"}
+                          {user?.nombre && user?.apellidos
+                            ? (user.nombre.charAt(0) + user.apellidos.charAt(0)).toUpperCase()
+                            : user?.nombre
+                              ? user.nombre.charAt(0).toUpperCase()
+                              : "CO"}
                         </AvatarFallback>
                       </Avatar>
                     </Button>

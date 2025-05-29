@@ -10,6 +10,7 @@ import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { apiGet, handleApiResponse } from "@/lib/api-client"
+import { useAuth } from "@/context/AuthContext"
 
 // Interfaces
 interface HorarioCoordinador {
@@ -60,14 +61,14 @@ const weekDays = [
 // Función helper para normalizar días y manejar variantes
 const normalizeDayName = (dayString: string): string => {
   if (!dayString) return "lunes"; // Valor predeterminado
-  
+
   const normalizedInput = dayString.trim().toLowerCase();
-  
+
   // Buscar en las variantes de cada día
-  const matchedDay = weekDays.find(day => 
+  const matchedDay = weekDays.find(day =>
     day.variants.some(variant => normalizedInput.includes(variant))
   );
-  
+
   return matchedDay ? matchedDay.id : "lunes";
 }
 
@@ -90,55 +91,66 @@ const timeSlots = [
 ]
 
 export default function CalendarioPage() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [horarios, setHorarios] = useState<HorarioCoordinador[]>([]);
   const [assignedSchedules, setAssignedSchedules] = useState<AssignedSchedules>({});
   const [error, setError] = useState<string | null>(null);
-  
+
   useEffect(() => {
-    const fetchHorarios = async () => {      try {        // ID de coordinador (Fijo para desarrollo y pruebas)
-        // Para una implementación en producción, se deberá obtener dinámicamente
-        // Usando ID 4 ya que en la base de datos este es el ID correcto del coordinador según la tabla coordinadores_instalaciones
-        const userId = 4;
-        
-        console.log("IMPORTANTE: Usando ID de coordinador hardcoded para desarrollo:", userId);
-        
-        // Para depuración, confirmamos si hay datos de autenticación en sessionStorage
-        const authDataStr = sessionStorage.getItem('authData');
-        if (authDataStr) {
-          try {
-            const authData = JSON.parse(authDataStr);
-            console.log("Datos de autenticación encontrados en sessionStorage:", authData);
-          } catch (e) {
-            console.log("Error al parsear datos de autenticación:", e);
-          }
-        } else {
-          console.log("No se encontraron datos de autenticación en sessionStorage");
-        }        console.log("Obteniendo horarios para el coordinador con ID:", userId);
-        
+    const fetchHorarios = async () => {
+      try {
+        // Verificar que el usuario esté autenticado y tenga rol de coordinador
+        if (!isAuthenticated || !user) {
+          console.error("Usuario no autenticado");
+          setError("Usuario no autenticado");
+          setIsLoading(false);
+          return;
+        }
+
+        if (!user.rol || user.rol.nombre !== 'coordinador') {
+          console.error("Usuario no es coordinador");
+          setError("Acceso denegado: Solo coordinadores pueden ver esta página");
+          setIsLoading(false);
+          return;
+        }
+
+        // Obtener el ID del usuario autenticado
+        const userId = parseInt(user.id);
+
+        if (isNaN(userId) || userId <= 0) {
+          console.error("ID de usuario inválido:", user.id);
+          setError("ID de usuario inválido");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Obteniendo horarios para el coordinador autenticado con ID:", userId);
+
+
         // Obtener los horarios del coordinador usando el nuevo API client
         const response = await apiGet(`horarios-coordinador/coordinador/${userId}`);
-        
+
         if (!response.ok) {
           console.error("Error HTTP:", response.status, response.statusText);
           throw new Error(`Error al cargar horarios: ${response.status}`);
         }
-        
+
         const horariosData = await response.json();
         console.log("Datos recibidos del servidor:", horariosData);
-        
+
         if (!Array.isArray(horariosData)) {
           console.error("Los datos recibidos no son un array:", horariosData);
           setError("Formato de datos incorrecto");
           setIsLoading(false);
           return;
         }
-        
+
         setHorarios(horariosData);
-        
+
         // Convertir los datos al formato requerido por la tabla
         const processedSchedules: AssignedSchedules = {};
-        
+
         if (horariosData.length > 0) {
           horariosData.forEach((horario: HorarioCoordinador) => {
             // Validar que el horario tenga los campos necesarios
@@ -160,14 +172,14 @@ export default function CalendarioPage() {
               // Manejo seguro de los formatos de hora
             let startTime = typeof horario.horaInicio === 'string' ? horario.horaInicio : '00:00';
             let endTime = typeof horario.horaFin === 'string' ? horario.horaFin : '00:00';
-            
+
             // Asegurar formato HH:MM y manejo de casos especiales
             try {
               // Si viene en formato HH:MM:SS, extraer solo HH:MM
               if (startTime.includes(':') && startTime.length >= 5) {
                 startTime = startTime.substring(0, 5);
               }
-              
+
               if (endTime.includes(':') && endTime.length >= 5) {
                 endTime = endTime.substring(0, 5);
               }
@@ -179,7 +191,7 @@ export default function CalendarioPage() {
                 }
                 return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
               };
-              
+
               startTime = validateTime(startTime);
               endTime = validateTime(endTime);
             } catch (error) {
@@ -187,22 +199,22 @@ export default function CalendarioPage() {
               startTime = '00:00';
               endTime = '00:00';
             }
-            
+
             processedSchedules[facilityId].schedules.push({
               id: horario.id,
               day: dia,
               startTime: startTime,
               endTime: endTime
             });
-            
+
             console.log(`Procesado: ${horario.instalacionNombre}, ${dia}, ${startTime}-${endTime}`);
           });
-          
+
           console.log("Horarios procesados correctamente:", processedSchedules);
         } else {
           console.log("No se encontraron horarios asignados para el coordinador");
         }
-        
+
         setAssignedSchedules(processedSchedules);      } catch (error) {
         console.error("Error al cargar los horarios:", error);
         // Información adicional para depurar problemas de conexión
@@ -217,7 +229,7 @@ export default function CalendarioPage() {
               }
             })
             .catch(e => console.error("Error verificando estado del backend:", e));
-            
+
           // Verificar datos de autenticación
           const authDataStr = sessionStorage.getItem('authData');
           if (authDataStr) {
@@ -228,16 +240,21 @@ export default function CalendarioPage() {
         } catch (e) {
           console.error("Error durante la verificación de depuración:", e);
         }
-        
+
         setError("No se pudieron cargar los horarios. Por favor, intente nuevamente más tarde.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchHorarios();
-  }, []);
-  if (isLoading) {
+    // Solo ejecutar cuando el usuario esté cargado y autenticado
+    if (!authLoading && isAuthenticated && user) {
+      fetchHorarios();
+    }
+  }, [authLoading, isAuthenticated, user]);
+
+  // Mostrar loading mientras se autentica o se cargan los horarios
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -322,10 +339,10 @@ export default function CalendarioPage() {
                     {timeSlots.map((time, index) => {
                       // Saltamos la última hora porque solo la usamos como hora de fin
                       if (index === timeSlots.length - 1) return null;
-                      
+
                       const startHour = parseInt(time.split(':')[0]);
                       const endHour = parseInt(timeSlots[index + 1].split(':')[0]);
-                      
+
                       return (
                         <tr key={time}>
                           <td className="border p-2 text-center text-sm font-medium">
@@ -334,25 +351,25 @@ export default function CalendarioPage() {
                             {weekDays.map(day => {
                             // Buscar los horarios que coinciden con este día y hora
                             const schedulesInThisSlot: ScheduleInSlot[] = [];
-                            
+
                             Object.values(assignedSchedules).forEach(facility => {
                               facility.schedules.forEach(schedule => {
                                 // Normalizar el día para comparación                                // Normalizamos el día del horario usando nuestra función helper
                                 const normalizedScheduleDay = normalizeDayName(schedule.day);
                                 const normalizedDayId = day.id;
-                                
+
                                 console.log(`Comparando día: "${schedule.day}" -> "${normalizedScheduleDay}" con "${normalizedDayId}"`);
-                                
+
                                 // Ahora la comparación es directa ya que ambos están normalizados
                                 if (normalizedScheduleDay === normalizedDayId) {
                                   try {
                                     const scheduleStartParts = schedule.startTime.split(':');
                                     const scheduleEndParts = schedule.endTime.split(':');
-                                    
+
                                     if (scheduleStartParts.length >= 1 && scheduleEndParts.length >= 1) {
                                       const scheduleStart = parseInt(scheduleStartParts[0]);
                                       const scheduleEnd = parseInt(scheduleEndParts[0]);
-                                      
+
                                       // Verificar si este horario cae en el slot actual
                                       if (scheduleStart <= startHour && scheduleEnd > startHour) {
                                         schedulesInThisSlot.push({
@@ -370,20 +387,17 @@ export default function CalendarioPage() {
                                 }
                               });
                             });
-                            
+
                             return (
                               <td key={`${day.id}-${time}`} className="border p-1 align-top">
                                 {schedulesInThisSlot.map((schedule, idx) => (
-                                  <div 
-                                    key={idx} 
+                                  <div
+                                    key={idx}
                                     className="text-xs p-1 rounded bg-blue-100 text-blue-800 mb-1"
                                   >
                                     <Link href={`/coordinador/instalaciones/${schedule.facilityId}`} className="hover:underline">
                                       {schedule.facilityName}
                                     </Link>
-                                    <div className="text-xs text-gray-600 mt-0.5">
-                                      {schedule.startTime} - {schedule.endTime}
-                                    </div>
                                   </div>
                                 ))}
                               </td>
@@ -395,7 +409,7 @@ export default function CalendarioPage() {
                   </tbody>
                 </table>
               </div>
-              
+
               <div className="mt-4 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-blue-100 rounded"></div>

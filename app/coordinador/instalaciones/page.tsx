@@ -42,6 +42,7 @@ interface Instalacion {
   lastVisit?: string;
   nextVisit?: string;
   isToday?: boolean;
+  hasVisitToday?: boolean; // Nueva propiedad para visitas programadas hoy (sin importar la hora)
   observations?: number;
   pendingObservations?: number;
 }
@@ -80,6 +81,33 @@ export default function InstalacionesCoordinador() {
 
         const data = await response.json();
 
+        // Obtener todos los horarios del coordinador de una vez
+        let allHorarios: any[] = [];
+        try {
+          const horariosResponse = await fetch(`${API_BASE_URL}/horarios-coordinador/coordinador/${user.id}`, {
+            credentials: 'include'
+          });
+
+          if (horariosResponse.ok) {
+            allHorarios = await horariosResponse.json();
+            console.log('Todos los horarios del coordinador:', allHorarios);
+          }
+        } catch (error) {
+          console.error('Error al obtener horarios del coordinador:', error);
+        }
+
+        // Obtener fecha actual en zona horaria de Perú/Lima
+        const now = new Date();
+        const peruTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Lima"}));
+        const currentDay = peruTime.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const todayDayName = dayNames[currentDay];
+
+        console.log('=== INFORMACIÓN DE FECHA ACTUAL ===');
+        console.log('Fecha actual Peru:', peruTime);
+        console.log('Día actual (número):', currentDay);
+        console.log('Día actual (nombre):', todayDayName);
+
         // Obtener datos completos para cada instalación
         const detailedFacilities = await Promise.all(data.map(async (instalacionBasica: any) => {
           try {
@@ -91,16 +119,131 @@ export default function InstalacionesCoordinador() {
 
             const detailData = await detailResponse.json();
 
-            // Agregar propiedades adicionales para el frontend
+            // Obtener datos reales de asistencia y observaciones
+            let lastVisit = "Sin visitas";
+            let nextVisit = "No programada";
+            let isToday = false;
+            let hasVisitToday = false; // Nueva variable para visitas programadas hoy
+            let observations = 0;
+            let pendingObservations = 0;
+
+            console.log(`=== PROCESANDO INSTALACIÓN ${instalacionBasica.id} ===`);
+            console.log('Nombre:', instalacionBasica.nombre || detailData.nombre);
+
+            // Buscar horarios para esta instalación específica
+            const horariosParaEstaInstalacion = allHorarios.filter(h => h.instalacionId === instalacionBasica.id);
+            console.log('Horarios encontrados para esta instalación:', horariosParaEstaInstalacion);
+
+            // Verificar si hay visita programada para hoy
+            const horarioHoy = horariosParaEstaInstalacion.find((h: any) => h.diaSemana.toLowerCase() === todayDayName.toLowerCase());
+            console.log('Horario encontrado para hoy:', horarioHoy);
+
+            if (horarioHoy) {
+              // Siempre marcar que tiene visita hoy (sin importar la hora)
+              hasVisitToday = true;
+              console.log('hasVisitToday establecido a true para instalación', instalacionBasica.id);
+
+              // Verificar si la hora actual es antes del horario programado para isToday
+              const currentHour = peruTime.getHours();
+              const currentMinute = peruTime.getMinutes();
+              const [horaInicio] = horarioHoy.horaInicio.split(':').map(Number);
+              const currentTimeInMinutes = currentHour * 60 + currentMinute;
+              const scheduledTimeInMinutes = horaInicio * 60;
+
+              // Formatear horarios para mostrar solo HH:MM
+              const horaInicioFormatted = horarioHoy.horaInicio.substring(0, 5);
+              const horaFinFormatted = horarioHoy.horaFin.substring(0, 5);
+
+              if (currentTimeInMinutes < scheduledTimeInMinutes) {
+                isToday = true;
+                nextVisit = `Hoy\n${horaInicioFormatted} - ${horaFinFormatted}`;
+              } else {
+                // Si ya pasó la hora, mostrar que era hoy pero ya pasó
+                nextVisit = `Hoy (${horaInicioFormatted} - ${horaFinFormatted})\nYa realizada`;
+              }
+            }
+
+            // Si no tiene visita hoy, buscar el próximo día
+            if (!hasVisitToday) {
+              let nextVisitFound = false;
+
+              // Buscar en los próximos 7 días
+              for (let i = 1; i <= 7; i++) {
+                const nextDayIndex = (currentDay + i) % 7;
+                const nextDayName = dayNames[nextDayIndex];
+
+                const horarioProximo = horariosParaEstaInstalacion.find((h: any) =>
+                  h.diaSemana.toLowerCase() === nextDayName.toLowerCase()
+                );
+
+                if (horarioProximo) {
+                  // Calcular la fecha del próximo día
+                  const nextDate = new Date(peruTime);
+                  nextDate.setDate(nextDate.getDate() + i);
+
+                  const dayOfMonth = nextDate.getDate().toString().padStart(2, '0');
+                  const month = (nextDate.getMonth() + 1).toString().padStart(2, '0');
+
+                  // Formatear horarios para mostrar solo HH:MM
+                  const horaInicioFormatted = horarioProximo.horaInicio.substring(0, 5);
+                  const horaFinFormatted = horarioProximo.horaFin.substring(0, 5);
+
+                  nextVisit = `${nextDayName.charAt(0).toUpperCase() + nextDayName.slice(1)} ${dayOfMonth}/${month}\n${horaInicioFormatted} - ${horaFinFormatted}`;
+                  nextVisitFound = true;
+                  break;
+                }
+              }
+
+              if (!nextVisitFound) {
+                nextVisit = "No programada";
+              }
+            }
+
+            // Obtener datos de asistencia del coordinador para esta instalación
+            try {
+              const asistenciaResponse = await fetch(`${API_BASE_URL}/asistencia-coordinador/instalacion/${instalacionBasica.id}`, {
+                credentials: 'include'
+              });
+
+              if (asistenciaResponse.ok) {
+                const asistenciaData = await asistenciaResponse.json();
+                if (asistenciaData && asistenciaData.length > 0) {
+                  // Obtener la última visita
+                  const ultimaAsistencia = asistenciaData[asistenciaData.length - 1];
+                  lastVisit = new Date(ultimaAsistencia.fechaHora).toLocaleDateString('es-PE');
+                }
+              }
+            } catch (error) {
+              console.error(`Error al obtener asistencia para instalación ${instalacionBasica.id}:`, error);
+            }
+
+            // Obtener observaciones de la instalación
+            try {
+              const observacionesResponse = await fetch(`${API_BASE_URL}/observaciones/instalacion/${instalacionBasica.id}`, {
+                credentials: 'include'
+              });
+
+              if (observacionesResponse.ok) {
+                const observacionesData = await observacionesResponse.json();
+                observations = observacionesData.length;
+                pendingObservations = observacionesData.filter((obs: any) => obs.estado === 'pendiente').length;
+              }
+            } catch (error) {
+              console.error(`Error al obtener observaciones para instalación ${instalacionBasica.id}:`, error);
+            }
+
+            console.log(`Instalación ${instalacionBasica.id} - hasVisitToday final:`, hasVisitToday);
+
             return {
               ...detailData,
               status: detailData.activo ? 'disponible' : 'mantenimiento',
               maintenanceStatus: detailData.activo ? 'none' : 'in-progress',
-              lastVisit: "15/04/2023",
-              nextVisit: "15/05/2023",
-              isToday: Math.random() > 0.7, // Simulación para demo
-              observations: Math.floor(Math.random() * 10),
-              pendingObservations: Math.floor(Math.random() * 5),
+              lastVisit,
+              nextVisit,
+              isToday,
+              hasVisitToday,
+              observations,
+              pendingObservations,
             };
           } catch (error) {
             console.error(`Error al obtener detalles para instalación ${instalacionBasica.id}:`, error);
@@ -112,11 +255,21 @@ export default function InstalacionesCoordinador() {
               lastVisit: "15/04/2023",
               nextVisit: "15/05/2023",
               isToday: false,
+              hasVisitToday: false,
               observations: 0,
               pendingObservations: 0,
             };
           }
         }));
+
+        console.log('=== RESUMEN FINAL DE INSTALACIONES ===');
+        console.log('Total instalaciones cargadas:', detailedFacilities.length);
+        console.log('Instalaciones con visitas hoy:', detailedFacilities.filter(f => f.hasVisitToday).length);
+        console.log('Detalle de hasVisitToday:', detailedFacilities.map(f => ({
+          id: f.id,
+          nombre: f.nombre,
+          hasVisitToday: f.hasVisitToday
+        })));
 
         setFacilities(detailedFacilities);
         setOriginalFacilities(detailedFacilities);
@@ -160,12 +313,26 @@ export default function InstalacionesCoordinador() {
   const handleTabChange = (value: string) => {
     setActiveTab(value)
 
+    console.log(`=== CAMBIO DE PESTAÑA A: ${value} ===`);
+    console.log('Total instalaciones originales:', originalFacilities.length);
+
     if (value === "todas") {
       setFacilities(originalFacilities) // Resetear a todos los datos originales
-    } else if (value === "hoy") {
-      setFacilities(originalFacilities.filter((f) => f.isToday))
+    } else if (value === "programadas") {
+      // Mostrar instalaciones que tienen visitas programadas para hoy (sin importar si ya pasó la hora)
+      const facilitiesWithVisitsToday = originalFacilities.filter((f) => f.hasVisitToday);
+      console.log('Instalaciones con visitas hoy:', facilitiesWithVisitsToday.length);
+      console.log('Detalles:', facilitiesWithVisitsToday.map(f => ({
+        id: f.id,
+        nombre: f.nombre,
+        hasVisitToday: f.hasVisitToday
+      })));
+      setFacilities(facilitiesWithVisitsToday);
     } else if (value === "pendientes") {
-      setFacilities(originalFacilities.filter((f) => f.pendingObservations && f.pendingObservations > 0))
+      // Mostrar instalaciones que realmente tienen observaciones pendientes
+      const facilitiesWithPendingObs = originalFacilities.filter((f) => f.pendingObservations && f.pendingObservations > 0);
+      console.log('Instalaciones con observaciones pendientes:', facilitiesWithPendingObs.length);
+      setFacilities(facilitiesWithPendingObs);
     }
   }
     const handleFilterByType = async (tipo: string) => {
@@ -185,15 +352,24 @@ export default function InstalacionesCoordinador() {
       setIsLoading(false);
     }
   }
-    const handleFilterByStatus = async (activo: boolean) => {
+    const handleFilterByStatus = async (disponible: boolean) => {
     setIsLoading(true);
 
     try {
       // Filtrar de las instalaciones originales que ya están asignadas al coordinador
-      // Solo aquellas que coinciden con el estado activo seleccionado
-      const filteredFacilities = originalFacilities.filter(
-        facility => facility.activo === activo
-      );
+      let filteredFacilities;
+
+      if (disponible) {
+        // Mostrar instalaciones disponibles (activas y sin mantenimiento)
+        filteredFacilities = originalFacilities.filter(
+          facility => facility.activo && facility.maintenanceStatus !== 'in-progress'
+        );
+      } else {
+        // Mostrar instalaciones en mantenimiento
+        filteredFacilities = originalFacilities.filter(
+          facility => !facility.activo || facility.maintenanceStatus === 'in-progress'
+        );
+      }
 
       setFacilities(filteredFacilities);
     } catch (error) {
@@ -289,14 +465,20 @@ export default function InstalacionesCoordinador() {
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleFilterByType("Cancha")}>
-                  Canchas
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleFilterByType("Piscina")}>
+                <DropdownMenuItem onClick={() => handleFilterByType("piscina")}>
                   Piscinas
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleFilterByType("Gimnasio")}>
+                <DropdownMenuItem onClick={() => handleFilterByType("cancha-futbol-grass")}>
+                  Canchas de Fútbol (Grass)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByType("cancha-futbol-loza")}>
+                  Canchas de Fútbol (Loza)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByType("gimnasio")}>
                   Gimnasios
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleFilterByType("pista-atletismo")}>
+                  Pistas de Atletismo
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -308,7 +490,7 @@ export default function InstalacionesCoordinador() {
       <Tabs defaultValue="todas" value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="todas">Todas</TabsTrigger>
-          <TabsTrigger value="hoy">Visitas Hoy</TabsTrigger>
+          <TabsTrigger value="programadas">Visitas Programadas</TabsTrigger>
           <TabsTrigger value="pendientes">Observaciones Pendientes</TabsTrigger>
         </TabsList>        <TabsContent value={activeTab} className="mt-4">
           {isLoading ? (
@@ -352,7 +534,7 @@ export default function InstalacionesCoordinador() {
                           <Clock className="h-4 w-4 text-primary" />
                           <span className="text-sm">Próxima visita:</span>
                         </div>
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium whitespace-pre-line text-right">
                           {facility.isToday ? (
                             <Badge className="bg-blue-100 text-blue-800">Hoy</Badge>
                           ) : (
@@ -447,6 +629,7 @@ export default function InstalacionesCoordinador() {
                             lastVisit: "15/04/2023",
                             nextVisit: "15/05/2023",
                             isToday: false,
+                            hasVisitToday: false,
                             observations: 0,
                             pendingObservations: 0,
                           };
@@ -458,11 +641,12 @@ export default function InstalacionesCoordinador() {
                           ...detailData,
                           status: detailData.activo ? 'disponible' : 'mantenimiento',
                           maintenanceStatus: detailData.activo ? 'none' : 'in-progress',
-                          lastVisit: "15/04/2023",
-                          nextVisit: "15/05/2023",
-                          isToday: Math.random() > 0.7,
-                          observations: Math.floor(Math.random() * 10),
-                          pendingObservations: Math.floor(Math.random() * 5),
+                          lastVisit: "Sin datos",
+                          nextVisit: "Sin datos",
+                          isToday: false,
+                          hasVisitToday: false,
+                          observations: 0,
+                          pendingObservations: 0,
                         };
                       }));
 
@@ -475,7 +659,7 @@ export default function InstalacionesCoordinador() {
                     }
                   };
 
-                  loadAllData();
+                  loadData();
                 }}
               >
                 Limpiar filtros

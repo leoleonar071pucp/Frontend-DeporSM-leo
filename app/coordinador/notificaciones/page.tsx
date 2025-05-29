@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 type TabType = "todas" | "no-leidas" | "leidas";
-type NotificationType = "asignacion" | "observacion" | "recordatorio" | "mantenimiento" | "todos";
+type NotificationType = "asignacion" | "observacion" | "mantenimiento" | "todos";
 
 interface Notification {
   id: number;
@@ -92,7 +92,7 @@ export default function NotificacionesCoordinador() {
 
   const getNotificationBadgeType = (notification: Notification) => {
     if (notification.category) return notification.category;
-    
+
     // Determina el tipo de notificación basado en su título para asignar la categoría correcta
     const title = notification.title.toLowerCase();
 
@@ -100,7 +100,7 @@ export default function NotificacionesCoordinador() {
     if (title.includes('observación')) return 'observacion';
     if (title.includes('mantenimiento')) return 'mantenimiento';
     if (title.includes('inspección') || title.includes('recordatorio')) return 'recordatorio';
-    
+
     return 'info';
   }
 
@@ -121,7 +121,7 @@ export default function NotificacionesCoordinador() {
 
   const filteredNotifications = notifications.filter(notification => {
     // Primero filtrar por tab
-    const tabFilter = 
+    const tabFilter =
       activeTab === "todas" ? true :
       activeTab === "no-leidas" ? !notification.read :
       notification.read;
@@ -167,7 +167,7 @@ export default function NotificacionesCoordinador() {
             <TabsTrigger value="no-leidas">No leídas</TabsTrigger>
             <TabsTrigger value="leidas">Leídas</TabsTrigger>
           </TabsList>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -186,9 +186,6 @@ export default function NotificacionesCoordinador() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleTypeChange("observacion")}>
                 Observaciones
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleTypeChange("recordatorio")}>
-                Recordatorios
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleTypeChange("mantenimiento")}>
                 Mantenimiento

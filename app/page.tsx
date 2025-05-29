@@ -100,7 +100,7 @@ export default function Home() {
             <div className="rounded-lg overflow-hidden shadow-xl">
               {/* Imagen destacada fija del estadio futurista */}
               <img
-                src="https://arquitecturas3d.com/wp-content/uploads/2024/01/image-63-1024x585.png"
+                src="/images/Instalacion_Principal_Inicio.png"
                 alt="Estadio deportivo futurista"
                 className="w-full h-auto object-cover"
               />

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { CheckCircle, Loader2, Bell, Lock, LogOut, Laptop, Eye, EyeOff, AlertCircle } from "lucide-react"
+import { CheckCircle, Loader2, Bell, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { API_BASE_URL } from "@/lib/config"
 import { useRouter } from "next/navigation"
@@ -248,52 +248,7 @@ export default function ConfiguracionAdmin() {
     }
   }
 
-  // Estado para sesiones activas (simuladas)
-  const [activeSessions, setActiveSessions] = useState([
-    {
-      id: "session-1",
-      device: "Windows PC - Chrome",
-      location: "Lima, Peru",
-      lastActive: "Ahora",
-      current: true
-    },
-    {
-      id: "session-2",
-      device: "iPhone - Safari",
-      location: "Lima, Peru",
-      lastActive: "Hace 2 días"
-    }
-  ]);
 
-  const handleTerminateSession = (sessionId: string) => {
-    setIsSaving(true);
-
-    // Simulación de cierre de sesión
-    setTimeout(() => {
-      setActiveSessions(prev => prev.filter(session => session.id !== sessionId));
-      setIsSaving(false);
-      setIsSuccess(true);
-
-      setTimeout(() => {
-        setIsSuccess(false);
-      }, 3000);
-    }, 1000);
-  };
-
-  const handleTerminateAllSessions = () => {
-    setIsSaving(true);
-
-    // Simulación de cierre de todas las sesiones excepto la actual
-    setTimeout(() => {
-      setActiveSessions(prev => prev.filter(session => session.current));
-      setIsSaving(false);
-      setIsSuccess(true);
-
-      setTimeout(() => {
-        setIsSuccess(false);
-      }, 3000);
-    }, 1500);
-  };
 
   return (
     <div className="space-y-6">
@@ -433,79 +388,7 @@ export default function ConfiguracionAdmin() {
             </CardContent>
           </Card>
 
-          {/* Sesiones Activas */}
-          <Card className="mt-6">
-            <CardHeader>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <CardTitle>Sesiones Activas</CardTitle>
-                  <CardDescription>Gestiona los dispositivos donde has iniciado sesión</CardDescription>
-                </div>
-                {isSuccess && (
-                  <div className="flex items-center text-green-600">
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    <span className="text-sm">Sesiones actualizadas correctamente</span>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {activeSessions.map((session) => (
-                  <div key={session.id} className="flex items-start justify-between p-4 border rounded-lg">
-                    <div className="flex gap-3">
-                      <div className="mt-1">
-                        <Laptop className="h-5 w-5 text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {session.device}
-                          {session.current && (
-                            <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                              Actual
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {session.location} • Última actividad: {session.lastActive}
-                        </p>
-                      </div>
-                    </div>
-                    {!session.current && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleTerminateSession(session.id)}
-                        disabled={isSaving}
-                      >
-                        <LogOut className="h-3.5 w-3.5 mr-1" />
-                        Cerrar
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button
-                variant="outline"
-                onClick={handleTerminateAllSessions}
-                disabled={isSaving || activeSessions.length <= 1}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Cerrando...
-                  </>
-                ) : (
-                  <>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Cerrar todas las otras sesiones
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
+
         </TabsContent>
 
         <TabsContent value="notificaciones" className="mt-6">
