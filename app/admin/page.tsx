@@ -155,6 +155,7 @@ export default function AdminDashboard() {
             facilityName: o.nombreInstalacion,
             description: o.descripcion,
             priority: o.prioridad,
+            status: o.estado,
             date: o.fecha,
           }))
         )

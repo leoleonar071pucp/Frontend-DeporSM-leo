@@ -212,10 +212,13 @@ export default function CoordinadorDashboard() {
       case "pendiente":
         return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>
       case "aprobada":
+      case "en_proceso":
         return <Badge className="bg-green-100 text-green-800">Aprobada</Badge>
       case "rechazada":
+      case "cancelada":
         return <Badge className="bg-red-100 text-red-800">Rechazada</Badge>
       case "completada":
+      case "resuelta":
         return <Badge className="bg-blue-100 text-blue-800">Completada</Badge>
       case "programada":
         return <Badge className="bg-blue-100 text-blue-800">Programada</Badge>

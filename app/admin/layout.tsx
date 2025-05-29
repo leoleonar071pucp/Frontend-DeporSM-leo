@@ -22,6 +22,7 @@ import {
   CheckSquare,
   Loader2,
   ClipboardList,
+  UserCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -85,6 +86,7 @@ export default function AdminLayout({
     },
     { name: "Reservas", href: "/admin/reservas", icon: <Users className="h-5 w-5" /> },
     { name: "Coordinadores", href: "/admin/coordinadores", icon: <Users className="h-5 w-5" /> },
+    { name: "Asistencias", href: "/admin/asistencias", icon: <UserCheck className="h-5 w-5" /> },
     { name: "Observaciones", href: "/admin/observaciones", icon: <ClipboardList className="h-5 w-5" /> },
     { name: "Reportes", href: "/admin/reportes", icon: <FileText className="h-5 w-5" /> },
     { name: "Configuración", href: "/admin/configuracion", icon: <Settings className="h-5 w-5" /> },
