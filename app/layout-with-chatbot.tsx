@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   title: "Sistema de Reserva Deportiva - San Miguel",
   description: "Plataforma de reserva de canchas y servicios deportivos para vecinos de San Miguel",
   icons: {
-    icon: '/images/Icono_Municipalidad_SanMiguel.jpg',
-    shortcut: '/images/Icono_Municipalidad_SanMiguel.jpg',
-    apple: '/images/Icono_Municipalidad_SanMiguel.jpg',
+    icon: '/images/Icono_Municipalidad_SanMiguel.png',
+    shortcut: '/images/Icono_Municipalidad_SanMiguel.png',
+    apple: '/images/Icono_Municipalidad_SanMiguel.png',
   },
 }
 
@@ -25,9 +25,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <link rel="icon" href="/images/Icono_Municipalidad_SanMiguel.jpg" type="image/jpeg" />
-        <link rel="shortcut icon" href="/images/Icono_Municipalidad_SanMiguel.jpg" type="image/jpeg" />
-        <link rel="apple-touch-icon" href="/images/Icono_Municipalidad_SanMiguel.jpg" />
+        <link rel="icon" href="/images/Icono_Municipalidad_SanMiguel.png" type="image/png" />
+        <link rel="shortcut icon" href="/images/Icono_Municipalidad_SanMiguel.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/images/Icono_Municipalidad_SanMiguel.png" />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light">
