@@ -67,11 +67,14 @@ export default function RecuperarContrasena() {
   }
 
   return (
-    <div className="min-h-screen bg-primary-background flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative" 
+         style={{ backgroundImage: 'url("https://www.ciudaris.com/blog/wp-content/uploads/destacado-vivir-en-san-miguel.jpg")' }}>
+      {/* Overlay for transparency - whitish translucent tone */}
+      <div className="absolute inset-0 bg-white/30"></div>
+      <div className="max-w-md w-full relative z-10">
         <div className="mb-6">
-          <Link href="/login" className="text-primary hover:underline flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Volver a Iniciar Sesión
+          <Link href="/login" className="text-gray-800 hover:underline flex items-center gap-1 bg-gray-200/70 px-3 py-1 rounded backdrop-blur-sm">
+            <ArrowLeft className="h-4 w-4" /> Volver a iniciar sesión
           </Link>
         </div>
 

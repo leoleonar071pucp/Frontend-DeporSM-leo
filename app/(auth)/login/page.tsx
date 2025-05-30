@@ -119,17 +119,17 @@ function LoginForm() {
         variant: "destructive",
         title: "Error",
         description: "No se pudo conectar con el servidor",
-      })
-    } finally {
-      setIsLoading(false)
+      })    } finally {
+      setIsLoading(false);
     }
-  }
-
-  return (
-    <div className="min-h-screen bg-primary-background flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="mb-6">
-          <Link href="/" className="text-primary hover:underline flex items-center gap-1">
+  };
+    return (
+    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative" 
+         style={{ backgroundImage: 'url("https://www.ciudaris.com/blog/wp-content/uploads/destacado-vivir-en-san-miguel.jpg")' }}>
+      {/* Overlay for transparency - whitish translucent tone */}
+      <div className="absolute inset-0 bg-white/30"></div>
+      <div className="max-w-md w-full relative z-10">        <div className="mb-6">
+          <Link href="/" className="text-gray-800 hover:underline flex items-center gap-1 bg-gray-200/70 px-3 py-1 rounded backdrop-blur-sm">
             <ArrowLeft className="h-4 w-4" /> Volver al inicio
           </Link>
         </div>
@@ -197,22 +197,21 @@ function LoginForm() {
               </Link>
             </p>
           </CardFooter>
-        </Card>
-      </div>
+        </Card>      </div>
     </div>
-  )
+  );
 }
 
 // Componente de carga para el Suspense
-function LoginLoading() {
-  return (
-    <div className="min-h-screen bg-primary-background flex items-center justify-center p-4">
-      <div className="max-w-md w-full flex flex-col items-center justify-center">
+function LoginLoading() {  return (    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative" 
+         style={{ backgroundImage: 'url("https://www.ciudaris.com/blog/wp-content/uploads/destacado-vivir-en-san-miguel.jpg")' }}>
+      {/* Overlay for transparency - whitish translucent tone */}
+      <div className="absolute inset-0 bg-white/70"></div>
+      <div className="max-w-md w-full flex flex-col items-center justify-center bg-white/30 backdrop-blur-sm p-4 rounded-lg relative z-10">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p>Cargando...</p>
-      </div>
+        <p className="font-medium">Cargando...</p>      </div>
     </div>
-  )
+  );
 }
 
 // Componente principal que exportamos
@@ -221,7 +220,7 @@ export default function Login() {
     <Suspense fallback={<LoginLoading />}>
       <LoginForm />
     </Suspense>
-  )
+  );
 }
 
 
