@@ -195,12 +195,12 @@ export default function Registro() {
     }
   }
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative" 
-         style={{ backgroundImage: 'url("https://www.ciudaris.com/blog/wp-content/uploads/destacado-vivir-en-san-miguel.jpg")' }}>
-      {/* Overlay for transparency - whitish translucent tone */}
-      <div className="absolute inset-0 bg-white/30"></div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative"
+         style={{ backgroundImage: 'url("/images/Fondo_SanMiguel.jpg")' }}>
+      {/* Overlay for transparency - darker tone for better contrast */}
+      <div className="absolute inset-0 bg-black/20"></div>
       <div className="max-w-md w-full relative z-10">        <div className="mb-6">
-          <Link href="/" className="text-gray-800 hover:underline flex items-center gap-1 bg-gray-200/70 px-3 py-1 rounded backdrop-blur-sm">
+          <Link href="/" className="text-white hover:text-gray-200 flex items-center gap-2 bg-black/40 hover:bg-black/50 px-4 py-2 rounded-lg backdrop-blur-md transition-all duration-200 border border-white/20">
             <ArrowLeft className="h-4 w-4" /> Volver al inicio
           </Link>
         </div>

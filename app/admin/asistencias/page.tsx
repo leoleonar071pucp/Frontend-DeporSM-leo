@@ -60,6 +60,7 @@ export default function AdminAsistenciasPage() {
 
   // Obtener listas únicas para los selectores
   const uniqueInstalaciones = Array.from(new Set(attendanceData.map(item => item.nombreInstalacion))).sort()
+  const uniqueCoordinadores = Array.from(new Set(attendanceData.map(item => item.nombreCoordinador))).sort()
 
   // Calcular estadísticas basadas en los datos filtrados
   const stats = {
@@ -111,7 +112,7 @@ export default function AdminAsistenciasPage() {
     // Filtro por coordinador
     if (filters.coordinadorNombre) {
       filtered = filtered.filter(item =>
-        item.nombreCoordinador.toLowerCase().includes(filters.coordinadorNombre.toLowerCase())
+        item.nombreCoordinador === filters.coordinadorNombre
       )
     }
 
@@ -394,12 +395,19 @@ export default function AdminAsistenciasPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="coordinador">Coordinador</Label>
-              <Input
-                id="coordinador"
-                placeholder="Buscar por nombre..."
-                value={filters.coordinadorNombre}
-                onChange={(e) => handleFilterChange("coordinadorNombre", e.target.value)}
-              />
+              <Select value={filters.coordinadorNombre || "todos"} onValueChange={(value) => handleFilterChange("coordinadorNombre", value === "todos" ? "" : value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos los coordinadores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los coordinadores</SelectItem>
+                  {uniqueCoordinadores.map((coordinador) => (
+                    <SelectItem key={coordinador} value={coordinador}>
+                      {coordinador}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

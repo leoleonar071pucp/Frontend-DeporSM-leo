@@ -131,10 +131,13 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="min-h-screen bg-primary-background flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative"
+         style={{ backgroundImage: 'url("/images/Fondo_SanMiguel.jpg")' }}>
+      {/* Overlay for transparency - darker tone for better contrast */}
+      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="max-w-md w-full relative z-10">
         <div className="mb-6">
-          <Link href="/login" className="text-primary hover:underline flex items-center gap-1">
+          <Link href="/login" className="text-white hover:text-gray-200 flex items-center gap-2 bg-black/40 hover:bg-black/50 px-4 py-2 rounded-lg backdrop-blur-md transition-all duration-200 border border-white/20">
             <ArrowLeft className="h-4 w-4" /> Volver a Iniciar Sesión
           </Link>
         </div>
@@ -255,8 +258,11 @@ function ResetPasswordForm() {
 // Componente de carga para el Suspense
 function LoadingResetPassword() {
   return (
-    <div className="min-h-screen bg-primary-background flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative"
+         style={{ backgroundImage: 'url("/images/Fondo_SanMiguel.jpg")' }}>
+      {/* Overlay for transparency - darker tone for better contrast */}
+      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="max-w-md w-full relative z-10">
         <Card>
           <CardHeader>
             <CardTitle>Restablecer Contraseña</CardTitle>
