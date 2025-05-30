@@ -15,6 +15,7 @@ import { User, Mail, Phone, Shield, Lock, Save, CheckCircle, Loader2, MapPin } f
 import { useAuth } from "@/context/AuthContext" // Importar el contexto de autenticación
 import { useToast } from "@/hooks/use-toast" // Importar el hook para toast
 import { Separator } from "@/components/ui/separator"
+import { API_BASE_URL } from "@/lib/config"
 
 // Definición de tipos para mejorar la seguridad de tipos
 interface ProfileData {
@@ -113,7 +114,7 @@ export default function PerfilSuperadminPage() {
 
     try {
       // No enviamos el email en la solicitud ya que no se puede modificar
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'}/usuarios/perfil`, {
+      const response = await fetch(`${API_BASE_URL}/usuarios/perfil`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
