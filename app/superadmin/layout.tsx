@@ -82,7 +82,6 @@ export default function SuperAdminLayout({
         { name: "Vecinos", href: "/superadmin/usuarios/vecinos", icon: <Users className="h-4 w-4" /> }
       ],
     },
-    /* Comentado para la presentación
     {
       name: "Sistema",
       href: "/superadmin/sistema",
@@ -100,7 +99,6 @@ export default function SuperAdminLayout({
         { name: "Actividad de Usuarios", href: "/superadmin/monitoreo/actividad-usuarios", icon: <Users className="h-4 w-4" /> },
       ],
     },
-    */
   ]
 
   // --- Protección de Ruta por Rol ---

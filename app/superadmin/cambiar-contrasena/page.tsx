@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { CheckCircle, Loader2, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { API_BASE_URL } from "@/lib/config"
 
 export default function CambiarContrasenaPage() {
   const { toast } = useToast()
@@ -17,11 +18,11 @@ export default function CambiarContrasenaPage() {
     newPassword: "",
     confirmPassword: "",
   })
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
 
@@ -36,7 +37,7 @@ export default function CambiarContrasenaPage() {
   }
 
   const validateForm = () => {
-    const newErrors = {}
+    const newErrors: Record<string, string> = {}
 
     if (!formData.currentPassword) {
       newErrors.currentPassword = "La contraseña actual es obligatoria"
@@ -44,8 +45,8 @@ export default function CambiarContrasenaPage() {
 
     if (!formData.newPassword) {
       newErrors.newPassword = "La nueva contraseña es obligatoria"
-    } else if (formData.newPassword.length < 8) {
-      newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres"
+    } else if (formData.newPassword.length < 6) {
+      newErrors.newPassword = "La contraseña debe tener al menos 6 caracteres"
     }
 
     if (!formData.confirmPassword) {
@@ -58,7 +59,7 @@ export default function CambiarContrasenaPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
@@ -67,9 +68,37 @@ export default function CambiarContrasenaPage() {
 
     setIsSaving(true)
 
-    // Simulación de guardado
-    setTimeout(() => {
-      setIsSaving(false)
+    try {
+      const response = await fetch(`${API_BASE_URL}/usuarios/cambiar-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          passwordActual: formData.currentPassword,
+          passwordNueva: formData.newPassword,
+          confirmacionPassword: formData.confirmPassword
+        })
+      });
+
+      if (response.status === 401) {
+        toast({
+          variant: "destructive",
+          title: "Sesión expirada",
+          description: "Por favor, inicia sesión nuevamente.",
+        });
+        router.push('/login');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        // El backend devuelve el mensaje de error en el body
+        throw new Error(typeof errorData === 'string' ? errorData :
+          (errorData.message || "Error al cambiar la contraseña"));
+      }
+
       setIsSuccess(true)
 
       toast({
@@ -77,7 +106,7 @@ export default function CambiarContrasenaPage() {
         description: "Tu contraseña ha sido actualizada exitosamente.",
       })
 
-      // Resetear formulario y mensaje de éxito
+      // Resetear formulario
       setFormData({
         currentPassword: "",
         newPassword: "",
@@ -89,7 +118,16 @@ export default function CambiarContrasenaPage() {
         setIsSuccess(false)
         router.push('/superadmin/perfil')
       }, 2000)
-    }, 1500)
+    } catch (error) {
+      console.error("Error al cambiar la contraseña:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo cambiar la contraseña",
+      });
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
