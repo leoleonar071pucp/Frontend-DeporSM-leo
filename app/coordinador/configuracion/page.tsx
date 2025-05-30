@@ -1,36 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { Bell, Lock, Save, Loader2, CheckCircle, Eye, EyeOff, AlertCircle } from "lucide-react"
+import { Bell, Lock, Save, Loader2, CheckCircle, Laptop, LogOut } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { API_BASE_URL } from "@/lib/config"
 
 export default function ConfiguracionPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("seguridad")
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true)
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
-  // Estado para la configuración de notificaciones (solo email)
+  // Estado para la configuración de notificaciones
   const [notificationSettings, setNotificationSettings] = useState({
-    email: true
+    email: true,
+    observaciones: true,
+    asignaciones: true,
+    recordatorios: true,
+    mantenimiento: true
   })
-
-  // Estados para mostrar/ocultar contraseñas
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  // Estado para validación de coincidencia de contraseñas
-  const [passwordsMatch, setPasswordsMatch] = useState(true)
 
   // Estado para el cambio de contraseña
   const [passwordData, setPasswordData] = useState({
@@ -42,47 +35,9 @@ export default function ConfiguracionPage() {
   // Estado para errores de validación
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Cargar preferencias de notificaciones al montar el componente
-  useEffect(() => {
-    const loadNotificationPreferences = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/usuarios/preferencias-notificaciones`, {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          const preferences = await response.json();
-          setNotificationSettings({
-            email: preferences.email || false
-          });
-        } else {
-          console.warn("No se pudieron cargar las preferencias de notificaciones");
-        }
-      } catch (error) {
-        console.error("Error al cargar preferencias:", error);
-      } finally {
-        setIsLoadingPreferences(false);
-      }
-    };
-
-    loadNotificationPreferences();
-  }, []);
-
-  // Manejadores para alternar la visibilidad de las contraseñas
-  const toggleCurrentPasswordVisibility = () => setShowCurrentPassword(prev => !prev);
-  const toggleNewPasswordVisibility = () => setShowNewPassword(prev => !prev);
-  const toggleConfirmPasswordVisibility = () => setShowConfirmPassword(prev => !prev);
-
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setPasswordData((prev) => ({ ...prev, [name]: value }))
-
-    // Verificar coincidencia de contraseñas
-    if (name === 'newPassword') {
-      setPasswordsMatch(value === passwordData.confirmPassword || passwordData.confirmPassword === "");
-    } else if (name === 'confirmPassword') {
-      setPasswordsMatch(value === passwordData.newPassword);
-    }
 
     // Limpiar error al editar
     if (errors[name]) {
@@ -93,7 +48,7 @@ export default function ConfiguracionPage() {
       })
     }
   }
-  // Función para manejar cambios en notificaciones
+
   const handleNotificationChange = (key: string, checked: boolean) => {
     setNotificationSettings((prev) => ({ ...prev, [key]: checked }))
   }
@@ -107,15 +62,14 @@ export default function ConfiguracionPage() {
 
     if (!passwordData.newPassword) {
       newErrors.newPassword = "La nueva contraseña es obligatoria"
-    } else if (passwordData.newPassword.length < 6) {
-      newErrors.newPassword = "La contraseña debe tener al menos 6 caracteres"
+    } else if (passwordData.newPassword.length < 8) {
+      newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres"
     }
 
     if (!passwordData.confirmPassword) {
       newErrors.confirmPassword = "Debes confirmar la nueva contraseña"
     } else if (passwordData.newPassword !== passwordData.confirmPassword) {
       newErrors.confirmPassword = "Las contraseñas no coinciden"
-      setPasswordsMatch(false);
     }
 
     setErrors(newErrors)
@@ -128,40 +82,33 @@ export default function ConfiguracionPage() {
       return
     }
 
-    setIsChangingPassword(true)
+    setIsSaving(true)
 
     try {
-      // Llamar al endpoint de API para cambiar contraseña
-      const response = await fetch(`${API_BASE_URL}/usuarios/cambiar-password`, {
-        method: 'PUT',
+      // Llamar al nuevo endpoint de API para cambiar contraseña
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/change-password`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          passwordActual: passwordData.currentPassword,
-          passwordNueva: passwordData.newPassword,
-          confirmacionPassword: passwordData.confirmPassword
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
         }),
         credentials: 'include'
       });
 
       if (response.ok) {
-        // Limpiar campos de contraseña y restablecer estados
+        // Contraseña cambiada exitosamente
+        setIsSaving(false);
+        setIsSuccess(true);
+
+        // Resetear formulario
         setPasswordData({
           currentPassword: "",
           newPassword: "",
-          confirmPassword: ""
+          confirmPassword: "",
         });
-
-        // Ocultar contraseñas
-        setShowCurrentPassword(false);
-        setShowNewPassword(false);
-        setShowConfirmPassword(false);
-
-        // Restablecer estado de coincidencia
-        setPasswordsMatch(true);
-
-        setIsSuccess(true);
 
         toast({
           title: "Contraseña actualizada",
@@ -175,7 +122,8 @@ export default function ConfiguracionPage() {
       } else {
         // Error al cambiar la contraseña
         const errorData = await response.json();
-
+        setIsSaving(false);
+        
         // Añadir error al campo de contraseña actual si es incorrecta
         if (errorData.error && errorData.error.includes("contraseña actual no es válida")) {
           setErrors(prev => ({
@@ -183,7 +131,7 @@ export default function ConfiguracionPage() {
             currentPassword: "La contraseña actual es incorrecta"
           }));
         }
-
+        
         toast({
           title: "Error al cambiar la contraseña",
           description: errorData.error || "La contraseña actual es incorrecta",
@@ -191,62 +139,34 @@ export default function ConfiguracionPage() {
         });
       }
     } catch (error) {
+      setIsSaving(false);
       toast({
         title: "Error de conexión",
         description: "No pudimos conectar con el servidor. Intenta nuevamente.",
         variant: "destructive"
       });
       console.error("Error al cambiar contraseña:", error);
-    } finally {
-      setIsChangingPassword(false);
     }
   }
-  // Función para guardar notificaciones
-  const handleSaveNotifications = async () => {
+
+  const handleSaveNotifications = () => {
     setIsSaving(true)
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/usuarios/preferencias-notificaciones`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(notificationSettings),
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        setIsSaving(false)
-        setIsSuccess(true)
-
-        toast({
-          title: "Configuración guardada",
-          description: "Tus preferencias de notificaciones han sido actualizadas exitosamente.",
-        })
-
-        // Resetear mensaje de éxito después de 3 segundos
-        setTimeout(() => {
-          setIsSuccess(false)
-        }, 3000)
-      } else {
-        const errorData = await response.json();
-        setIsSaving(false)
-
-        toast({
-          title: "Error al guardar preferencias",
-          description: errorData.error || "No se pudieron guardar las preferencias",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+    // Simulación de guardado
+    setTimeout(() => {
       setIsSaving(false)
+      setIsSuccess(true)
+
       toast({
-        title: "Error de conexión",
-        description: "No pudimos conectar con el servidor. Intenta nuevamente.",
-        variant: "destructive"
-      });
-      console.error("Error al guardar preferencias:", error);
-    }
+        title: "Configuración guardada",
+        description: "Tus preferencias han sido actualizadas exitosamente.",
+      })
+
+      // Resetear mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setIsSuccess(false)
+      }, 3000)
+    }, 1500)
   }
   // Las variables de estado y funciones relacionadas con sesiones activas han sido eliminadas ya que esta sección fue ocultada
 
@@ -255,7 +175,9 @@ export default function ConfiguracionPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground">Gestiona tu perfil y preferencias de notificaciones</p>
-      </div>      <Tabs defaultValue="seguridad" value={activeTab} onValueChange={setActiveTab}>
+      </div>
+
+      <Tabs defaultValue="seguridad" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
           <TabsTrigger value="notificaciones">Notificaciones</TabsTrigger>
@@ -285,24 +207,14 @@ export default function ConfiguracionPage() {
                       <Lock className="h-4 w-4 text-primary" />
                       Contraseña actual
                     </Label>
-                    <div className="relative">
-                      <Input
-                        id="currentPassword"
-                        name="currentPassword"
-                        type={showCurrentPassword ? "text" : "password"}
-                        placeholder="Ingresa tu contraseña actual"
-                        value={passwordData.currentPassword}
-                        onChange={handlePasswordChange}
-                        className={errors.currentPassword ? "border-red-500" : ""}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        onClick={toggleCurrentPasswordVisibility}
-                      >
-                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
+                    <Input
+                      id="currentPassword"
+                      name="currentPassword"
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      className={errors.currentPassword ? "border-red-500" : ""}
+                    />
                     {errors.currentPassword && <p className="text-red-500 text-sm">{errors.currentPassword}</p>}
                   </div>
                   <div className="space-y-2">
@@ -310,71 +222,38 @@ export default function ConfiguracionPage() {
                       <Lock className="h-4 w-4 text-primary" />
                       Nueva contraseña
                     </Label>
-                    <div className="relative">
-                      <Input
-                        id="newPassword"
-                        name="newPassword"
-                        type={showNewPassword ? "text" : "password"}
-                        placeholder="Ingresa tu nueva contraseña"
-                        value={passwordData.newPassword}
-                        onChange={handlePasswordChange}
-                        className={errors.newPassword ? "border-red-500" : ""}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        onClick={toggleNewPasswordVisibility}
-                      >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
+                    <Input
+                      id="newPassword"
+                      name="newPassword"
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      className={errors.newPassword ? "border-red-500" : ""}
+                    />
                     {errors.newPassword && <p className="text-red-500 text-sm">{errors.newPassword}</p>}
-                    <p className="text-xs text-gray-500 mt-1">
-                      La contraseña debe tener al menos 6 caracteres
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword" className="flex items-center gap-2">
                       <Lock className="h-4 w-4 text-primary" />
                       Confirmar nueva contraseña
                     </Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Confirma tu nueva contraseña"
-                        value={passwordData.confirmPassword}
-                        onChange={handlePasswordChange}
-                        className={!passwordsMatch && passwordData.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : errors.confirmPassword ? "border-red-500" : ""}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                        onClick={toggleConfirmPasswordVisibility}
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {!passwordsMatch && passwordData.confirmPassword && (
-                      <div className="flex items-center text-red-500 text-xs mt-1">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Las contraseñas no coinciden
-                      </div>
-                    )}
-                    {errors.confirmPassword && passwordsMatch && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={handlePasswordChange}
+                      className={errors.confirmPassword ? "border-red-500" : ""}
+                    />
+                    {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
                   </div>
 
                   <div className="mt-6 flex justify-end">
-                    <Button
-                      type="submit"
-                      className="bg-primary hover:bg-primary-light"
-                      disabled={isChangingPassword}
-                    >
-                      {isChangingPassword ? (
+                    <Button type="submit" className="bg-primary hover:bg-primary-light" disabled={isSaving}>
+                      {isSaving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Cambiando...
+                          Actualizando...
                         </>
                       ) : (
                         "Cambiar contraseña"
@@ -385,7 +264,7 @@ export default function ConfiguracionPage() {
               </form>
             </CardContent>
           </Card>          {/* Sesiones Activas - Comentado/oculto según requerimiento */}
-          {/*
+          {/* 
           <Card className="mt-6">
             <CardHeader>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -424,9 +303,9 @@ export default function ConfiguracionPage() {
                       </div>
                     </div>
                     {!session.current && (
-                      <Button
-                        variant="outline"
-                        size="sm"
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
                         onClick={() => handleTerminateSession(session.id)}
                         disabled={isSaving}
                       >
@@ -459,7 +338,9 @@ export default function ConfiguracionPage() {
             </CardFooter>
           </Card>
           */}
-        </TabsContent>        <TabsContent value="notificaciones" className="mt-6">
+        </TabsContent>
+
+        <TabsContent value="notificaciones" className="mt-6">
           <Card>
             <CardHeader>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -496,30 +377,78 @@ export default function ConfiguracionPage() {
                         id="email-notifications"
                         checked={notificationSettings.email}
                         onCheckedChange={(checked) => handleNotificationChange("email", checked)}
-                        disabled={isLoadingPreferences}
                       />
                     </div>
 
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="observaciones-notifications" className="font-medium">
+                          Observaciones
+                        </Label>
+                        <p className="text-sm text-gray-500">Notificaciones sobre tus observaciones reportadas</p>
+                      </div>
+                      <Switch
+                        id="observaciones-notifications"
+                        checked={notificationSettings.observaciones}
+                        onCheckedChange={(checked) => handleNotificationChange("observaciones", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
 
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="asignaciones-notifications" className="font-medium">
+                          Asignaciones
+                        </Label>
+                        <p className="text-sm text-gray-500">Notificaciones sobre nuevas instalaciones asignadas</p>
+                      </div>
+                      <Switch
+                        id="asignaciones-notifications"
+                        checked={notificationSettings.asignaciones}
+                        onCheckedChange={(checked) => handleNotificationChange("asignaciones", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="recordatorios-notifications" className="font-medium">
+                          Recordatorios
+                        </Label>
+                        <p className="text-sm text-gray-500">Recordatorios de visitas e inspecciones</p>
+                      </div>
+                      <Switch
+                        id="recordatorios-notifications"
+                        checked={notificationSettings.recordatorios}
+                        onCheckedChange={(checked) => handleNotificationChange("recordatorios", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="mantenimiento-notifications" className="font-medium">
+                          Mantenimiento
+                        </Label>
+                        <p className="text-sm text-gray-500">Notificaciones sobre mantenimiento programado</p>
+                      </div>
+                      <Switch
+                        id="mantenimiento-notifications"
+                        checked={notificationSettings.mantenimiento}
+                        onCheckedChange={(checked) => handleNotificationChange("mantenimiento", checked)}
+                        disabled={!notificationSettings.email}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
-              <Button
-                className="bg-primary hover:bg-primary-light"
-                onClick={handleSaveNotifications}
-                disabled={isSaving || isLoadingPreferences}
-              >
+              <Button className="bg-primary hover:bg-primary-light" onClick={handleSaveNotifications} disabled={isSaving}>
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Guardando...
-                  </>
-                ) : isLoadingPreferences ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Cargando...
                   </>
                 ) : (
                   <>

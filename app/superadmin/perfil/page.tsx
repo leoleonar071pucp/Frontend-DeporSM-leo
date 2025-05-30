@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, Mail, Phone, Shield, Lock, Save, CheckCircle, Loader2 } from "lucide-react"
+import { User, Mail, Phone, Shield, Lock, Save, CheckCircle, Loader2, MapPin } from "lucide-react"
 
 import { useAuth } from "@/context/AuthContext" // Importar el contexto de autenticación
 import { useToast } from "@/hooks/use-toast" // Importar el hook para toast
@@ -19,10 +19,12 @@ import { Separator } from "@/components/ui/separator"
 // Definición de tipos para mejorar la seguridad de tipos
 interface ProfileData {
   name: string;
+  apellidos: string; // Añadir campo de apellidos separado
   email: string;
   phone: string;
   lastLogin: string;
   ipAddress: string;
+  direccion: string; // Añadir campo de dirección
 }
 
 // Función para formatear teléfono
@@ -37,24 +39,26 @@ const formatPhoneNumber = (phoneNumber: string): string => {
 
   // Si tiene otro número de dígitos, devolver con formato básico
   return cleaned.replace(/(\d{3})(\d{3})(\d+)/, '$1-$2-$3');
-}
+};
 
 export default function PerfilSuperadminPage() {
-  const { user } = useAuth() // Obtener el usuario del contexto de autenticación
-  const { toast } = useToast() // Obtener toast para notificaciones
-  const [isSaving, setIsSaving] = useState(false) // Estado para botón de guardado
-  const [isSuccess, setIsSuccess] = useState(false) // Estado para mensaje de éxito
-  const [isEditing, setIsEditing] = useState(false) // Estado para modo de edición
-
+  const { user, checkAuthStatus } = useAuth(); // Obtener el usuario y la función para actualizar del contexto de autenticación
+  const { toast } = useToast(); // Obtener toast para notificaciones
+  const [isSaving, setIsSaving] = useState(false); // Estado para botón de guardado
+  const [isSuccess, setIsSuccess] = useState(false); // Estado para mensaje de éxito
+  const [isEditing, setIsEditing] = useState(false); // Estado para modo de edición
+  
   // Inicializar datos del perfil con la información de usuario del contexto
   const [profileData, setProfileData] = useState<ProfileData>({
     name: "Administrador Principal",
+    apellidos: "Sistema",
     email: "superadmin@munisanmiguel.gob.pe",
     phone: "987-654-321",
     lastLogin: "05/04/2025, 08:00",
     ipAddress: "192.168.1.3",
-  })
-
+    direccion: "Av. Principal 123, San Miguel",
+  });
+  
   // Actualizar los datos del perfil cuando cambia el usuario
   useEffect(() => {
     if (user) {
@@ -68,19 +72,21 @@ export default function PerfilSuperadminPage() {
         return {
           ...prevData,
           name: user.nombre || prevData.name,
+          apellidos: user.apellidos || prevData.apellidos,
           email: user.email || prevData.email,
+          direccion: user.direccion || prevData.direccion,
           // Usar el teléfono predeterminado "987-654-321" si es el número genérico "900000000"
           phone: (user.telefono && !isDefaultPhone) ?
                  formatPhoneNumber(user.telefono) :
                  "987-654-321",
-        }
-      })
+        };
+      });
     }
-  }, [user])
+  }, [user]);
 
   // Manejadores de eventos
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
 
     if (name === 'phone') {
       // Para el campo de teléfono, solo permitir números y máximo 9 dígitos
@@ -88,41 +94,97 @@ export default function PerfilSuperadminPage() {
       setProfileData((prev) => ({
         ...prev,
         [name]: formatPhoneNumber(onlyNums)
-      }))
+      }));
     } else {
-      setProfileData((prev) => ({ ...prev, [name]: value }))
+      setProfileData((prev) => ({ ...prev, [name]: value }));
     }
-  }
+  };
 
   const handleEditToggle = () => {
     if (isEditing) {
-      setIsEditing(false)
+      setIsEditing(false);
     } else {
-      setIsEditing(true)
+      setIsEditing(true);
     }
-  }
+  };
+  
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
 
-  const handleSaveProfile = () => {
-    setIsSaving(true)
+    try {
+      // No enviamos el email en la solicitud ya que no se puede modificar
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'}/usuarios/perfil`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          nombre: profileData.name,
+          apellidos: profileData.apellidos,
+          telefono: profileData.phone.replace(/-/g, ''),
+          direccion: profileData.direccion
+        })
+      });
 
-    // Simulación de guardado
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
-      setIsEditing(false)
+      if (response.status === 401) {
+        toast({
+          variant: "destructive",
+          title: "Sesión expirada",
+          description: "Por favor, inicia sesión nuevamente.",
+        });
+        setIsEditing(false);
+        setIsSaving(false);
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Error al actualizar el perfil: ${response.status}`);
+      }
+
+      // Obtener los datos actualizados
+      const updatedData = await response.json();
+
+      // Actualizar el estado con los datos recibidos del servidor
+      setProfileData(prev => ({
+        ...prev,
+        name: updatedData.nombre || prev.name,
+        apellidos: updatedData.apellidos || prev.apellidos,
+        email: updatedData.email || prev.email,
+        phone: updatedData.telefono ? formatPhoneNumber(updatedData.telefono) : prev.phone,
+        direccion: updatedData.direccion || prev.direccion
+      }));
+
+      // Actualizar los datos en el contexto refrescando la sesión del usuario
+      // Esto asegura que los cambios se reflejen en toda la aplicación
+      await checkAuthStatus();
+
+      // Establecer éxito y cerrar modo edición
+      setIsSuccess(true);
+      setIsEditing(false);
 
       // Mostrar toast de éxito
       toast({
         title: "Perfil actualizado",
         description: "Tu información ha sido actualizada correctamente.",
-      })
+      });
 
       // Ocultar mensaje de éxito después de 3 segundos
       setTimeout(() => {
-        setIsSuccess(false)
-      }, 3000)
-    }, 1500)
-  }
+        setIsSuccess(false);
+      }, 3000);
+      
+    } catch (error) {
+      console.error("Error al actualizar el perfil:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar la información del perfil",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Generar iniciales para el avatar desde el nombre del usuario
   const userInitials = user?.nombre && user?.apellidos
@@ -150,7 +212,6 @@ export default function PerfilSuperadminPage() {
               <p className="text-gray-500">Superadministrador</p>
 
               <Separator className="my-4" />
-
               <div className="w-full space-y-3">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-primary" />
@@ -159,6 +220,10 @@ export default function PerfilSuperadminPage() {
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-primary" />
                   <span className="text-sm">{profileData.phone}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span className="text-sm">{profileData.direccion}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-primary" />
@@ -204,9 +269,10 @@ export default function PerfilSuperadminPage() {
                   <Input
                     id="name"
                     name="name"
-                    value={profileData.name.split(' ')[0] || ""}
+                    value={profileData.name || ""}
                     onChange={handleInputChange}
-                    disabled={true}
+                    disabled={!isEditing}
+                    className={isEditing ? "font-medium" : ""}
                   />
                 </div>
 
@@ -218,12 +284,13 @@ export default function PerfilSuperadminPage() {
                   <Input
                     id="apellidos"
                     name="apellidos"
-                    value={profileData.name.split(' ').slice(1).join(' ') || ""}
+                    value={profileData.apellidos || ""}
                     onChange={handleInputChange}
-                    disabled={true}
+                    disabled={!isEditing}
+                    className={isEditing ? "font-medium" : ""}
                   />
                 </div>
-
+                
                 <div className="space-y-2">
                   <Label htmlFor="email" className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-primary" />
@@ -236,6 +303,7 @@ export default function PerfilSuperadminPage() {
                     value={profileData.email}
                     onChange={handleInputChange}
                     disabled={true}
+                    className="font-medium"
                   />
                 </div>
 
@@ -251,11 +319,26 @@ export default function PerfilSuperadminPage() {
                     value={profileData.phone}
                     onChange={handleInputChange}
                     disabled={!isEditing}
-                    className="font-medium"
+                    className={isEditing ? "font-medium" : ""}
                   />
                   {isEditing && (
                     <p className="text-xs text-muted-foreground">Formato: 999-888-777</p>
                   )}
+                </div>
+                
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="direccion" className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    Dirección
+                  </Label>
+                  <Input
+                    id="direccion"
+                    name="direccion"
+                    value={profileData.direccion || ""}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    className={isEditing ? "font-medium" : ""}
+                  />
                 </div>
               </div>
 
@@ -297,13 +380,10 @@ export default function PerfilSuperadminPage() {
                   </Link>
                 </Button>
               </div>
-
-
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
-  )
+  );
 }
-
