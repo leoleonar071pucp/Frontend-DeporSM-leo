@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, ChangeEvent, FormEvent } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,88 +9,129 @@ import { CheckCircle, Loader2, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 
-export default function CambiarContrasenaPage() {
-  const { toast } = useToast()
-  const router = useRouter()
-  const [formData, setFormData] = useState({
+interface FormData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export default function CambiarContrasenaPage() {  const { toast } = useToast();
+  const router = useRouter();
+  const [formData, setFormData] = useState<FormData>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-  })
-  const [errors, setErrors] = useState({})
-  const [isSaving, setIsSaving] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name as keyof FormData]: value }));
 
     // Limpiar error al editar
     if (errors[name]) {
       setErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors[name]
-        return newErrors
-      })
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
-  }
-
+  };
   const validateForm = () => {
-    const newErrors = {}
+    const newErrors: Record<string, string> = {};
 
     if (!formData.currentPassword) {
-      newErrors.currentPassword = "La contraseña actual es obligatoria"
+      newErrors.currentPassword = "La contraseña actual es obligatoria";
     }
 
     if (!formData.newPassword) {
-      newErrors.newPassword = "La nueva contraseña es obligatoria"
+      newErrors.newPassword = "La nueva contraseña es obligatoria";
     } else if (formData.newPassword.length < 8) {
-      newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres"
+      newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres";
     }
 
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Debes confirmar la nueva contraseña"
+      newErrors.confirmPassword = "Debes confirmar la nueva contraseña";
     } else if (formData.newPassword !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Las contraseñas no coinciden"
+      newErrors.confirmPassword = "Las contraseñas no coinciden";
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    setIsSaving(true)
+    setIsSaving(true);
 
-    // Simulación de guardado
-    setTimeout(() => {
-      setIsSaving(false)
-      setIsSuccess(true)
+    try {
+      // Llamar al endpoint de API para cambiar contraseña
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'}/usuarios/cambiar-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          passwordActual: formData.currentPassword,
+          passwordNueva: formData.newPassword,
+          confirmacionPassword: formData.confirmPassword
+        })
+      });
 
+      if (response.ok) {
+        // Contraseña cambiada exitosamente
+        setIsSaving(false);
+        setIsSuccess(true);
+
+        toast({
+          title: "Contraseña actualizada",
+          description: "Tu contraseña ha sido actualizada exitosamente."
+        });
+
+        // Resetear formulario
+        setFormData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+
+        // Redireccionar a la página de perfil después de 2 segundos
+        setTimeout(() => {
+          setIsSuccess(false);
+          router.push('/superadmin/perfil');
+        }, 2000);
+      } else {
+        // Error al cambiar la contraseña
+        const errorData = await response.json();
+        setIsSaving(false);
+        
+        if (errorData && errorData.includes("La contraseña actual es incorrecta")) {
+          setErrors(prev => ({
+            ...prev, 
+            currentPassword: "La contraseña actual es incorrecta"
+          }));
+        }
+        
+        toast({
+          title: "Error al cambiar la contraseña",
+          description: errorData || "Ocurrió un error al actualizar la contraseña",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      setIsSaving(false);
       toast({
-        title: "Contraseña actualizada",
-        description: "Tu contraseña ha sido actualizada exitosamente.",
-      })
-
-      // Resetear formulario y mensaje de éxito
-      setFormData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      })
-
-      // Redireccionar a la página de perfil después de 2 segundos
-      setTimeout(() => {
-        setIsSuccess(false)
-        router.push('/superadmin/perfil')
-      }, 2000)
-    }, 1500)
-  }
+        title: "Error de conexión",
+        description: "No pudimos conectar con el servidor. Intenta nuevamente.",
+        variant: "destructive"
+      });
+      console.error("Error al cambiar contraseña:", error);
+    }  };
 
   return (
     <div className="max-w-md mx-auto">
@@ -175,7 +216,6 @@ export default function CambiarContrasenaPage() {
           </CardFooter>
         </form>
       </Card>
-    </div>
-  )
+    </div>  );
 }
 
