@@ -17,7 +17,12 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Sistema de Reserva Deportiva - San Miguel",
   description: "Plataforma de reserva de canchas y servicios deportivos para vecinos de San Miguel",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/images/Icono_Municipalidad_SanMiguel.jpg',
+    shortcut: '/images/Icono_Municipalidad_SanMiguel.jpg',
+    apple: '/images/Icono_Municipalidad_SanMiguel.jpg',
+  },
 }
 
 export default function RootLayout({
@@ -29,6 +34,11 @@ export default function RootLayout({
 
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/images/Icono_Municipalidad_SanMiguel.jpg" type="image/jpeg" />
+        <link rel="shortcut icon" href="/images/Icono_Municipalidad_SanMiguel.jpg" type="image/jpeg" />
+        <link rel="apple-touch-icon" href="/images/Icono_Municipalidad_SanMiguel.jpg" />
+      </head>
       <body className={inter.className}>
         <AuthProvider> {/* AuthProvider envuelve todo */}
           <NotificationProvider> {/* NotificationProvider dentro de Auth */}

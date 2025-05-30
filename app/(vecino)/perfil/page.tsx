@@ -54,8 +54,7 @@ export default function Perfil() {
 
   // Configuración de notificaciones
   const [notificationSettings, setNotificationSettings] = useState({
-    email: true,
-    promociones: false,
+    email: true
   })
 
   // Cargar datos del perfil desde el backend
@@ -106,8 +105,7 @@ export default function Perfil() {
           if (notifResponse.ok) {
             const notifData = await notifResponse.json();
             setNotificationSettings({
-              email: notifData.email,
-              promociones: notifData.promociones
+              email: notifData.email
             });
           }
         } catch (error) {
@@ -139,6 +137,7 @@ export default function Perfil() {
     const { name, value } = e.target;
     switch (name) {
       case 'nombre': setNombre(value); break;
+      case 'apellidos': setApellidos(value); break;
       case 'email': setEmail(value); break;
       case 'telefono': setTelefono(value); break;
       case 'direccion': setDireccion(value); break;
@@ -463,12 +462,25 @@ export default function Perfil() {
                         <div className="space-y-2">
                           <Label htmlFor="nombre" className="flex items-center gap-2">
                             <User className="h-4 w-4 text-primary" />
-                            Nombre completo
+                            Nombres
                           </Label>
                           <Input
                             id="nombre"
                             name="nombre"
                             value={nombre} // Usar estado local
+                            onChange={handleInputChange}
+                            readOnly // Siempre solo lectura
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="apellidos" className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-primary" />
+                            Apellidos
+                          </Label>
+                          <Input
+                            id="apellidos"
+                            name="apellidos"
+                            value={apellidos} // Usar estado local
                             onChange={handleInputChange}
                             readOnly // Siempre solo lectura
                           />
@@ -513,7 +525,7 @@ export default function Perfil() {
                             disabled={true} // DNI no se puede editar
                           />
                         </div>
-                        <div className="space-y-2 md:col-span-2">
+                        <div className="space-y-2">
                           <Label htmlFor="direccion" className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-primary" />
                             Dirección
@@ -694,20 +706,7 @@ export default function Perfil() {
                           />
                         </div>
 
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label htmlFor="promociones-notifications" className="font-medium">
-                              Promociones
-                            </Label>
-                            <p className="text-sm text-gray-500">Ofertas especiales, descuentos y eventos</p>
-                          </div>
-                          <Switch
-                            id="promociones-notifications"
-                            checked={notificationSettings.promociones}
-                            onCheckedChange={(checked) => handleNotificationChange("promociones", checked)}
-                            disabled={!notificationSettings.email}
-                          />
-                        </div>
+
                       </div>
                     </div>
 
