@@ -134,13 +134,29 @@ export default function Contacto() {
 
         // Resetear formulario después de 3 segundos
         setTimeout(() => {
-          setFormState({
-            nombre: "",
-            email: "",
-            telefono: "",
-            asunto: "",
-            mensaje: "",
-          });
+          if (isAuthenticated && user) {
+            // Para usuarios autenticados, mantener los datos personales y solo limpiar asunto y mensaje
+            const nombreCompleto = user.nombre && user.apellidos
+              ? `${user.nombre} ${user.apellidos}`
+              : user.nombre || "";
+
+            setFormState({
+              nombre: nombreCompleto,
+              email: user.email || "",
+              telefono: user.telefono || "",
+              asunto: "",
+              mensaje: "",
+            });
+          } else {
+            // Para usuarios no autenticados, limpiar todo el formulario
+            setFormState({
+              nombre: "",
+              email: "",
+              telefono: "",
+              asunto: "",
+              mensaje: "",
+            });
+          }
           setIsSuccess(false);
         }, 3000);
       } catch (error) {
