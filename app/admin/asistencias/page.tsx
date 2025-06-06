@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Clock, MapPin, Search, Filter, Download, Eye, Loader2 } from "lucide-react"
+import { Calendar, Clock, MapPin, Search, Filter, Download, Eye, Loader2, FileSpreadsheet, FileText } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { createLocalDate } from "@/lib/date-utils"
-import { useToast } from "@/hooks/use-toast"
+import { useNotification } from "@/context/NotificationContext"
 
 // Tipos de datos
 interface AttendanceRecord {
@@ -56,7 +56,8 @@ export default function AdminAsistenciasPage() {
     fechaInicio: "",
     fechaFin: ""
   })
-  const { toast } = useToast()
+  const [exportFormat, setExportFormat] = useState<"excel" | "pdf">("excel")
+  const { addNotification } = useNotification()
 
   // Obtener listas únicas para los selectores
   const uniqueInstalaciones = Array.from(new Set(attendanceData.map(item => item.nombreInstalacion))).sort()
@@ -92,10 +93,10 @@ export default function AdminAsistenciasPage() {
         setFilteredData(data)
       } catch (error) {
         console.error("Error al cargar datos de asistencia:", error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos de asistencia",
-          variant: "destructive",
+        addNotification({
+          title: 'Error al cargar datos',
+          message: 'No se pudieron cargar los datos de asistencia',
+          type: 'warning'
         })
       } finally {
         setIsLoading(false)
@@ -103,7 +104,7 @@ export default function AdminAsistenciasPage() {
     }
 
     loadData()
-  }, [toast])
+  }, [addNotification])
 
   // Aplicar filtros localmente
   useEffect(() => {
@@ -199,71 +200,105 @@ export default function AdminAsistenciasPage() {
     })
   }
 
-  // Función para exportar datos a CSV
-  const exportData = () => {
+  // Función para exportar datos a Excel
+  const exportData = async () => {
     try {
-      // Crear encabezados CSV
-      const headers = [
-        "Coordinador",
-        "Instalación",
-        "Fecha",
-        "Hora Programada Inicio",
-        "Hora Programada Fin",
-        "Hora Entrada",
-        "Estado Entrada",
-        "Hora Salida",
-        "Estado Salida",
-        "Ubicación",
-        "Notas"
-      ]
+      setIsLoading(true);
 
-      // Convertir datos a formato CSV
-      const csvData = filteredData.map(item => [
-        item.nombreCoordinador,
-        item.nombreInstalacion,
-        format(createLocalDate(item.fecha), "dd/MM/yyyy", { locale: es }),
-        formatTime(item.horaProgramadaInicio) || "-",
-        formatTime(item.horaProgramadaFin) || "-",
-        formatTime(item.horaEntrada) || "-",
-        item.estadoEntrada === "a-tiempo" ? "A tiempo" :
-        item.estadoEntrada === "tarde" ? "Tarde" :
-        item.estadoEntrada === "no-asistio" ? "No asistió" : "Pendiente",
-        formatTime(item.horaSalida) || "-",
-        item.estadoSalida === "a-tiempo" ? "A tiempo" :
-        item.estadoSalida === "tarde" ? "Tarde" :
-        item.estadoSalida === "no-asistio" ? "No asistió" : "Pendiente",
-        item.ubicacion || "-",
-        item.notas || "-"
-      ])
+      // Usar las fechas de los filtros o valores por defecto
+      const fechaInicio = filters.fechaInicio || format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+      const fechaFin = filters.fechaFin || format(new Date(), 'yyyy-MM-dd');
 
-      // Crear contenido CSV
-      const csvContent = [
-        headers.join(","),
-        ...csvData.map(row => row.map(field => `"${field}"`).join(","))
-      ].join("\n")
+      // Crear descripción de filtros para el nombre del archivo (más corta y clara)
+      const filtrosAplicados = [];
+      if (filters.coordinadorNombre) filtrosAplicados.push(filters.coordinadorNombre.replace(/\s+/g, '_'));
+      if (filters.instalacionNombre) filtrosAplicados.push(filters.instalacionNombre.replace(/\s+/g, '_'));
+      if (filters.estadoEntrada) filtrosAplicados.push(`entrada_${filters.estadoEntrada}`);
+      if (filters.estadoSalida) filtrosAplicados.push(`salida_${filters.estadoSalida}`);
 
-      // Crear y descargar archivo
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-      const link = document.createElement("a")
-      const url = URL.createObjectURL(blob)
-      link.setAttribute("href", url)
-      link.setAttribute("download", `historial_asistencias_${format(new Date(), "yyyy-MM-dd")}.csv`)
-      link.style.visibility = "hidden"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      // Solo agregar fechas si se están usando filtros de fecha específicos
+      const usandoFiltrosFecha = filters.fechaInicio || filters.fechaFin;
+      let fechasTexto = '';
+      if (usandoFiltrosFecha) {
+        if (filters.fechaInicio && filters.fechaFin) {
+          fechasTexto = `_desde_${filters.fechaInicio}_hasta_${filters.fechaFin}`;
+        } else if (filters.fechaInicio) {
+          fechasTexto = `_desde_${filters.fechaInicio}`;
+        } else if (filters.fechaFin) {
+          fechasTexto = `_hasta_${filters.fechaFin}`;
+        }
+      }
 
-      toast({
+      const filtrosTexto = filtrosAplicados.length > 0 ? `_${filtrosAplicados.join('_')}` : '';
+
+      // Preparar los datos para el reporte con los filtros aplicados
+      const reporteData = {
+        tipo: 'asistencias',
+        formato: exportFormat, // Usar el formato seleccionado
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+        instalacionId: null, // Todas las instalaciones por ahora
+        coordinadorNombre: filters.coordinadorNombre || null,
+        instalacionNombre: filters.instalacionNombre || null,
+        estadoEntrada: filters.estadoEntrada || null,
+        estadoSalida: filters.estadoSalida || null,
+        filtrosTexto: filtrosTexto, // Agregar información de filtros
+        fechasTexto: fechasTexto // Agregar información de fechas
+      };
+
+      const response = await fetch('/api/reportes/asistencias', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(reporteData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al generar el reporte');
+      }
+
+      const reporte = await response.json();
+
+      // Descargar el archivo
+      const downloadResponse = await fetch(`/api/reportes/descargar/${reporte.id}`, {
+        credentials: 'include',
+      });
+
+      if (!downloadResponse.ok) {
+        throw new Error('Error al descargar el reporte');
+      }
+
+      const blob = await downloadResponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Crear nombre de archivo con información de filtros (formato mejorado)
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+      const extension = exportFormat === 'excel' ? 'xlsx' : 'pdf';
+      const nombreArchivo = `historial_asistencias${filtrosTexto}${fechasTexto}_${timestamp}.${extension}`;
+      link.download = nombreArchivo;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      addNotification({
         title: "Exportación exitosa",
-        description: `Se exportaron ${filteredData.length} registros a CSV`,
-      })
+        message: `Historial de asistencias exportado correctamente en formato ${exportFormat === 'excel' ? 'Excel' : 'PDF'}`,
+        type: "reporte"
+      });
     } catch (error) {
-      console.error("Error al exportar:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo exportar el archivo",
-        variant: "destructive",
-      })
+      console.error('Error al exportar:', error);
+      addNotification({
+        title: "Error en la exportación",
+        message: "No se pudo exportar el historial de asistencias. Inténtalo de nuevo.",
+        type: "reporte"
+      });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -484,10 +519,31 @@ export default function AdminAsistenciasPage() {
             <Button variant="outline" onClick={clearFilters}>
               Limpiar filtros
             </Button>
-            <Button variant="outline" onClick={exportData}>
-              <Download className="h-4 w-4 mr-2" />
-              Exportar
-            </Button>
+            <div className="flex gap-2">
+              <Select value={exportFormat} onValueChange={(value: "excel" | "pdf") => setExportFormat(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="excel">
+                    <div className="flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                      Excel
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pdf">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-red-600" />
+                      PDF
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={exportData}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar {exportFormat === 'excel' ? 'Excel' : 'PDF'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -106,7 +106,7 @@ export default function ReportesAdmin() {
       const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
       const filename = filenameMatch
         ? filenameMatch[1]
-        : `reporte_${metadata.tipo}_${new Date().toISOString().slice(0, 10)}.${metadata.formato === 'excel' ? 'csv' : 'pdf'}`;
+        : `reporte_${metadata.tipo}_${new Date().toISOString().slice(0, 10)}.${metadata.formato === 'excel' ? 'xlsx' : 'pdf'}`;
 
       console.log("Nombre del archivo para descarga:", filename);
 

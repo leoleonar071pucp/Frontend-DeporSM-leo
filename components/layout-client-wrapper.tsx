@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
+import { Toaster } from '@/components/ui/toaster';
 
 interface LayoutClientWrapperProps {
   children: React.ReactNode;
@@ -30,6 +31,8 @@ export function LayoutClientWrapper({ children, chatbot, footer }: LayoutClientW
           {footer}
         </>
       )}
+      {/* Toaster debe estar siempre disponible en toda la aplicación */}
+      <Toaster />
     </>
   );
 }

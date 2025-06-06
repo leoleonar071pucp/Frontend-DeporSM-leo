@@ -137,7 +137,7 @@ export async function GET(
         contentType = responseContentType;
       } else {
         // Determinar el tipo de contenido basado en el formato del reporte
-        contentType = metadata.formato === 'excel' ? 'text/csv' : 'application/pdf';
+        contentType = metadata.formato === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf';
       }
 
       console.log(`[API] Usando tipo de contenido: ${contentType}`);
@@ -154,7 +154,7 @@ export async function GET(
 
       // Si no se pudo extraer el nombre del archivo, usar uno basado en los metadatos
       if (!filename) {
-        filename = `${metadata.nombre}.${metadata.formato === 'excel' ? 'csv' : 'pdf'}`;
+        filename = `${metadata.nombre}.${metadata.formato === 'excel' ? 'xlsx' : 'pdf'}`;
       }
 
       console.log(`[API] Nombre del archivo para descarga: ${filename}`);

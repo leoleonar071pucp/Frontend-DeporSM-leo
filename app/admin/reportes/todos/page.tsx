@@ -18,7 +18,8 @@ const reportTypes = {
   reservas: "Reservas",
   ingresos: "Ingresos",
   instalaciones: "Instalaciones",
-  mantenimiento: "Mantenimiento"
+  mantenimiento: "Mantenimiento",
+  asistencias: "Asistencias"
 }
 
 export default function TodosLosReportes() {
@@ -105,6 +106,8 @@ export default function TodosLosReportes() {
         return <Badge className="bg-purple-100 text-purple-800">Instalaciones</Badge>
       case "mantenimiento":
         return <Badge className="bg-yellow-100 text-yellow-800">Mantenimiento</Badge>
+      case "asistencias":
+        return <Badge className="bg-orange-100 text-orange-800">Asistencias</Badge>
       default:
         return null
     }
@@ -169,12 +172,13 @@ export default function TodosLosReportes() {
 
       {/* Pestañas */}
       <Tabs defaultValue="todos" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="todos">Todos</TabsTrigger>
           <TabsTrigger value="reservas">Reservas</TabsTrigger>
           <TabsTrigger value="ingresos">Ingresos</TabsTrigger>
           <TabsTrigger value="instalaciones">Instalaciones</TabsTrigger>
           <TabsTrigger value="mantenimiento">Mantenimiento</TabsTrigger>
+          <TabsTrigger value="asistencias">Asistencias</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-4">
@@ -217,7 +221,7 @@ export default function TodosLosReportes() {
                                 // Obtener el nombre del archivo
                                 const contentDisposition = response.headers.get('content-disposition')
                                 const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/)
-                                const filename = filenameMatch ? filenameMatch[1] : `${report.nombre}.${report.formato === 'excel' ? 'csv' : 'pdf'}`
+                                const filename = filenameMatch ? filenameMatch[1] : `${report.nombre}.${report.formato === 'excel' ? 'xlsx' : 'pdf'}`
 
                                 // Convertir la respuesta a blob
                                 const blob = await response.blob()
