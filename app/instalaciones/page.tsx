@@ -231,34 +231,37 @@ export default function Instalaciones() {
                     </Button>
                   </div>
                 ) : facilities.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {facilities.map((facility) => (
-                      <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">                    {facilities.map((facility) => (
+                      <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
                         <img
                           src={facility.imagenUrl || "/placeholder.svg?height=200&width=300"}
                           alt={facility.nombre}
                           className="w-full h-48 object-cover"
                         />
-                        <CardContent className="p-4">
-                          <h3 className="font-bold text-lg mb-2">{facility.nombre}</h3>
-                          <p className="text-gray-600 text-sm mb-2">{facility.descripcion}</p>
-                          <p className="text-gray-700 text-sm mb-1">
-                            <strong>Ubicación:</strong> {facility.ubicacion}
-                          </p>
-                          <p className="text-gray-700 text-sm mb-4">
-                            <strong>Precio:</strong> {formatPrice(facility.precio)}
-                          </p>
-                          <Button 
-                            asChild={configSistema.reservasEstanHabilitadas()} 
-                            disabled={!configSistema.reservasEstanHabilitadas()} 
-                            className="w-full"
-                          >
-                            {configSistema.reservasEstanHabilitadas() ? (
-                              <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
-                            ) : (
-                              "Reservas deshabilitadas"
-                            )}
-                          </Button>
+                        <CardContent className="p-4 flex flex-col flex-grow">
+                          <div className="flex-grow">
+                            <h3 className="font-bold text-lg mb-2">{facility.nombre}</h3>
+                            <p className="text-gray-600 text-sm mb-2">{facility.descripcion}</p>
+                            <p className="text-gray-700 text-sm mb-1">
+                              <strong>Ubicación:</strong> {facility.ubicacion}
+                            </p>
+                            <p className="text-gray-700 text-sm mb-4">
+                              <strong>Precio:</strong> {formatPrice(facility.precio)}
+                            </p>
+                          </div>
+                          <div className="mt-auto pt-3">
+                            <Button 
+                              asChild={configSistema.reservasEstanHabilitadas()} 
+                              disabled={!configSistema.reservasEstanHabilitadas()} 
+                              className="w-full"
+                            >
+                              {configSistema.reservasEstanHabilitadas() ? (
+                                <Link href={`/instalaciones/${facility.id}`}>Ver Disponibilidad</Link>
+                              ) : (
+                                "Reservas deshabilitadas"
+                              )}
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
