@@ -5,7 +5,7 @@ import { Navbar } from "@/components/navbar"
 import { EstadoSistema } from "@/components/estado-sistema"
 import { PoliticasReserva } from "@/components/politicas-reserva"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { InfoCircle, HelpCircle, Calendar, BookOpen } from "lucide-react"
+import { Info, HelpCircle, Calendar, BookOpen } from "lucide-react"
 import { useConfiguracionSistema } from "@/hooks/use-configuracion-sistema"
 import { MetadataGenerator } from "@/components/metadata-generator"
 
@@ -32,9 +32,8 @@ export default function InfoSistemaPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Tabs defaultValue="estado" className="w-full">
-              <TabsList className="mb-6 grid w-full grid-cols-3">
-                <TabsTrigger value="estado" className="flex items-center">
-                  <InfoCircle className="h-4 w-4 mr-2" />
+              <TabsList className="mb-6 grid w-full grid-cols-3">                <TabsTrigger value="estado" className="flex items-center">
+                  <Info className="h-4 w-4 mr-2" />
                   <span>Estado</span>
                 </TabsTrigger>
                 <TabsTrigger value="politicas" className="flex items-center">
