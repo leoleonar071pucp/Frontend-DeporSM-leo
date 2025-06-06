@@ -17,6 +17,8 @@ import { Switch } from "@/components/ui/switch"
 import { CheckCircle, Loader2, User, Mail, Phone, Lock, Bell, Shield, MapPin, Eye, EyeOff, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { API_BASE_URL } from "@/lib/config"
+import { getSecurityConfig } from "@/lib/api-security"
+
 export default function Perfil() {
   const { user, isAuthenticated, isLoading: isAuthLoading, checkAuthStatus } = useAuth()
   const router = useRouter()
@@ -56,6 +58,9 @@ export default function Perfil() {
   const [notificationSettings, setNotificationSettings] = useState({
     email: true
   })
+
+  // Configuración de seguridad
+  const [securityConfig, setSecurityConfig] = useState<any>(null)
 
   // Cargar datos del perfil desde el backend
   useEffect(() => {
@@ -127,6 +132,11 @@ export default function Perfil() {
       fetchProfileData();
     }
   }, [user, isAuthenticated, router, toast])
+
+  // Cargar configuración de seguridad al montar el componente
+  useEffect(() => {
+    getSecurityConfig().then(setSecurityConfig).catch(() => setSecurityConfig(null))
+  }, [])
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
@@ -236,7 +246,6 @@ export default function Perfil() {
   // Cambiar contraseña
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-
     // Validar que las contraseñas coincidan
     if (passwordData.passwordNueva !== passwordData.confirmacionPassword) {
       setPasswordsMatch(false);
@@ -247,17 +256,50 @@ export default function Perfil() {
       });
       return;
     }
-
-    // Validar que la contraseña tenga al menos 6 caracteres
-    if (passwordData.passwordNueva.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "La contraseña debe tener al menos 6 caracteres",
-      });
-      return;
+    // Validar política de contraseña dinámica
+    if (securityConfig) {
+      if (passwordData.passwordNueva.length < securityConfig.minPasswordLength) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `La contraseña debe tener al menos ${securityConfig.minPasswordLength} caracteres`,
+        });
+        return;
+      }
+      if (securityConfig.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.passwordNueva)) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "La contraseña debe contener al menos un carácter especial.",
+        });
+        return;
+      }
+      if (securityConfig.requireNumbers && !/\d/.test(passwordData.passwordNueva)) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "La contraseña debe contener al menos un número.",
+        });
+        return;
+      }
+      if (securityConfig.requireUppercase && !/[A-Z]/.test(passwordData.passwordNueva)) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "La contraseña debe contener al menos una letra mayúscula.",
+        });
+        return;
+      }
+    } else {
+      if (passwordData.passwordNueva.length < 6) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "La contraseña debe tener al menos 6 caracteres",
+        });
+        return;
+      }
     }
-
     // Asegurarse de que se haya ingresado la contraseña actual
     if (!passwordData.passwordActual.trim()) {
       toast({
@@ -617,7 +659,16 @@ export default function Perfil() {
                           </button>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          La contraseña debe tener al menos 6 caracteres
+                          {securityConfig ? (
+                            [
+                              `La contraseña debe tener al menos ${securityConfig.minPasswordLength} caracteres`,
+                              securityConfig.requireUppercase ? 'incluir una mayúscula' : null,
+                              securityConfig.requireNumbers ? 'incluir un número' : null,
+                              securityConfig.requireSpecialChars ? 'incluir un carácter especial' : null,
+                            ].filter(Boolean).join(', ') + '.'
+                          ) : (
+                            'La contraseña debe tener al menos 6 caracteres.'
+                          )}
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -656,7 +707,7 @@ export default function Perfil() {
                         <Button
                           type="submit"
                           className="bg-primary hover:bg-primary-light"
-                          disabled={isChangingPassword}
+                          disabled={isChangingPassword || !passwordData.passwordNueva || !passwordsMatch || !validatePasswordPolicy(passwordData.passwordNueva, securityConfig)}
                         >
                           {isChangingPassword ? (
                             <>
@@ -739,5 +790,15 @@ export default function Perfil() {
       </div>
     </main>
   )
+}
+
+// --- Utilidad para validar la política de contraseña ---
+function validatePasswordPolicy(password: string, config: any) {
+  if (!config) return password.length >= 6;
+  if (password.length < config.minPasswordLength) return false;
+  if (config.requireUppercase && !/[A-Z]/.test(password)) return false;
+  if (config.requireNumbers && !/[0-9]/.test(password)) return false;
+  if (config.requireSpecialChars && !/[^A-Za-z0-9]/.test(password)) return false;
+  return true;
 }
 

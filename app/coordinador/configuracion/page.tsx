@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Bell, Lock, Save, Loader2, CheckCircle, Laptop, LogOut } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { getSecurityConfig } from "@/lib/api-security"
 
 export default function ConfiguracionPage() {
   const { toast } = useToast()
@@ -34,6 +35,13 @@ export default function ConfiguracionPage() {
 
   // Estado para errores de validación
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Estado para la configuración de seguridad
+  const [securityConfig, setSecurityConfig] = useState<any>(null)
+
+  useEffect(() => {
+    getSecurityConfig().then(setSecurityConfig).catch(() => setSecurityConfig(null))
+  }, [])
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -62,8 +70,21 @@ export default function ConfiguracionPage() {
 
     if (!passwordData.newPassword) {
       newErrors.newPassword = "La nueva contraseña es obligatoria"
-    } else if (passwordData.newPassword.length < 8) {
-      newErrors.newPassword = "La contraseña debe tener al menos 8 caracteres"
+    } else if (securityConfig) {
+      if (passwordData.newPassword.length < securityConfig.minPasswordLength) {
+        newErrors.newPassword = `La contraseña debe tener al menos ${securityConfig.minPasswordLength} caracteres`
+      }
+      if (securityConfig.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword)) {
+        newErrors.newPassword = "La contraseña debe contener al menos un carácter especial."
+      }
+      if (securityConfig.requireNumbers && !/\d/.test(passwordData.newPassword)) {
+        newErrors.newPassword = "La contraseña debe contener al menos un número."
+      }
+      if (securityConfig.requireUppercase && !/[A-Z]/.test(passwordData.newPassword)) {
+        newErrors.newPassword = "La contraseña debe contener al menos una letra mayúscula."
+      }
+    } else if (passwordData.newPassword.length < 6) {
+      newErrors.newPassword = "La contraseña debe tener al menos 6 caracteres"
     }
 
     if (!passwordData.confirmPassword) {

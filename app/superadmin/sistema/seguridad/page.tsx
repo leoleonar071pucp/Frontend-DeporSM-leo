@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Loader2, Save } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
+import { getSecurityConfig, updateSecurityConfig } from "@/lib/api-security"
 
 // Definir la interface para el estado de configuración de seguridad
 interface SecuritySettings {
@@ -50,6 +51,33 @@ export default function SeguridadPage() {
     allowedIPs: "",
   })
 
+  useEffect(() => {
+    getSecurityConfig()
+      .then((data) => {
+        setSecuritySettings({
+          twoFactorAuth: data.twoFactorAuth,
+          passwordExpiration: data.passwordExpiration,
+          passwordExpirationDays: String(data.passwordExpirationDays),
+          minPasswordLength: String(data.minPasswordLength),
+          requireSpecialChars: data.requireSpecialChars,
+          requireNumbers: data.requireNumbers,
+          requireUppercase: data.requireUppercase,
+          maxLoginAttempts: String(data.maxLoginAttempts),
+          lockoutDuration: String(data.lockoutDuration),
+          sessionTimeout: String(data.sessionTimeout),
+          ipRestriction: data.ipRestriction,
+          allowedIPs: data.allowedIPs || "",
+        })
+      })
+      .catch(() => {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudo cargar la configuración de seguridad",
+        })
+      })
+  }, [])
+
   const handleSwitchChange = (setting: string, checked: boolean) => {
     setSecuritySettings((prev) => ({ ...prev, [setting]: checked }))
   }
@@ -63,24 +91,44 @@ export default function SeguridadPage() {
     setSecuritySettings((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     setIsSaving(true)
-
-    // Simulación de guardado
-    setTimeout(() => {
-      setIsSaving(false)
+    toast({
+      title: "Guardando configuración...",
+      description: "Por favor espera mientras se guardan los cambios.",
+    })
+    try {
+      const payload = {
+        twoFactorAuth: securitySettings.twoFactorAuth,
+        passwordExpiration: securitySettings.passwordExpiration,
+        passwordExpirationDays: Number(securitySettings.passwordExpirationDays),
+        minPasswordLength: Number(securitySettings.minPasswordLength),
+        requireSpecialChars: securitySettings.requireSpecialChars,
+        requireNumbers: securitySettings.requireNumbers,
+        requireUppercase: securitySettings.requireUppercase,
+        maxLoginAttempts: Number(securitySettings.maxLoginAttempts),
+        lockoutDuration: Number(securitySettings.lockoutDuration),
+        sessionTimeout: Number(securitySettings.sessionTimeout),
+        ipRestriction: securitySettings.ipRestriction,
+        allowedIPs: securitySettings.allowedIPs,
+      }
+      await updateSecurityConfig(payload)
       setIsSuccess(true)
-
       toast({
         title: "Configuración de seguridad guardada",
         description: "Los cambios en la configuración de seguridad han sido guardados exitosamente.",
       })
-
-      // Resetear mensaje de éxito después de 3 segundos
-      setTimeout(() => {
-        setIsSuccess(false)
-      }, 3000)
-    }, 1500)
+      setTimeout(() => setIsSuccess(false), 3000)
+    } catch (error) {
+      console.error("Error al guardar configuración de seguridad:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo guardar la configuración de seguridad",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (

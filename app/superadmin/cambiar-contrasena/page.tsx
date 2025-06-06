@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { CheckCircle, Loader2, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { API_BASE_URL } from "@/lib/config"
+import { getSecurityConfig } from "@/lib/api-security"
 
 export default function CambiarContrasenaPage() {
   const { toast } = useToast()
@@ -21,6 +22,11 @@ export default function CambiarContrasenaPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSaving, setIsSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [securityConfig, setSecurityConfig] = useState<any>(null)
+
+  useEffect(() => {
+    getSecurityConfig().then(setSecurityConfig).catch(() => setSecurityConfig(null))
+  }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -45,6 +51,19 @@ export default function CambiarContrasenaPage() {
 
     if (!formData.newPassword) {
       newErrors.newPassword = "La nueva contraseña es obligatoria"
+    } else if (securityConfig) {
+      if (formData.newPassword.length < securityConfig.minPasswordLength) {
+        newErrors.newPassword = `La contraseña debe tener al menos ${securityConfig.minPasswordLength} caracteres`
+      }
+      if (securityConfig.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(formData.newPassword)) {
+        newErrors.newPassword = "La contraseña debe contener al menos un carácter especial."
+      }
+      if (securityConfig.requireNumbers && !/\d/.test(formData.newPassword)) {
+        newErrors.newPassword = "La contraseña debe contener al menos un número."
+      }
+      if (securityConfig.requireUppercase && !/[A-Z]/.test(formData.newPassword)) {
+        newErrors.newPassword = "La contraseña debe contener al menos una letra mayúscula."
+      }
     } else if (formData.newPassword.length < 6) {
       newErrors.newPassword = "La contraseña debe tener al menos 6 caracteres"
     }

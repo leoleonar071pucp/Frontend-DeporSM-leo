@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { API_BASE_URL } from "@/lib/config"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
+import { getSecurityConfig } from "@/lib/api-security"
 
 export default function ConfiguracionAdmin() {
   const { toast } = useToast()
@@ -48,7 +49,10 @@ export default function ConfiguracionAdmin() {
   // Estado para errores de validación
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Cargar preferencias de notificaciones desde el backend
+  // Estado para la configuración de seguridad
+  const [securityConfig, setSecurityConfig] = useState<any>(null)
+
+  // Cargar preferencias de notificaciones y configuración de seguridad desde el backend
   useEffect(() => {
     const fetchNotificationPreferences = async () => {
       try {
@@ -67,7 +71,18 @@ export default function ConfiguracionAdmin() {
       }
     };
 
+    const fetchSecurityConfig = async () => {
+      try {
+        const config = await getSecurityConfig();
+        setSecurityConfig(config);
+      } catch (error) {
+        console.error("Error al cargar configuración de seguridad:", error);
+        setSecurityConfig(null);
+      }
+    };
+
     fetchNotificationPreferences();
+    fetchSecurityConfig();
   }, []);
 
   // Manejadores para alternar la visibilidad de las contraseñas
@@ -109,12 +124,26 @@ export default function ConfiguracionAdmin() {
 
     if (!passwordData.passwordNueva) {
       newErrors.passwordNueva = "La nueva contraseña es obligatoria"
+    } else if (securityConfig) {
+      if (passwordData.passwordNueva.length < securityConfig.minPasswordLength) {
+        newErrors.passwordNueva = `La contraseña debe tener al menos ${securityConfig.minPasswordLength} caracteres`
+      }
+      if (securityConfig.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.passwordNueva)) {
+        newErrors.passwordNueva = "La contraseña debe contener al menos un carácter especial."
+      }
+      if (securityConfig.requireNumbers && !/\d/.test(passwordData.passwordNueva)) {
+        newErrors.passwordNueva = "La contraseña debe contener al menos un número."
+      }
+      if (securityConfig.requireUppercase && !/[A-Z]/.test(passwordData.passwordNueva)) {
+        newErrors.passwordNueva = "La contraseña debe contener al menos una letra mayúscula."
+      }
     } else if (passwordData.passwordNueva.length < 6) {
       newErrors.passwordNueva = "La contraseña debe tener al menos 6 caracteres"
     }
 
     if (!passwordData.confirmacionPassword) {
       newErrors.confirmacionPassword = "Debes confirmar la nueva contraseña"
+      setPasswordsMatch(false);
     } else if (passwordData.passwordNueva !== passwordData.confirmacionPassword) {
       newErrors.confirmacionPassword = "Las contraseñas no coinciden"
       setPasswordsMatch(false);

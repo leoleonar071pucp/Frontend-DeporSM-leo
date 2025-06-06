@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation" // Importar useRouter aunque no se use directamente ahora, es útil para futuras redirecciones
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, CheckCircle, Loader2, AlertCircle } from "lucide-react"
 import { useAuth } from "@/context/AuthContext" // Importar useAuth
 import { API_BASE_URL } from "@/lib/config"
+import { getSecurityConfig } from "@/lib/api-security"
 
 export default function Registro() {
   const [step, setStep] = useState<"verification" | "registration" | "success">("verification")
@@ -28,6 +29,12 @@ export default function Registro() {
   const [direccion, setDireccion] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [securityConfig, setSecurityConfig] = useState<any>(null)
+
+  useEffect(() => {
+    getSecurityConfig().then(setSecurityConfig).catch(() => setSecurityConfig(null))
+  }, [])
+
   const handleVerifyDNI = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -74,9 +81,7 @@ export default function Registro() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    setError(null) // Limpiar errores previos
-
+    setError(null)
     // --- Validaciones ---
     if (!email || !telefono || !direccion || !password || !confirmPassword) {
       setError("Por favor, completa todos los campos requeridos.")
@@ -86,7 +91,7 @@ export default function Registro() {
       setError("Por favor, ingresa un correo electrónico válido.")
       return
     }
-     if (!/^\d{9}$/.test(telefono)) {
+    if (!/^\d{9}$/.test(telefono)) {
       setError("Por favor, ingresa un número de teléfono válido de 9 dígitos.")
       return
     }
@@ -94,12 +99,31 @@ export default function Registro() {
       setError("Las contraseñas no coinciden.")
       return
     }
-    if (password.length < 6) { // Ejemplo de validación de longitud mínima
+    // Validación dinámica de política de contraseña
+    if (securityConfig) {
+      if (password.length < securityConfig.minPasswordLength) {
+        setError(`La contraseña debe tener al menos ${securityConfig.minPasswordLength} caracteres.`)
+        return
+      }
+      if (securityConfig.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+        setError("La contraseña debe contener al menos un carácter especial.")
+        return
+      }
+      if (securityConfig.requireNumbers && !/\d/.test(password)) {
+        setError("La contraseña debe contener al menos un número.")
+        return
+      }
+      if (securityConfig.requireUppercase && !/[A-Z]/.test(password)) {
+        setError("La contraseña debe contener al menos una letra mayúscula.")
+        return
+      }
+    } else {
+      if (password.length < 6) {
         setError("La contraseña debe tener al menos 6 caracteres.")
         return
+      }
     }
     // --- Fin Validaciones ---
-
     setIsLoading(true)
 
     try {
