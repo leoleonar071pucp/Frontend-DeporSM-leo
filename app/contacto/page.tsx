@@ -15,6 +15,7 @@ import { API_BASE_URL } from "@/lib/config"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from "@/context/AuthContext"
+import { useConfiguracionSistema } from "@/hooks/use-configuracion-sistema"
 
 export default function Contacto() {
   const [formState, setFormState] = useState({
@@ -30,6 +31,7 @@ export default function Contacto() {
   const [apiError, setApiError] = useState<string | null>(null)
   const { toast } = useToast()
   const { user, isAuthenticated } = useAuth()
+  const configSistema = useConfiguracionSistema()
 
   // Autocompletar el formulario con los datos del usuario si está autenticado
   useEffect(() => {
@@ -337,15 +339,13 @@ export default function Contacto() {
                       <p className="text-gray-600">Av. Federico Gállese Nº 370</p>
                       <p className="text-gray-600">San Miguel, Lima 15086</p>
                     </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
+                  </div>                  <div className="flex items-start gap-3">
                     <div className="bg-primary-light rounded-full p-2 mt-1">
                       <Phone className="h-5 w-5 text-white" />
                     </div>
                     <div>
                       <h3 className="font-medium">Teléfono</h3>
-                      <p className="text-gray-600">(01) 263-3392</p>
+                      <p className="text-gray-600">{configSistema.getTelefonoContacto("999-999-999")}</p>
                       <p className="text-gray-600">Lunes a Viernes: 8:00 - 17:00</p>
                     </div>
                   </div>
@@ -356,7 +356,7 @@ export default function Contacto() {
                     </div>
                     <div>
                       <h3 className="font-medium">Correo electrónico</h3>
-                      <p className="text-gray-600">pucpdeporsm@gmail.com</p>
+                      <p className="text-gray-600">{configSistema.getEmailContacto("deportes@munisanmiguel.gob.pe")}</p>
                       <p className="text-gray-600">Tiempo de respuesta: 24-48 horas</p>
                     </div>
                   </div>
