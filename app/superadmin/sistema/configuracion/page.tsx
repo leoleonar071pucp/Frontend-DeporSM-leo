@@ -402,14 +402,19 @@ export default function ConfiguracionSistemaPage() {
                     checked={generalConfig.maintenanceMode}
                     onCheckedChange={(checked) => handleGeneralSwitchChange("maintenanceMode", checked)}
                   />
-                </div>
-
+                </div>                {/* Opción comentada: Habilitar Registro de Usuarios
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="enableRegistration" className="font-medium">
                       Habilitar Registro de Usuarios
                     </Label>
-                    <p className="text-sm text-gray-500">Permite que los usuarios puedan registrarse en el sistema</p>
+                    <p className="text-sm text-gray-500">
+                      Permite que los usuarios puedan registrarse en el sistema
+                    </p>
+                    <p className="text-xs text-amber-600 mt-1">
+                      <AlertCircle className="h-3 w-3 inline mr-1" />
+                      Al desactivar esta opción, solo los administradores podrán crear nuevas cuentas
+                    </p>
                   </div>
                   <Switch
                     id="enableRegistration"
@@ -417,7 +422,9 @@ export default function ConfiguracionSistemaPage() {
                     onCheckedChange={(checked) => handleGeneralSwitchChange("enableRegistration", checked)}
                   />
                 </div>
+                */}
 
+                {/* Opción comentada: Habilitar Reservas
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="enableReservations" className="font-medium">
@@ -426,6 +433,10 @@ export default function ConfiguracionSistemaPage() {
                     <p className="text-sm text-gray-500">
                       Permite que los usuarios puedan realizar reservas en el sistema
                     </p>
+                    <p className="text-xs text-amber-600 mt-1">
+                      <AlertCircle className="h-3 w-3 inline mr-1" />
+                      Desactivar suspenderá temporalmente todas las reservas nuevas sin afectar las existentes
+                    </p>
                   </div>
                   <Switch
                     id="enableReservations"
@@ -433,6 +444,7 @@ export default function ConfiguracionSistemaPage() {
                     onCheckedChange={(checked) => handleGeneralSwitchChange("enableReservations", checked)}
                   />
                 </div>
+                */}
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
