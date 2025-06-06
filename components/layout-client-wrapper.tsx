@@ -4,7 +4,7 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { SystemStatus } from './system-status';
 import { useConfiguracionSistema } from '@/hooks/use-configuracion-sistema';
-
+import { Toaster } from '@/components/ui/toaster';
 interface LayoutClientWrapperProps {
   children: React.ReactNode;
   chatbot: React.ReactNode; // Prop para recibir el Chatbot
@@ -71,6 +71,8 @@ export function LayoutClientWrapper({ children, chatbot, footer }: LayoutClientW
           {footer}
         </>
       )}
+      {/* Toaster debe estar siempre disponible en toda la aplicación */}
+      <Toaster />
     </>
   );
 }
