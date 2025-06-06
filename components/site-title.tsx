@@ -28,13 +28,12 @@ export function SiteTitle({ className = "", withDescription = false, inline = fa
   if (inline) {
     return <>{config.nombreSitio || "DeporSM"}</>;
   }
-  
-  return (
+    return (
     <div className={className}>
       <h1 className="text-2xl font-bold">{config.nombreSitio || "DeporSM"}</h1>
       {withDescription && (
-        <p className="text-sm text-muted-foreground mt-1">
-          {config.descripcionSitio || "Sistema de Reservas Deportivas"}
+        <p className="text-primary-pale mt-1">
+          {config.descripcionSitio || "Sistema de reserva de canchas y servicios deportivos para la Municipalidad de San Miguel."}
         </p>
       )}
     </div>
