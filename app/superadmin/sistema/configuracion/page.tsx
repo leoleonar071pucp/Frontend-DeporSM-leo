@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle, Loader2, Save, Eye, EyeOff } from "lucide-react"
+import { CheckCircle, Loader2, Save, Eye, EyeOff, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useConfiguracion } from "@/context/ConfiguracionContext"
+import { ValidationError } from "@/components/validation-error"
 
 // Interfaces para los estados
 interface GeneralConfig {
@@ -56,6 +58,8 @@ export default function ConfiguracionSistemaPage() {
   const [isSuccessEmail, setIsSuccessEmail] = useState(false)
   const [isSuccessPayment, setIsSuccessPayment] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Estado para la configuración general
   const [generalConfig, setGeneralConfig] = useState<GeneralConfig>({
@@ -67,8 +71,41 @@ export default function ConfiguracionSistemaPage() {
     enableRegistration: true,
     enableReservations: true,
     maxReservationsPerUser: "3",
-    reservationTimeLimit: "48",
-  })
+    reservationTimeLimit: "48",  })
+  
+  // Usar el contexto de configuración
+  const { config: sistemaConfig, recargarConfig, actualizarConfig } = useConfiguracion();
+  
+  // Cargar configuración al inicio
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+    
+    if (!sistemaConfig.isLoading) {
+      setGeneralConfig({
+        siteName: sistemaConfig.nombreSitio,
+        siteDescription: sistemaConfig.descripcionSitio,
+        contactEmail: sistemaConfig.emailContacto,
+        contactPhone: sistemaConfig.telefonoContacto,
+        maintenanceMode: sistemaConfig.modoMantenimiento,
+        enableRegistration: sistemaConfig.registroHabilitado,
+        enableReservations: sistemaConfig.reservasHabilitadas,
+        maxReservationsPerUser: sistemaConfig.maxReservasPorUsuario.toString(),
+        reservationTimeLimit: sistemaConfig.limiteTiempoCancelacion.toString(),
+      });
+      setIsLoading(false);
+    }
+    
+    if (sistemaConfig.error) {
+      setError(sistemaConfig.error);
+      toast({
+        title: "Error al cargar la configuración",
+        description: sistemaConfig.error,
+        variant: "destructive"
+      });
+      setIsLoading(false);
+    }
+  }, [sistemaConfig, toast]);
 
   // Estado para la configuración de correo
   const [emailConfig, setEmailConfig] = useState<EmailConfig>({
@@ -115,29 +152,99 @@ export default function ConfiguracionSistemaPage() {
     const { name, value } = e.target
     setPaymentConfig((prev) => ({ ...prev, [name]: value }))
   }
-
   const handlePaymentSwitchChange = (name: string, checked: boolean) => {
     setPaymentConfig((prev) => ({ ...prev, [name]: checked }))
   }
-
-  const handleSaveGeneralConfig = () => {
+  const handleSaveGeneralConfig = async () => {
     setIsSavingGeneral(true)
+    setError(null);
+    
+    // Validar campos
+    if (!generalConfig.siteName || generalConfig.siteName.trim() === "") {
+      setError("El nombre del sitio no puede estar vacío");
+      setIsSavingGeneral(false);
+      toast({
+        title: "Error de validación",
+        description: "El nombre del sitio no puede estar vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!generalConfig.contactEmail || !generalConfig.contactEmail.includes('@')) {
+      setError("Ingrese una dirección de email válida");
+      setIsSavingGeneral(false);
+      toast({
+        title: "Error de validación",
+        description: "Ingrese una dirección de email válida",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const maxReservas = parseInt(generalConfig.maxReservationsPerUser);
+    if (isNaN(maxReservas) || maxReservas < 1) {
+      setError("El número máximo de reservas debe ser un número positivo");
+      setIsSavingGeneral(false);
+      toast({
+        title: "Error de validación",
+        description: "El número máximo de reservas debe ser un número positivo",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const tiempoLimite = parseInt(generalConfig.reservationTimeLimit);
+    if (isNaN(tiempoLimite) || tiempoLimite < 1) {
+      setError("El tiempo límite de cancelación debe ser un número positivo");
+      setIsSavingGeneral(false);
+      toast({
+        title: "Error de validación",
+        description: "El tiempo límite de cancelación debe ser un número positivo",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    // Simulación de guardado
-    setTimeout(() => {
-      setIsSavingGeneral(false)
-      setIsSuccessGeneral(true)
-
+    try {
+      // Convertir de la interfaz del Frontend a la del Backend
+      const backendConfig = {
+        nombreSitio: generalConfig.siteName.trim(),
+        descripcionSitio: generalConfig.siteDescription.trim(),
+        emailContacto: generalConfig.contactEmail.trim(),
+        telefonoContacto: generalConfig.contactPhone.trim(),
+        modoMantenimiento: generalConfig.maintenanceMode,
+        registroHabilitado: generalConfig.enableRegistration,
+        reservasHabilitadas: generalConfig.enableReservations,
+        maxReservasPorUsuario: maxReservas,
+        limiteTiempoCancelacion: tiempoLimite,
+      };      // Guardar en el backend a través del contexto
+      await actualizarConfig(backendConfig);
+      
+      // Forzar recarga de la configuración del sistema
+      await recargarConfig();
+      
+      // Mostrar éxito
+      setIsSuccessGeneral(true);
       toast({
         title: "Configuración general guardada",
         description: "Los cambios en la configuración general han sido guardados exitosamente.",
-      })
+      });
 
       // Resetear mensaje de éxito después de 3 segundos
       setTimeout(() => {
-        setIsSuccessGeneral(false)
-      }, 3000)
-    }, 1500)
+        setIsSuccessGeneral(false);
+      }, 3000);
+    } catch (err) {
+      console.error('Error al guardar la configuración:', err);
+      toast({
+        title: "Error al guardar la configuración",
+        description: "No se pudo guardar la configuración. Intente nuevamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSavingGeneral(false);
+    }
   }
 
   const handleSaveEmailConfig = () => {
@@ -179,6 +286,16 @@ export default function ConfiguracionSistemaPage() {
       }, 3000)
     }, 1500)
   }
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Cargando configuración del sistema...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -195,12 +312,12 @@ export default function ConfiguracionSistemaPage() {
         </TabsList>
 
         <TabsContent value="general" className="mt-6">
-          <Card>
-            <CardHeader>
+          <Card>            <CardHeader>
               <CardTitle>Configuración General</CardTitle>
               <CardDescription>Configura los parámetros generales del sistema</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <ValidationError message={error} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="siteName">Nombre del Sitio</Label>

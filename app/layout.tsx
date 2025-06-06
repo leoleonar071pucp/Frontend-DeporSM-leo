@@ -10,7 +10,9 @@ import { AuthProvider } from "@/context/AuthContext" // Importar AuthProvider
 import { Chatbot } from "@/components/chatbot"
 import { Footer } from "@/components/footer" // Importar Footer
 import { NotificationProvider } from "@/context/NotificationContext"
+import { ConfiguracionProvider } from "@/context/ConfiguracionContext" // Importar proveedor de configuración
 import { LayoutClientWrapper } from "@/components/layout-client-wrapper" // Importar el wrapper
+import { MetadataGenerator } from "@/components/metadata-generator" // Importar el generador de metadatos
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -31,7 +33,6 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   // Quitar lógica de pathname e isInternalRoute
-
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -41,20 +42,19 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AuthProvider> {/* AuthProvider envuelve todo */}
-          <NotificationProvider> {/* NotificationProvider dentro de Auth */}
-            <ThemeProvider attribute="class" defaultTheme="light">
-              {/* LayoutClientWrapper se encarga de renderizar children y los componentes condicionales */}
-              <LayoutClientWrapper chatbot={<Chatbot />} footer={<Footer />}>
-                {children}
-              </LayoutClientWrapper>
-            </ThemeProvider>
-          </NotificationProvider>
+          <ConfiguracionProvider> {/* ConfiguracionProvider dentro de Auth */}
+            <NotificationProvider> {/* NotificationProvider dentro de ConfiguracionProvider */}
+              <ThemeProvider attribute="class" defaultTheme="light">
+                {/* LayoutClientWrapper se encarga de renderizar children y los componentes condicionales */}
+                <LayoutClientWrapper chatbot={<Chatbot />} footer={<Footer />}>
+                  <MetadataGenerator baseTitle={metadata.title as string} />
+                  {children}
+                </LayoutClientWrapper>
+              </ThemeProvider>
+            </NotificationProvider>
+          </ConfiguracionProvider>
         </AuthProvider>
       </body>
     </html>
   )
 }
-
-
-
-import './globals.css'

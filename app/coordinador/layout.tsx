@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeProvider } from "@/components/theme-provider"
+import { SiteTitle } from "@/components/site-title"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { useNotification } from "@/context/NotificationContext"
@@ -156,10 +157,10 @@ export default function CoordinadorLayout({
           className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary transform transition-transform duration-300 ease-in-out ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           } flex flex-col`}
-        >
-          <div className="flex items-center justify-between h-16 px-4 border-b border-primary-light">
+        >          <div className="flex items-center justify-between h-16 px-4 border-b border-primary-light">
             <Link href="/coordinador" className="flex items-center">
-              <span className="text-white text-xl font-bold">DeporSM Coordinador</span>
+              <SiteTitle className="text-white" />
+              <span className="text-white ml-2 font-bold">Coordinador</span>
             </Link>
             <Button variant="ghost" size="icon" onClick={toggleSidebar} className="lg:hidden text-white">
               <X className="h-6 w-6" />
@@ -378,10 +379,10 @@ export default function CoordinadorLayout({
           {isMobileMenuOpen && (
             <div className="fixed inset-0 z-40 lg:hidden">
               <div className="fixed inset-0 bg-black bg-opacity-50" onClick={toggleMobileMenu}></div>
-              <div className="fixed inset-y-0 left-0 w-64 bg-primary overflow-y-auto">
-                <div className="flex items-center justify-between h-16 px-4 border-b border-primary-light">
+              <div className="fixed inset-y-0 left-0 w-64 bg-primary overflow-y-auto">                <div className="flex items-center justify-between h-16 px-4 border-b border-primary-light">
                   <Link href="/coordinador" className="flex items-center">
-                    <span className="text-white text-xl font-bold">DeporSM Coordinador</span>
+                    <SiteTitle className="text-white" />
+                    <span className="text-white ml-2 font-bold">Coordinador</span>
                   </Link>
                   <Button variant="ghost" size="icon" onClick={toggleMobileMenu} className="text-white">
                     <X className="h-6 w-6" />

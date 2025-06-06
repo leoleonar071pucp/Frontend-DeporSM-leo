@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { API_BASE_URL } from "@/lib/config"; // Ajusta la ruta según tu estructura
+import { SiteTitle } from "@/components/site-title"
 
 // Importar componentes personalizados
 import { StatCard } from "./components/StatCard"
@@ -420,10 +421,9 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6">      <div>
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Bienvenido al panel de administración de DeporSM.</p>
+        <p className="text-muted-foreground">Bienvenido al panel de administración de <SiteTitle inline />.</p>
       </div>
 
       {/* Estadísticas */}

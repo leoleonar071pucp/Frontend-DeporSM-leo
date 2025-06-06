@@ -4,6 +4,60 @@
 
 import { API_BASE_URL, API_CONFIG, AUTH_CONFIG } from './config';
 
+// Create a simple API client with common HTTP methods
+export const apiClient = {
+  get: async (url: string) => {
+    try {
+      console.log(`Fetching from: ${API_BASE_URL}${url}`);
+      const response = await fetch(`${API_BASE_URL}${url}`);
+      if (!response.ok) {
+        console.error(`API error: ${response.status} - ${response.statusText}`);
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return { data: await response.json() };
+    } catch (error) {
+      console.error(`Error fetching from ${API_BASE_URL}${url}:`, error);
+      // Return fallback data during development to prevent app crashes
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Using fallback data in development mode');
+        return { 
+          data: {
+            nombreSitio: 'DeporSM',
+            descripcionSitio: 'Sistema de Reservas Deportivas',
+            telefonoContacto: '555-1234',
+            emailContacto: 'contacto@deporsm.com',
+            maxReservasPorUsuario: 3,
+            limiteTiempoCancelacion: 48,
+            modoMantenimiento: false,
+            registroHabilitado: true,
+            reservasHabilitadas: true
+          } 
+        };
+      }
+      throw error;
+    }
+  },
+  put: async (url: string, data: any) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) {
+        console.error(`API error: ${response.status} - ${response.statusText}`);
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return { data: await response.json() };
+    } catch (error) {
+      console.error(`Error updating ${API_BASE_URL}${url}:`, error);
+      throw error;
+    }
+  }
+};
+
 interface FetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
   timeout?: number;

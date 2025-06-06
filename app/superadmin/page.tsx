@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { SiteTitle } from "@/components/site-title"
 
 // Definición de interfaces para tipos
 interface StatCardProps {
@@ -220,10 +221,9 @@ export default function Page() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="mb-8">
+    <div className="space-y-6">      <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight mb-2">Dashboard de Superadministrador</h1>
-        <p className="text-muted-foreground text-lg">Bienvenido al panel de control del sistema DeporSM.</p>
+        <p className="text-muted-foreground text-lg">Bienvenido al panel de control del sistema <SiteTitle inline />.</p>
       </div>
 
       {/* Estadísticas */}

@@ -37,6 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ThemeProvider } from "@/components/theme-provider"
+import { SiteTitle } from "@/components/site-title"
 
 export default function SuperAdminLayout({
   children,
@@ -158,10 +159,10 @@ export default function SuperAdminLayout({
           className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0cb7f2] transform transition-transform duration-300 ease-in-out ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           } flex flex-col`}
-        >
-          <div className="flex items-center justify-between h-16 px-4 border-b border-[#53d4ff]">
+        >          <div className="flex items-center justify-between h-16 px-4 border-b border-[#53d4ff]">
             <Link href="/superadmin" className="flex items-center">
-              <span className="text-white text-xl font-bold">DeporSM SuperAdmin</span>
+              <SiteTitle className="text-white" />
+              <span className="text-white ml-2 font-bold">SuperAdmin</span>
             </Link>
             <Button variant="ghost" size="icon" onClick={toggleSidebar} className="lg:hidden text-white">
               <X className="h-6 w-6" />

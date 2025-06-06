@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Bell, Menu, X, Calendar, Info, CheckCircle, User, LogIn, LogOut, UserPlus, Loader2, FileText } from "lucide-react" // Added icons
 import { Button, buttonVariants } from "@/components/ui/button" // Importar buttonVariants
+import { SiteTitle } from "./site-title"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/context/AuthContext" // Import useAuth
 import { useNotification } from "@/context/NotificationContext" // Import useNotification
@@ -37,8 +38,7 @@ export function Navbar() {
   // Línea eliminada: const unreadCount = notifications.filter((n) => !n.read).length
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "success":
+    switch (type) {      case "success":
         return <CheckCircle className="h-5 w-5 text-green-500" />
       case "warning":
         return <Info className="h-5 w-5 text-yellow-500" />
@@ -48,8 +48,8 @@ export function Navbar() {
       default:
         return <Calendar className="h-5 w-5 text-primary" />
     }
-  }
-
+  };
+  
   const navItems = [
     { name: "Inicio", href: "/" },
     { name: "Instalaciones", href: "/instalaciones" },
@@ -60,11 +60,10 @@ export function Navbar() {
   return (
     <nav className="bg-primary sticky top-0 z-50 w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center">
+        <div className="flex items-center justify-between h-16">          <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Link href="/" className="text-white font-bold text-xl">
-                DeporSM
+              <Link href="/" className="text-white">
+                <SiteTitle />
               </Link>
             </div>
             <div className="hidden md:block">
@@ -88,8 +87,8 @@ export function Navbar() {
                     pathname === "/instalaciones" ? "bg-primary-light text-white" : "text-white hover:bg-primary-light"
                   } px-3 py-2 rounded-md text-sm font-medium`}
                 >
-                  Instalaciones
-                </Link>
+                  Instalaciones                </Link>
+                
                 {/* Mis Reservas (condicional) */}
                 {isAuthenticated && (
                    <Link

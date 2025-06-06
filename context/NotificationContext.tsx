@@ -313,8 +313,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     error,
     refreshNotifications
   };
-
-  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
+  return (
+    <NotificationContext.Provider value={value}>
+      {children}
+    </NotificationContext.Provider>
+  );
 };
 
 // Hook personalizado para usar el contexto

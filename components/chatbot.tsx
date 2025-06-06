@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { MessageSquare, Send, X } from "lucide-react"
+import { useConfiguracion } from "@/context/ConfiguracionContext"
 
 type Message = {
   id: number
@@ -15,13 +16,13 @@ type Message = {
   timestamp: Date
 }
 
-export function Chatbot() {
-  const [isOpen, setIsOpen] = useState(false)
+export function Chatbot() {  const [isOpen, setIsOpen] = useState(false)
   const [message, setMessage] = useState("")
+  const { config } = useConfiguracion()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "¡Hola! Soy el asistente virtual de DeporSM. ¿En qué puedo ayudarte hoy?",
+      text: `¡Hola! Soy el asistente virtual de ${config.nombreSitio || "DeporSM"}. ¿En qué puedo ayudarte hoy?`,
       sender: "bot",
       timestamp: new Date(),
     },
