@@ -3,10 +3,9 @@
 import { useConfiguracion } from "@/context/ConfiguracionContext"
 
 export function InfoContacto() {
-  const { config } = useConfiguracion();
-    if (config.isLoading) {
+  const { config } = useConfiguracion();    if (config.isLoading) {
     return (
-      <address className="not-italic text-primary-pale space-y-4">
+      <address className="not-italic text-primary-pale space-y-2 text-sm">
         <p>Av. Federico Gállese Nº 370</p>
         <p>San Miguel, Lima</p>
         <p>Teléfono: <span className="animate-pulse bg-gray-600 opacity-30 rounded h-4 w-24 inline-block"></span></p>
@@ -14,9 +13,8 @@ export function InfoContacto() {
       </address>
     );
   }
-  
-  return (
-    <address className="not-italic text-primary-pale space-y-4">
+    return (
+    <address className="not-italic text-primary-pale space-y-2 text-sm">
       <p>Av. Federico Gállese Nº 370</p>
       <p>San Miguel, Lima</p>
       <p>Teléfono: {config.telefonoContacto || "999-999-999"}</p>

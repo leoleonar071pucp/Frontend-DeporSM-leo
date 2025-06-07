@@ -12,9 +12,9 @@ import { es } from "date-fns/locale"
 import { formatDateForDisplay, createLocalDate } from "@/lib/date-utils"
 import { calculateTotalPrice, formatPrice } from "@/lib/price-utils"
 import { API_BASE_URL } from "@/lib/config"
+import { useConfiguracionSistema } from "@/hooks/use-configuracion-sistema"
 
-function ConfirmacionReservaContent() {
-  const searchParams = useSearchParams()
+function ConfirmacionReservaContent() {  const searchParams = useSearchParams()
   const status = searchParams.get("status") ?? 'pending'
   const resNum = searchParams.get("resNum")
   const facilityName = searchParams.get("facilityName")
@@ -22,6 +22,7 @@ function ConfirmacionReservaContent() {
   const time = searchParams.get("time")
   const price = searchParams.get("price")
   const [facilityPrice, setFacilityPrice] = useState<string | null>(null)
+  const configSistema = useConfiguracionSistema()
 
   // Calcular el precio basado en la duración si tenemos el precio por hora
   useEffect(() => {
@@ -127,10 +128,8 @@ function ConfirmacionReservaContent() {
                     </li>
                   )}
                 </ul>
-              </div>
-
-              <p className="text-sm text-gray-600">
-                Recuerda que puedes cancelar tu reserva hasta 48 horas antes de la fecha programada. Pasado este tiempo,
+              </div>              <p className="text-sm text-gray-600">
+                Recuerda que puedes cancelar tu reserva hasta {configSistema.getLimiteCancelacionHoras()} horas antes de la fecha programada. Pasado este tiempo,
                 no habrá reembolso.
               </p>
             </CardContent>

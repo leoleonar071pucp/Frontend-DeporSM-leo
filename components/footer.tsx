@@ -13,7 +13,7 @@ export function Footer() {
           </div>
           <div>
             <h3 className="text-xl font-bold mb-4">Enlaces Rápidos</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/instalaciones" className="text-primary-pale hover:text-white">
                   Instalaciones
