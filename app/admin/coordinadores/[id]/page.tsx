@@ -10,9 +10,7 @@ import { ArrowLeft, Save, X, AlertTriangle, Plus, Clock } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
-import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -271,6 +269,88 @@ export default function EditarCoordinadorPage() {
       ...prev,
       [field]: value
     }))
+  }
+
+  // Función para detectar conflictos de horarios
+  const detectScheduleConflicts = () => {
+    if (!selectedFacility || !selectedDay) return { hasConflict: false, conflicts: [] }
+
+    const startHour = parseInt(tempSchedule.startTime.split(':')[0])
+    const endHour = parseInt(tempSchedule.endTime.split(':')[0])
+
+    // Validar que la hora de inicio sea anterior a la hora de fin
+    if (startHour >= endHour) {
+      return {
+        hasConflict: true,
+        conflicts: [{
+          type: 'invalid_time',
+          message: 'La hora de inicio debe ser anterior a la hora de fin.'
+        }]
+      }
+    }
+
+    const conflicts: Array<{
+      type: 'same_facility' | 'other_facility'
+      facilityId: number
+      facilityName: string
+      day: string
+      startTime: string
+      endTime: string
+      message: string
+    }> = []
+
+    // Verificar conflictos en la misma instalación
+    const existingSchedules = facilitySchedules[selectedFacility]?.schedules || []
+    const sameDaySchedules = existingSchedules.filter(s => s.day === selectedDay)
+
+    sameDaySchedules.forEach(schedule => {
+      const existingStart = parseInt(schedule.startTime.split(':')[0])
+      const existingEnd = parseInt(schedule.endTime.split(':')[0])
+
+      // Verificar solapamiento
+      if (startHour < existingEnd && endHour > existingStart) {
+        const facilityName = instalacionesData.find(f => f.id === selectedFacility)?.nombre || `ID: ${selectedFacility}`
+        conflicts.push({
+          type: 'same_facility',
+          facilityId: selectedFacility,
+          facilityName,
+          day: selectedDay,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          message: `Conflicto en ${facilityName}: ${weekDays.find(d => d.id === selectedDay)?.name} de ${schedule.startTime} a ${schedule.endTime}`
+        })
+      }
+    })
+
+    // Verificar conflictos con otras instalaciones asignadas al mismo coordinador
+    for (const facilityId of selectedFacilities) {
+      // Saltamos la instalación actual que ya verificamos
+      if (facilityId === selectedFacility) continue
+
+      const otherFacilitySchedules = facilitySchedules[facilityId]?.schedules || []
+      const otherSameDaySchedules = otherFacilitySchedules.filter(s => s.day === selectedDay)
+
+      otherSameDaySchedules.forEach(schedule => {
+        const existingStart = parseInt(schedule.startTime.split(':')[0])
+        const existingEnd = parseInt(schedule.endTime.split(':')[0])
+
+        // Verificar solapamiento
+        if (startHour < existingEnd && endHour > existingStart) {
+          const facilityName = instalacionesData.find(f => f.id === facilityId)?.nombre || `ID: ${facilityId}`
+          conflicts.push({
+            type: 'other_facility',
+            facilityId,
+            facilityName,
+            day: selectedDay,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            message: `Conflicto con ${facilityName}: ${weekDays.find(d => d.id === selectedDay)?.name} de ${schedule.startTime} a ${schedule.endTime}`
+          })
+        }
+      })
+    }
+
+    return { hasConflict: conflicts.length > 0, conflicts }
   }
 
   const addScheduleToFacility = () => {
@@ -615,93 +695,128 @@ export default function EditarCoordinadorPage() {
                                 ))}
                               </TabsList>
 
-                              {weekDays.map((day) => (
-                                <TabsContent key={day.id} value={day.id} className="space-y-4">
-                                  <div className="flex items-end gap-4">
-                                    <div className="space-y-1 flex-1">
-                                      <Label htmlFor={`start-${day.id}`} className="text-xs">
-                                        Hora inicio
-                                      </Label>
-                                      <Select
-                                        value={tempSchedule.startTime}
-                                        onValueChange={(value) => updateTempSchedule("startTime", value)}
-                                      >
-                                        <SelectTrigger id={`start-${day.id}`}>
-                                          <SelectValue placeholder="Hora inicio" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {timeSlots.map((time) => (
-                                            <SelectItem key={`start-${day.id}-${time}`} value={time}>
-                                              {time}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div className="space-y-1 flex-1">
-                                      <Label htmlFor={`end-${day.id}`} className="text-xs">
-                                        Hora fin
-                                      </Label>
-                                      <Select
-                                        value={tempSchedule.endTime}
-                                        onValueChange={(value) => updateTempSchedule("endTime", value)}
-                                      >
-                                        <SelectTrigger id={`end-${day.id}`}>
-                                          <SelectValue placeholder="Hora fin" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {timeSlots.map((time) => (
-                                            <SelectItem key={`end-${day.id}-${time}`} value={time}>
-                                              {time}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      onClick={addScheduleToFacility}
-                                      className="mb-0.5"
-                                    >
-                                      <Plus className="h-4 w-4 mr-1" />
-                                      Agregar
-                                    </Button>
-                                  </div>
+                              {weekDays.map((day) => {
+                                // Detectar conflictos para el día actual
+                                const conflictInfo = selectedDay === day.id ? detectScheduleConflicts() : { hasConflict: false, conflicts: [] }
 
-                                  <div className="space-y-2">
-                                    <h4 className="text-sm font-medium">Horarios asignados para {day.name}:</h4>
-                                    {facilitySchedules[selectedFacility]?.schedules.filter(s => s.day === day.id).length > 0 ? (
-                                      <div className="space-y-2">
-                                        {facilitySchedules[selectedFacility].schedules
-                                          .filter(s => s.day === day.id)
-                                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                                          .map(schedule => (
-                                            <div key={schedule.id} className="flex items-center justify-between p-2 border rounded-md">
-                                              <div className="flex items-center">
-                                                <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                                                <span>
-                                                  {schedule.startTime} - {schedule.endTime}
-                                                </span>
-                                              </div>
-                                              <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => removeSchedule(selectedFacility, schedule.id)}
-                                                className="text-red-500 h-8 w-8 p-0"
-                                              >
-                                                <X className="h-4 w-4" />
-                                              </Button>
-                                            </div>
-                                          ))
-                                        }
+                                return (
+                                  <TabsContent key={day.id} value={day.id} className="space-y-4">
+                                    <div className="flex items-end gap-4">
+                                      <div className="space-y-1 flex-1">
+                                        <Label htmlFor={`start-${day.id}`} className="text-xs">
+                                          Hora inicio
+                                        </Label>
+                                        <Select
+                                          value={tempSchedule.startTime}
+                                          onValueChange={(value) => updateTempSchedule("startTime", value)}
+                                        >
+                                          <SelectTrigger id={`start-${day.id}`}>
+                                            <SelectValue placeholder="Hora inicio" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {timeSlots.map((time) => (
+                                              <SelectItem key={`start-${day.id}-${time}`} value={time}>
+                                                {time}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
                                       </div>
-                                    ) : (
-                                      <p className="text-sm text-gray-500">No hay horarios asignados para este día</p>
+                                      <div className="space-y-1 flex-1">
+                                        <Label htmlFor={`end-${day.id}`} className="text-xs">
+                                          Hora fin
+                                        </Label>
+                                        <Select
+                                          value={tempSchedule.endTime}
+                                          onValueChange={(value) => updateTempSchedule("endTime", value)}
+                                        >
+                                          <SelectTrigger id={`end-${day.id}`}>
+                                            <SelectValue placeholder="Hora fin" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {timeSlots.map((time) => (
+                                              <SelectItem key={`end-${day.id}-${time}`} value={time}>
+                                                {time}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        onClick={addScheduleToFacility}
+                                        className="mb-0.5"
+                                        disabled={conflictInfo.hasConflict}
+                                        variant={conflictInfo.hasConflict ? "secondary" : "default"}
+                                      >
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Agregar
+                                      </Button>
+                                    </div>
+
+                                    {/* Mostrar información de conflictos */}
+                                    {conflictInfo.hasConflict && (
+                                      <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                                        <div className="flex items-start">
+                                          <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <h4 className="text-sm font-medium text-red-800 mb-1">
+                                              No se puede agregar este horario
+                                            </h4>
+                                            <div className="text-sm text-red-700 space-y-1">
+                                              {conflictInfo.conflicts.map((conflict, index) => (
+                                                <div key={index}>
+                                                  {conflict.type === 'invalid_time' ? (
+                                                    <p>{conflict.message}</p>
+                                                  ) : (
+                                                    <p>• {conflict.message}</p>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                            <p className="text-xs text-red-600 mt-2">
+                                              Modifica el horario o elimina los horarios en conflicto para continuar.
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
                                     )}
-                                  </div>
-                                </TabsContent>
-                              ))}
+
+                                    <div className="space-y-2">
+                                      <h4 className="text-sm font-medium">Horarios asignados para {day.name}:</h4>
+                                      {facilitySchedules[selectedFacility]?.schedules.filter(s => s.day === day.id).length > 0 ? (
+                                        <div className="space-y-2">
+                                          {facilitySchedules[selectedFacility].schedules
+                                            .filter(s => s.day === day.id)
+                                            .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                                            .map(schedule => (
+                                              <div key={schedule.id} className="flex items-center justify-between p-2 border rounded-md">
+                                                <div className="flex items-center">
+                                                  <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                                                  <span>
+                                                    {schedule.startTime} - {schedule.endTime}
+                                                  </span>
+                                                </div>
+                                                <Button
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => removeSchedule(selectedFacility, schedule.id)}
+                                                  className="text-red-500 h-8 w-8 p-0"
+                                                >
+                                                  <X className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            ))
+                                          }
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-gray-500">No hay horarios asignados para este día</p>
+                                      )}
+                                    </div>
+                                  </TabsContent>
+                                )
+                              })}
                             </Tabs>
                           </div>
                         )}

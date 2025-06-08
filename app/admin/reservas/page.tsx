@@ -88,7 +88,8 @@ export default function ReservasAdmin() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [selectedDateStart, setSelectedDateStart] = useState<Date | undefined>(undefined)
+  const [selectedDateEnd, setSelectedDateEnd] = useState<Date | undefined>(undefined)
 
   useEffect(() => {
     // Cargar datos reales del backend
@@ -172,13 +173,21 @@ export default function ReservasAdmin() {
     try {
       // Construir la URL con los parámetros de búsqueda
       let url = `${API_BASE_URL}/reservas/admin/filtrar?`;
+      const params = new URLSearchParams();
+
       if (searchQuery) {
-        url += `texto=${encodeURIComponent(searchQuery)}`;
+        params.append('texto', searchQuery);
       }
-      if (selectedDate) {
-        const formattedDate = format(selectedDate, "yyyy-MM-dd");
-        url += `${searchQuery ? '&' : ''}fecha=${formattedDate}`;
+      if (selectedDateStart) {
+        const formattedDateStart = format(selectedDateStart, "yyyy-MM-dd");
+        params.append('fechaInicio', formattedDateStart);
       }
+      if (selectedDateEnd) {
+        const formattedDateEnd = format(selectedDateEnd, "yyyy-MM-dd");
+        params.append('fechaFin', formattedDateEnd);
+      }
+
+      url += params.toString();
 
       const response = await fetch(url, {
         credentials: 'include'
@@ -272,132 +281,21 @@ export default function ReservasAdmin() {
     }
   }
 
-  const handleDateFilter = async (date: Date | undefined) => {
-    setSelectedDate(date)
-
-    // Si se selecciona una fecha, realizar la búsqueda automáticamente
-    if (date) {
-      setIsLoading(true)
-      try {
-        // Construir la URL con el parámetro de fecha
-        const formattedDate = format(date, "yyyy-MM-dd");
-        const url = `${API_BASE_URL}/reservas/admin/filtrar?fecha=${formattedDate}`;
-
-        console.log("Filtrando por fecha:", formattedDate);
-
-        const response = await fetch(url, {
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error al filtrar reservas por fecha: ${response.status}`);
-        }
-
-        const data: ReservaBackend[] = await response.json();
-
-        // Transformar los datos del backend al formato que espera el frontend
-        const transformedData: Reservation[] = data.map(reserva => {
-          // Formatear la fecha usando utilidad
-          const formattedDate = formatDateShort(reserva.fecha);
-
-          // Formatear la hora
-          const horaInicio = reserva.horaInicio.substring(0, 5); // HH:MM
-          const horaFin = reserva.horaFin.substring(0, 5); // HH:MM
-          const timeRange = `${horaInicio} - ${horaFin}`;
-
-          // Calcular el precio (simulado por ahora)
-          const precio = Math.floor(Math.random() * 100) + 20;
-
-          return {
-            id: reserva.id,
-            reservationNumber: `RES-${reserva.id}`,
-            facilityId: 0,
-            facilityName: reserva.instalacionNombre,
-            facilityImage: reserva.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
-            date: formattedDate,
-            time: timeRange,
-            location: reserva.instalacionUbicacion,
-            status: reserva.estado as "pendiente" | "confirmada" | "completada" | "cancelada",
-            paymentMethod: reserva.metodoPago || "No especificado",
-            paymentStatus: reserva.estadoPago || 'Pendiente',
-            paymentAmount: `S/. ${precio.toFixed(2)}`,
-            paymentDate: formattedDate,
-            userDetails: {
-              name: reserva.usuarioNombre,
-              dni: "No disponible",
-              email: "No disponible",
-              phone: "No disponible",
-            },
-            createdAt: formattedDate,
-          };
-        });
-
-        setReservations(transformedData);
-
-        // Actualizar la pestaña activa a "todas" para mostrar todos los resultados filtrados
-        setActiveTab("todas");
-      } catch (error) {
-        console.error("Error al filtrar por fecha:", error);
-        toast({
-          title: "Error",
-          description: "No se pudieron filtrar las reservas por fecha. Intente nuevamente.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      // Si se limpia la fecha, cargar todas las reservas nuevamente
-      try {
-        const response = await fetch(`${API_BASE_URL}/reservas/admin`, {
-          credentials: 'include'
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-
-          // Transformar los datos como en handleTabChange
-          const transformedData = data.map((reserva: ReservaBackend) => {
-            const formattedDate = formatDateShort(reserva.fecha);
-
-            const horaInicio = reserva.horaInicio.substring(0, 5);
-            const horaFin = reserva.horaFin.substring(0, 5);
-            const timeRange = `${horaInicio} - ${horaFin}`;
-
-            const precio = Math.floor(Math.random() * 100) + 20;
-
-            return {
-              id: reserva.id,
-              reservationNumber: `RES-${reserva.id}`,
-              facilityId: 0,
-              facilityName: reserva.instalacionNombre,
-              facilityImage: reserva.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
-              date: formattedDate,
-              time: timeRange,
-              location: reserva.instalacionUbicacion,
-              status: reserva.estado as "pendiente" | "confirmada" | "completada" | "cancelada",
-              paymentMethod: reserva.metodoPago || "No especificado",
-              paymentStatus: reserva.estadoPago || 'Pendiente',
-              paymentAmount: `S/. ${precio.toFixed(2)}`,
-              paymentDate: formattedDate,
-              userDetails: {
-                name: reserva.usuarioNombre,
-                dni: "No disponible",
-                email: "No disponible",
-                phone: "No disponible",
-              },
-              createdAt: formattedDate,
-            };
-          });
-
-          // Ordenar las reservas de mayor a menor número de reserva (ID)
-          const sortedData = transformedData.sort((a: Reservation, b: Reservation) => b.id - a.id);
-          setReservations(sortedData);
-        }
-      } catch (error) {
-        console.error("Error al cargar todas las reservas:", error);
-      }
+  const handleDateStartChange = (date: Date | undefined) => {
+    setSelectedDateStart(date)
+    // Si la fecha fin es anterior a la nueva fecha inicio, limpiarla
+    if (date && selectedDateEnd && selectedDateEnd < date) {
+      setSelectedDateEnd(undefined)
     }
+  }
+
+  const handleDateEndChange = (date: Date | undefined) => {
+    setSelectedDateEnd(date)
+  }
+
+  const clearDateFilters = () => {
+    setSelectedDateStart(undefined)
+    setSelectedDateEnd(undefined)
   }
 
   const handleViewDetails = async (reservation: Reservation) => {
@@ -804,31 +702,83 @@ export default function ReservasAdmin() {
               >
                 Buscar
               </Button>
+
+              {/* Fecha Inicio */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline">
                     <Calendar className="h-4 w-4 mr-2" />
-                    {selectedDate
-                      ? format(selectedDate, "dd/MM/yyyy", { locale: es })
-                      : "Fecha"}
+                    {selectedDateStart
+                      ? format(selectedDateStart, "dd/MM/yyyy", { locale: es })
+                      : "Fecha Inicio"}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="p-0">
                   <div className="p-2">
-                    <CalendarComponent mode="single" selected={selectedDate} onSelect={handleDateFilter} locale={es} />
-                    {selectedDate && (
+                    <CalendarComponent mode="single" selected={selectedDateStart} onSelect={handleDateStartChange} locale={es} />
+                    {selectedDateStart && (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="mt-2 w-full"
-                        onClick={() => handleDateFilter(undefined)}
+                        onClick={() => setSelectedDateStart(undefined)}
                       >
-                        Limpiar filtro
+                        Limpiar
                       </Button>
                     )}
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Fecha Fin */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={!selectedDateStart}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    {selectedDateEnd
+                      ? format(selectedDateEnd, "dd/MM/yyyy", { locale: es })
+                      : selectedDateStart
+                        ? "Fecha Fin"
+                        : "Selecciona fecha inicio primero"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="p-0">
+                  <div className="p-2">
+                    {selectedDateStart && (
+                      <p className="text-xs text-gray-500 mb-2 px-1">
+                        Desde: {format(selectedDateStart, "dd/MM/yyyy", { locale: es })}
+                      </p>
+                    )}
+                    <CalendarComponent
+                      mode="single"
+                      selected={selectedDateEnd}
+                      onSelect={handleDateEndChange}
+                      locale={es}
+                      disabled={(date) => selectedDateStart ? date < selectedDateStart : false}
+                    />
+                    {selectedDateEnd && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => setSelectedDateEnd(undefined)}
+                      >
+                        Limpiar
+                      </Button>
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Botón para limpiar ambas fechas */}
+              {(selectedDateStart || selectedDateEnd) && (
+                <Button
+                  variant="outline"
+                  onClick={clearDateFilters}
+                >
+                  Limpiar Fechas
+                </Button>
+              )}
             </div>
           </form>
 
@@ -932,7 +882,7 @@ export default function ReservasAdmin() {
                               className="mt-4"
                               onClick={() => {
                                 setSearchQuery("")
-                                setSelectedDate(undefined)
+                                clearDateFilters()
                                 window.location.reload()
                               }}
                             >

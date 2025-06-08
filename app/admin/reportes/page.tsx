@@ -47,119 +47,55 @@ export default function ReportesAdmin() {
       const metadata = await metadataResponse.json();
       console.log("Metadatos del reporte:", metadata);
 
-      // Ahora solicitamos el archivo
-      console.log(`Solicitando archivo del reporte ID: ${reporteId}`);
+      // Ahora solicitamos la URL de descarga
+      console.log(`Solicitando URL de descarga del reporte ID: ${reporteId}`);
       const fileResponse = await fetch(`/api/reportes/descargar/${reporteId}`, {
         credentials: 'include',
         headers: {
-          'Accept': '*/*',
+          'Accept': 'application/json',
           'Cache-Control': 'no-cache',
         },
       });
 
       console.log(`Respuesta recibida: ${fileResponse.status} ${fileResponse.statusText}`);
-      console.log("Headers:", Object.fromEntries([...fileResponse.headers.entries()]));
 
       // Verificar si la respuesta es exitosa
       if (!fileResponse.ok) {
-        // Intentar leer el cuerpo del error
-        let errorMessage = `Error al descargar: ${fileResponse.status} ${fileResponse.statusText}`;
-        let errorDetails = "";
+        let errorMessage = `Error al obtener URL de descarga: ${fileResponse.status} ${fileResponse.statusText}`;
 
         try {
-          const contentType = fileResponse.headers.get('content-type');
-          console.log("Tipo de contenido de error:", contentType);
-
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await fileResponse.json();
-            console.error("Error JSON:", errorData);
-            errorMessage = errorData.error || errorMessage;
-            errorDetails = errorData.details || "";
-          } else {
-            const errorText = await fileResponse.text();
-            console.error("Error texto:", errorText);
-            errorDetails = errorText;
-          }
+          const errorData = await fileResponse.json();
+          console.error("Error JSON:", errorData);
+          errorMessage = errorData.error || errorMessage;
         } catch (e) {
           console.error("No se pudo leer el cuerpo del error:", e);
         }
 
-        console.error(`Error completo: ${errorMessage} - ${errorDetails}`);
         throw new Error(errorMessage);
       }
 
-      // Verificar el tipo de contenido
-      const contentType = fileResponse.headers.get('content-type');
-      console.log("Tipo de contenido:", contentType);
+      // Obtener la respuesta JSON con la URL
+      const data = await fileResponse.json();
+      console.log("Datos de descarga recibidos:", data);
 
-      // Si la respuesta es JSON, probablemente sea un error
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await fileResponse.json();
-        console.error("Error JSON recibido:", errorData);
-        throw new Error(errorData.error || 'Error desconocido en formato JSON');
+      // Verificar que tenemos la URL
+      if (!data.url) {
+        throw new Error("No se recibió la URL de descarga del servidor");
       }
 
-      // Obtener el nombre del archivo
-      const contentDisposition = fileResponse.headers.get('content-disposition');
-      console.log("Content-Disposition:", contentDisposition);
+      // Abrir la URL de Supabase en una nueva pestaña para descarga directa
+      console.log("Abriendo URL de descarga:", data.url);
 
-      const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
-      const filename = filenameMatch
-        ? filenameMatch[1]
-        : `reporte_${metadata.tipo}_${new Date().toISOString().slice(0, 10)}.${metadata.formato === 'excel' ? 'xlsx' : 'pdf'}`;
-
-      console.log("Nombre del archivo para descarga:", filename);
-
-      // Convertir la respuesta a blob
-      const blob = await fileResponse.blob();
-      console.log("Tamaño del blob:", blob.size, "bytes");
-      console.log("Tipo MIME del blob:", blob.type);
-
-      if (blob.size === 0) {
-        console.error("El archivo descargado está vacío");
-        throw new Error("El archivo descargado está vacío. Por favor, intente generar el reporte nuevamente.");
-      }
-
-      // Verificar el tipo MIME del blob
-      if (blob.type === "application/json") {
-        // Si es JSON, probablemente sea un mensaje de error
-        const reader = new FileReader();
-        const textPromise = new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-        });
-
-        reader.readAsText(blob);
-        const text = await textPromise;
-
-        console.error("Contenido JSON del error:", text);
-        try {
-          const errorData = JSON.parse(text);
-          throw new Error(errorData.error || "Error desconocido en el servidor");
-        } catch (e) {
-          throw new Error("Error al procesar la respuesta del servidor");
-        }
-      }
-
-      // Crear un objeto URL para el blob
-      const url = window.URL.createObjectURL(blob);
-
-      // Crear un enlace para descargar el archivo
+      // Crear un enlace temporal para forzar la descarga
       const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
+      link.href = data.url;
+      link.target = '_blank';
+      link.download = data.nombre || 'reporte';
       document.body.appendChild(link);
-
-      // Simular clic y limpiar
-      console.log("Iniciando descarga del archivo...");
       link.click();
+      document.body.removeChild(link);
 
-      // Limpiar recursos
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(link);
-        console.log("Descarga completada y recursos liberados");
-      }, 100);
+      console.log("Descarga iniciada exitosamente");
 
       return true;
     } catch (error: any) {
@@ -178,11 +114,37 @@ export default function ReportesAdmin() {
 
   // Datos de ejemplo para los reportes
   const reportTypes = [
-    { id: "reservas", name: "Reservas", description: "Información detallada de reservas: usuarios, horarios, estados de pago" },
-    { id: "ingresos", name: "Ingresos", description: "Resumen de ingresos por reservas y servicios" },
-    { id: "instalaciones", name: "Uso de instalaciones", description: "Métricas de utilización: frecuencia, horarios más solicitados, capacidad" },
-    { id: "mantenimiento", name: "Mantenimiento", description: "Registro de mantenimientos realizados y programados" },
+    {
+      id: "reservas",
+      name: "Reservas",
+      description: "Información detallada de reservas: usuarios, horarios, estados de pago",
+      dateInfo: "Filtra por fecha programada de la reserva (para qué día se hizo la reserva)"
+    },
+    {
+      id: "ingresos",
+      name: "Ingresos",
+      description: "Resumen de ingresos por reservas y servicios",
+      dateInfo: "Filtra por fecha de transacción de pago (cuándo se realizó el pago)"
+    },
+    {
+      id: "instalaciones",
+      name: "Uso de instalaciones",
+      description: "Métricas de utilización: frecuencia, horarios más solicitados",
+      dateInfo: "Filtra por fecha de creación de la reserva (cuándo se hizo la reserva)"
+    },
+    {
+      id: "mantenimiento",
+      name: "Mantenimiento",
+      description: "Registro de mantenimientos realizados y programados",
+      dateInfo: "Filtra por fecha de inicio del mantenimiento"
+    },
   ]
+
+  // Función para obtener la información de fechas del tipo de reporte seleccionado
+  const getSelectedReportDateInfo = () => {
+    const selectedReport = reportTypes.find(type => type.id === reportType)
+    return selectedReport?.dateInfo || ""
+  }
 
   useEffect(() => {
     // Cargar datos reales
@@ -385,6 +347,21 @@ export default function ReportesAdmin() {
                       <p className="text-sm text-gray-500 mt-1">{type.description}</p>
                     </div>
                   ))}
+                </div>
+
+                {/* Información sobre las fechas utilizadas */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-blue-100 rounded-full p-1 mt-0.5">
+                      <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-blue-900 text-sm">Criterio de fechas para este reporte</h4>
+                      <p className="text-blue-700 text-sm mt-1">{getSelectedReportDateInfo()}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 

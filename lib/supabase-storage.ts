@@ -216,3 +216,58 @@ export async function deletePaymentVoucher(fileName: string): Promise<boolean> {
 export function getPaymentVoucherUrl(fileName: string): string {
   return getPublicUrl(fileName, 'comprobantes');
 }
+
+/**
+ * Sube un archivo de reporte a Supabase
+ */
+export async function uploadReportFile(file: File, reportType: string, reportFormat: string): Promise<string | null> {
+  // Crear un nombre de archivo único
+  const timestamp = Date.now();
+  const fileExtension = reportFormat === 'excel' ? 'xlsx' : 'pdf';
+  const fileName = `reporte_${reportType}_${timestamp}.${fileExtension}`;
+
+  console.log("Subiendo reporte a Supabase:", {
+    fileName,
+    fileSize: file.size,
+    fileType: file.type,
+    reportType,
+    reportFormat,
+    bucket: 'reportes'
+  });
+
+  const { error } = await supabase
+    .storage
+    .from('reportes')
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: file.type
+    });
+
+  if (error) {
+    console.error("Error al subir reporte:", error.message);
+    return null;
+  }
+
+  const { data: publicUrlData } = supabase
+    .storage
+    .from('reportes')
+    .getPublicUrl(fileName);
+
+  console.log("Reporte subido exitosamente:", publicUrlData.publicUrl);
+  return publicUrlData.publicUrl;
+}
+
+/**
+ * Elimina un archivo de reporte específico
+ */
+export async function deleteReportFile(fileName: string): Promise<boolean> {
+  return await deleteFile(fileName, 'reportes');
+}
+
+/**
+ * Obtiene la URL pública de un reporte
+ */
+export function getReportFileUrl(fileName: string): string {
+  return getPublicUrl(fileName, 'reportes');
+}

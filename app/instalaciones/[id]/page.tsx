@@ -11,7 +11,7 @@ import { es } from "date-fns/locale"
 import { createLocalDate, convertLocalDateToBackendFormat, normalizeDateForComparison } from "@/lib/date-utils"
 import { CalendarIcon, Clock, Info, MapPin, Users, Droplets, Dumbbell, Timer, CheckCircle, Phone } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { API_BASE_URL } from "@/lib/config";
 
@@ -56,7 +56,24 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
   const [error, setError] = useState<string | null>(null)
 
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isAuthenticated } = useAuth()
+
+  // Manejar parámetro de fecha de la URL
+  useEffect(() => {
+    const fechaParam = searchParams.get('fecha')
+    if (fechaParam) {
+      try {
+        const fechaFromUrl = new Date(fechaParam + 'T00:00:00')
+        if (!isNaN(fechaFromUrl.getTime())) {
+          setDate(fechaFromUrl)
+          console.log("Fecha establecida desde URL:", fechaFromUrl)
+        }
+      } catch (error) {
+        console.error("Error al parsear fecha de URL:", error)
+      }
+    }
+  }, [searchParams])
 
   // Función para formatear el precio
   const formatPrice = (price: number) => {

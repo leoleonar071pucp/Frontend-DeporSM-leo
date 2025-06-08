@@ -210,34 +210,38 @@ export default function TodosLosReportes() {
                             // Descargar el reporte al hacer clic
                             console.log("Descargando reporte con ID:", report.id)
 
-                            // Usar fetch para descargar el archivo directamente
-                            fetch(`/api/reportes/descargar/${report.id}`)
+                            // Usar fetch para obtener la URL de descarga
+                            fetch(`/api/reportes/descargar/${report.id}`, {
+                              credentials: 'include',
+                              headers: {
+                                'Accept': 'application/json',
+                              },
+                            })
                               .then(async response => {
                                 // Verificar si la respuesta es exitosa
                                 if (!response.ok) {
-                                  throw new Error(`Error al descargar: ${response.status} ${response.statusText}`)
+                                  throw new Error(`Error al obtener URL de descarga: ${response.status} ${response.statusText}`)
                                 }
 
-                                // Obtener el nombre del archivo
-                                const contentDisposition = response.headers.get('content-disposition')
-                                const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/)
-                                const filename = filenameMatch ? filenameMatch[1] : `${report.nombre}.${report.formato === 'excel' ? 'xlsx' : 'pdf'}`
+                                // Obtener la respuesta JSON con la URL
+                                const data = await response.json()
+                                console.log("Datos de descarga recibidos:", data)
 
-                                // Convertir la respuesta a blob
-                                const blob = await response.blob()
+                                // Verificar que tenemos la URL
+                                if (!data.url) {
+                                  throw new Error("No se recibió la URL de descarga del servidor")
+                                }
 
-                                // Crear un objeto URL para el blob
-                                const url = window.URL.createObjectURL(blob)
+                                // Abrir la URL de Supabase para descarga directa
+                                console.log("Abriendo URL de descarga:", data.url)
 
-                                // Crear un enlace para descargar el archivo
+                                // Crear un enlace temporal para forzar la descarga
                                 const link = document.createElement('a')
-                                link.href = url
-                                link.setAttribute('download', filename)
+                                link.href = data.url
+                                link.target = '_blank'
+                                link.download = data.nombre || report.nombre
                                 document.body.appendChild(link)
                                 link.click()
-
-                                // Limpiar
-                                window.URL.revokeObjectURL(url)
                                 document.body.removeChild(link)
                               })
                               .catch(error => {

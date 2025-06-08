@@ -13,6 +13,7 @@ import { NotificationProvider } from "@/context/NotificationContext"
 import { ConfiguracionProvider } from "@/context/ConfiguracionContext" // Importar proveedor de configuración
 import { LayoutClientWrapper } from "@/components/layout-client-wrapper" // Importar el wrapper
 import { MetadataGenerator } from "@/components/metadata-generator" // Importar el generador de metadatos
+import { Toaster } from "@/components/ui/toaster" // Importar Toaster
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -50,6 +51,7 @@ export default function RootLayout({
                   <MetadataGenerator baseTitle={metadata.title as string} />
                   {children}
                 </LayoutClientWrapper>
+                <Toaster />
               </ThemeProvider>
             </NotificationProvider>
           </ConfiguracionProvider>

@@ -103,75 +103,31 @@ export async function GET(
       const responseContentType = fileResponse.headers.get('content-type');
       console.log(`[API] Tipo de contenido de la respuesta:`, responseContentType);
 
-      // Si la respuesta es JSON, probablemente sea un error
+      // Si la respuesta es JSON, es la nueva respuesta con URL de Supabase
       if (responseContentType && responseContentType.includes('application/json')) {
-        const errorData = await fileResponse.json();
-        console.error(`[API] Error JSON recibido:`, errorData);
-        return NextResponse.json(
-          {
-            error: errorData.error || 'El servidor devolvió un error en formato JSON',
-            details: errorData
-          },
-          { status: 500 }
-        );
+        const data = await fileResponse.json();
+        console.log(`[API] Datos de descarga recibidos:`, data);
+
+        // Verificar que tenemos la URL
+        if (!data.url) {
+          console.error(`[API] No se recibió URL de descarga`);
+          return NextResponse.json(
+            { error: 'No se recibió la URL de descarga del servidor' },
+            { status: 500 }
+          );
+        }
+
+        // Retornar la respuesta JSON directamente al frontend
+        console.log(`[API] Enviando URL de descarga: ${data.url}`);
+        return NextResponse.json(data);
       }
 
-      // Get the file content as a blob
-      const fileBlob = await fileResponse.blob();
-      console.log(`[API] Tamaño del blob: ${fileBlob.size} bytes`);
-      console.log(`[API] Tipo MIME del blob: ${fileBlob.type}`);
-
-      // Verificar que el blob no esté vacío
-      if (fileBlob.size === 0) {
-        console.error(`[API] El archivo descargado está vacío`);
-        return NextResponse.json(
-          { error: "El archivo descargado está vacío" },
-          { status: 500 }
-        );
-      }
-
-      // Determine the content type based on the format
-      let contentType;
-      if (responseContentType && responseContentType !== 'application/octet-stream') {
-        // Usar el tipo de contenido de la respuesta si está disponible y no es genérico
-        contentType = responseContentType;
-      } else {
-        // Determinar el tipo de contenido basado en el formato del reporte
-        contentType = metadata.formato === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf';
-      }
-
-      console.log(`[API] Usando tipo de contenido: ${contentType}`);
-
-      // Create a filename
-      const contentDisposition = fileResponse.headers.get('content-disposition');
-      let filename;
-
-      if (contentDisposition && contentDisposition.includes('filename=')) {
-        // Extraer el nombre del archivo del header Content-Disposition
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        filename = filenameMatch ? filenameMatch[1] : null;
-      }
-
-      // Si no se pudo extraer el nombre del archivo, usar uno basado en los metadatos
-      if (!filename) {
-        filename = `${metadata.nombre}.${metadata.formato === 'excel' ? 'xlsx' : 'pdf'}`;
-      }
-
-      console.log(`[API] Nombre del archivo para descarga: ${filename}`);
-
-      // Create a new response with the correct content type
-      const response = new NextResponse(fileBlob, {
-        headers: {
-          'Content-Type': contentType,
-          'Content-Disposition': `attachment; filename="${filename}"`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
-      });
-
-      console.log(`[API] Enviando respuesta con headers:`, Object.fromEntries([...response.headers.entries()]));
-      return response;
+      // Si llegamos aquí, la respuesta no es JSON (caso legacy)
+      console.error(`[API] Respuesta inesperada del servidor - no es JSON`);
+      return NextResponse.json(
+        { error: 'Respuesta inesperada del servidor' },
+        { status: 500 }
+      );
 
     } catch (error: any) {
       console.error(`[API] Error al solicitar el archivo:`, error);

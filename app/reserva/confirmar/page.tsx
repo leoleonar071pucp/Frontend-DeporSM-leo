@@ -374,7 +374,9 @@ function ConfirmarReservaForm() {
 
               // Esperar un momento antes de redirigir para que el usuario pueda ver el mensaje
               setTimeout(() => {
-                router.push(`/instalaciones/${facilityId}`);
+                // Redirigir a la página específica de la instalación con la fecha preseleccionada
+                const fechaParam = new Date(dateParam).toISOString().split('T')[0];
+                router.push(`/instalaciones/${facilityId}?fecha=${fechaParam}`);
               }, 3000);
             }
           }

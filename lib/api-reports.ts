@@ -13,7 +13,7 @@ export interface ReporteDTO {
   creadoPor: string;
   tamano: string;
   descripcion: string;
-  rutaArchivo: string;
+  urlArchivo: string;
   instalacionId?: number;
 }
 
@@ -23,6 +23,20 @@ export interface ReporteRequestDTO {
   fechaInicio: string;
   fechaFin: string;
   instalacionId?: number;
+}
+
+export interface ReporteAsistenciasRequestDTO {
+  tipo: string;
+  formato: string;
+  fechaInicio: string;
+  fechaFin: string;
+  instalacionId?: number;
+  coordinadorNombre?: string;
+  instalacionNombre?: string;
+  estadoEntrada?: string;
+  estadoSalida?: string;
+  filtrosTexto?: string;
+  fechasTexto?: string;
 }
 
 /**
@@ -49,6 +63,34 @@ export async function generarReporte(reporteRequest: ReporteRequestDTO): Promise
     return await response.json();
   } catch (error) {
     console.error("Error en generarReporte:", error);
+    throw error;
+  }
+}
+
+/**
+ * Generates a new attendance report
+ */
+export async function generarReporteAsistencias(reporteRequest: ReporteAsistenciasRequestDTO): Promise<ReporteDTO> {
+  try {
+    console.log("Enviando solicitud al backend /reportes/asistencias:", reporteRequest);
+
+    // Usar apiPost directamente al backend como lo hace generarReporte
+    const response = await apiPost('reportes/asistencias', reporteRequest);
+
+    if (!response.ok) {
+      let errorMessage = 'Error al generar reporte de asistencias';
+      try {
+        const errorData = await response.text();
+        errorMessage = `Error al generar reporte de asistencias: ${errorData}`;
+      } catch (e) {
+        // Si no podemos leer el texto del error, usamos el mensaje genérico
+      }
+      throw new Error(errorMessage);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error en generarReporteAsistencias:", error);
     throw error;
   }
 }

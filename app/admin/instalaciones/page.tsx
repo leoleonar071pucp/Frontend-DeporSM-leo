@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/components/ui/use-toast"
 import { Search, Plus, Edit, Trash2, AlertTriangle, Filter } from "lucide-react"
 import Link from "next/link"
 import {
@@ -55,6 +56,7 @@ const typeMapping = {
 };
 
 export default function InstalacionesAdmin() {
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [filteredFacilities, setFilteredFacilities] = useState<Facility[]>([])
@@ -63,6 +65,8 @@ export default function InstalacionesAdmin() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [facilityToDelete, setFacilityToDelete] = useState<Facility | null>(null)
   const [currentFilter, setCurrentFilter] = useState<string | null>(null)
+  const [showErrorDialog, setShowErrorDialog] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
 
   // Fetch all facilities
   const fetchFacilities = async () => {
@@ -500,19 +504,50 @@ export default function InstalacionesAdmin() {
 
   const confirmDelete = async () => {
     if (!facilityToDelete) return
+
+    console.log(`Intentando eliminar instalación: ${facilityToDelete.id} - ${facilityToDelete.nombre}`)
+
     try {
       const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityToDelete.id}`, {
         method: "DELETE",
       })
+
+      console.log(`Respuesta del servidor: ${response.status} - ${response.statusText}`)
+
       if (response.ok) {
+        console.log("Instalación eliminada exitosamente")
         setFacilities((prev) => prev.filter((f) => f.id !== facilityToDelete.id))
         setShowDeleteDialog(false)
         setFacilityToDelete(null)
+
+        // Mostrar mensaje de éxito
+        toast({
+          title: "Instalación eliminada",
+          description: `La instalación "${facilityToDelete.nombre}" ha sido eliminada correctamente.`,
+        })
       } else {
-        console.error("Error deleting facility")
+        // Manejar errores específicos del backend
+        const backendErrorMessage = await response.text()
+        console.log("Mensaje de error del backend:", backendErrorMessage)
+
+        // Mostrar solo el modal de error personalizado (sin toast)
+        setErrorMessage(backendErrorMessage)
+        setShowErrorDialog(true)
+
+        // Cerrar el diálogo de confirmación
+        setShowDeleteDialog(false)
+        setFacilityToDelete(null)
       }
     } catch (error) {
-      console.error("Error deleting facility:", error)
+      console.error("Error de conexión al eliminar instalación:", error)
+
+      // Mostrar modal de error para problemas de conexión
+      setErrorMessage("No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.")
+      setShowErrorDialog(true)
+
+      // Cerrar el diálogo
+      setShowDeleteDialog(false)
+      setFacilityToDelete(null)
     }
   }
 
@@ -697,6 +732,30 @@ export default function InstalacionesAdmin() {
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>
               Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de error */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              No se puede eliminar la instalación
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-700 mt-3">
+              {errorMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowErrorDialog(false)}
+              className="w-full"
+            >
+              Entendido
             </Button>
           </DialogFooter>
         </DialogContent>
