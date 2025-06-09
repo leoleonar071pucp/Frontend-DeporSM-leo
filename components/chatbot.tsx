@@ -36,6 +36,21 @@ export function Chatbot() {
   // URL del webhook de n8n
   const N8N_WEBHOOK_URL = "https://qubos-n8n.ennfle.easypanel.host/webhook/dda7025f-0900-41e1-9adf-ce28187e7588/chat"
 
+  // Función para formatear el texto del bot
+  const formatBotMessage = (text: string) => {
+    return text
+      // Agregar saltos de línea después de números con punto
+      .replace(/(\d+\.\s\*\*[^*]+\*\*)/g, '\n$1')
+      // Agregar saltos de línea antes de guiones
+      .replace(/(\s-\s)/g, '\n$1')
+      // Agregar salto de línea después de cada instalación
+      .replace(/(Contacto:\s[0-9-]+)/g, '$1\n')
+      // Limpiar múltiples saltos de línea
+      .replace(/\n\n+/g, '\n\n')
+      // Limpiar espacios al inicio
+      .trim()
+  }
+
   const toggleChat = () => {
     setIsOpen(!isOpen)
   }
@@ -91,9 +106,12 @@ export function Chatbot() {
       console.log('Respuesta de n8n:', data)
 
       // Reemplazar mensaje de carga con respuesta real
+      const rawText = data.output || data.response || data.message || "Lo siento, no pude procesar tu mensaje."
+      const formattedText = formatBotMessage(rawText)
+
       const botResponse: Message = {
         id: messages.length + 2,
-        text: data.output || data.response || data.message || "Lo siento, no pude procesar tu mensaje.",
+        text: formattedText,
         sender: "bot",
         timestamp: new Date(),
       }
@@ -143,15 +161,36 @@ export function Chatbot() {
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      msg.sender === "user" ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
+                    className={`max-w-[85%] rounded-lg p-4 ${
+                      msg.sender === "user" ? "bg-primary text-white" : "bg-gray-50 text-gray-800 border border-gray-200"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-2">
                       {msg.isLoading && (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin mt-1" />
                       )}
-                      <p className="text-sm">{msg.text}</p>
+                      <div className="text-sm whitespace-pre-line leading-relaxed">
+                        {msg.text.split('\n').map((line, index) => {
+                          // Detectar si es un título (contiene **)
+                          const isTitle = line.includes('**')
+                          // Detectar si es un elemento de lista (empieza con número o emoji)
+                          const isListItem = /^\d+\./.test(line.trim()) || /^🏟️/.test(line.trim())
+
+                          return (
+                            <div
+                              key={index}
+                              className={`
+                                ${isTitle ? 'font-semibold text-blue-600 mb-1' : ''}
+                                ${isListItem ? 'font-medium mb-2 mt-2' : ''}
+                                ${line.trim().startsWith('-') ? 'ml-4 text-gray-600' : ''}
+                                ${line.trim() === '' ? 'mb-2' : 'mb-1'}
+                              `}
+                            >
+                              {line.replace(/\*\*/g, '')}
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                     <p className="text-xs mt-1 opacity-70">
                       {msg.timestamp.toLocaleTimeString([], {
