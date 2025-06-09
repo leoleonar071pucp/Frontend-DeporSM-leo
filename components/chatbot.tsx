@@ -21,6 +21,11 @@ export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false)
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [chatSize, setChatSize] = useState({ width: 400, height: 600 })
+  const [chatPosition, setChatPosition] = useState({ x: 20, y: 20 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const { config } = useConfiguracion()
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -32,6 +37,7 @@ export function Chatbot() {
   ])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatRef = useRef<HTMLDivElement>(null)
 
   // URL del webhook de n8n
   const N8N_WEBHOOK_URL = "https://qubos-n8n.ennfle.easypanel.host/webhook/dda7025f-0900-41e1-9adf-ce28187e7588/chat"
@@ -53,6 +59,13 @@ export function Chatbot() {
 
   const toggleChat = () => {
     setIsOpen(!isOpen)
+    // Resetear posición cuando se abre por primera vez
+    if (!isOpen) {
+      setChatPosition({
+        x: Math.max(20, window.innerWidth - chatSize.width - 20),
+        y: Math.max(20, window.innerHeight - chatSize.height - 100)
+      })
+    }
   }
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -137,6 +150,69 @@ export function Chatbot() {
 
   // Función eliminada - ahora usamos n8n para las respuestas
 
+  // Funciones para drag & drop
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.resize-handle')) return
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - chatPosition.x,
+      y: e.clientY - chatPosition.y
+    })
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setChatPosition({
+        x: Math.max(0, Math.min(window.innerWidth - chatSize.width, e.clientX - dragStart.x)),
+        y: Math.max(0, Math.min(window.innerHeight - chatSize.height, e.clientY - dragStart.y))
+      })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setIsResizing(false)
+  }
+
+  // Funciones para redimensionar
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsResizing(true)
+    setDragStart({
+      x: e.clientX,
+      y: e.clientY
+    })
+  }
+
+  const handleResizeMouseMove = (e: MouseEvent) => {
+    if (isResizing) {
+      const deltaX = e.clientX - dragStart.x
+      const deltaY = e.clientY - dragStart.y
+
+      setChatSize({
+        width: Math.max(300, Math.min(800, chatSize.width + deltaX)),
+        height: Math.max(400, Math.min(800, chatSize.height + deltaY))
+      })
+
+      setDragStart({
+        x: e.clientX,
+        y: e.clientY
+      })
+    }
+  }
+
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      document.addEventListener('mousemove', isDragging ? handleMouseMove : handleResizeMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+
+      return () => {
+        document.removeEventListener('mousemove', isDragging ? handleMouseMove : handleResizeMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, isResizing, dragStart, chatPosition, chatSize])
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
@@ -146,17 +222,40 @@ export function Chatbot() {
   return (
     <>
       {isOpen && (
-        <Card className="fixed bottom-20 right-4 w-80 md:w-96 z-50 shadow-lg">
-          <CardHeader className="p-4 bg-primary text-white flex flex-row justify-between items-center">
+        <Card
+          ref={chatRef}
+          className="fixed z-50 shadow-2xl border-2 border-gray-300 select-none"
+          style={{
+            left: `${chatPosition.x}px`,
+            top: `${chatPosition.y}px`,
+            width: `${chatSize.width}px`,
+            height: `${chatSize.height}px`,
+            cursor: isDragging ? 'grabbing' : 'grab'
+          }}
+        >
+          <CardHeader
+            className="p-4 bg-primary text-white flex flex-row justify-between items-center cursor-grab active:cursor-grabbing"
+            onMouseDown={handleMouseDown}
+          >
             <div className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
               <h3 className="font-medium">Asistente Virtual</h3>
             </div>
-            <Button variant="ghost" size="icon" onClick={toggleChat} className="text-white">
-              <X className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="text-xs opacity-75">
+                {chatSize.width}×{chatSize.height}
+              </div>
+              <Button variant="ghost" size="icon" onClick={toggleChat} className="text-white hover:bg-white/20">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="p-4 max-h-96 overflow-y-auto">
+          <CardContent
+            className="p-4 overflow-y-auto flex-1"
+            style={{
+              height: `${chatSize.height - 140}px` // Restar header y footer
+            }}
+          >
             <div className="space-y-4">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
@@ -204,7 +303,7 @@ export function Chatbot() {
               <div ref={messagesEndRef} />
             </div>
           </CardContent>
-          <CardFooter className="p-4 pt-0">
+          <CardFooter className="p-4 pt-0 relative">
             <form onSubmit={handleSendMessage} className="w-full flex gap-2">
               <Input
                 placeholder="Escribe tu mensaje..."
@@ -225,6 +324,15 @@ export function Chatbot() {
                 )}
               </Button>
             </form>
+
+            {/* Handle de redimensionamiento */}
+            <div
+              className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-400 hover:bg-gray-600 opacity-50 hover:opacity-100 transition-opacity"
+              onMouseDown={handleResizeMouseDown}
+              style={{
+                clipPath: 'polygon(100% 0%, 0% 100%, 100% 100%)'
+              }}
+            />
           </CardFooter>
         </Card>
       )}
