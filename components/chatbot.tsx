@@ -42,23 +42,6 @@ export function Chatbot() {
   // URL del webhook de n8n
   const N8N_WEBHOOK_URL = "https://qubos-n8n.ennfle.easypanel.host/webhook/dda7025f-0900-41e1-9adf-ce28187e7588/chat"
 
-  // Palabras clave relacionadas con deportes/reservas
-  const KEYWORDS_DEPORTIVOS = [
-    'instalacion', 'instalaciones', 'cancha', 'canchas', 'piscina', 'gimnasio',
-    'reserva', 'reservar', 'disponible', 'disponibilidad', 'precio', 'costo',
-    'horario', 'hora', 'deporte', 'deportivo', 'futbol', 'basquet', 'voley',
-    'natacion', 'atletismo', 'multideportiva', 'municipal', 'san miguel',
-    'ubicacion', 'direccion', 'contacto', 'telefono', 'pagar', 'pago',
-    'cancelar', 'cancelacion', 'confirmar', 'hola', 'ayuda', 'informacion'
-  ]
-
-  // Función para verificar si la pregunta es relevante
-  const isRelevantQuestion = (message: string): boolean => {
-    const lowerMessage = message.toLowerCase()
-    return KEYWORDS_DEPORTIVOS.some(keyword => lowerMessage.includes(keyword)) ||
-           message.length < 10 // Permitir saludos cortos
-  }
-
   // Función para formatear el texto del bot
   const formatBotMessage = (text: string) => {
     return text
@@ -91,27 +74,6 @@ export function Chatbot() {
     if (message.trim() === "" || isLoading) return
 
     const userMessage = message.trim()
-
-    // Verificar si la pregunta es relevante
-    if (!isRelevantQuestion(userMessage)) {
-      const newUserMessage: Message = {
-        id: messages.length + 1,
-        text: userMessage,
-        sender: "user",
-        timestamp: new Date(),
-      }
-
-      const botResponse: Message = {
-        id: messages.length + 2,
-        text: "Lo siento, soy un asistente especializado en reservas deportivas. Solo puedo ayudarte con información sobre nuestras instalaciones, disponibilidad, reservas y precios. ¿En qué puedo ayudarte con las instalaciones deportivas? 🏟️",
-        sender: "bot",
-        timestamp: new Date(),
-      }
-
-      setMessages(prev => [...prev, newUserMessage, botResponse])
-      setMessage("")
-      return
-    }
     const newUserMessage: Message = {
       id: messages.length + 1,
       text: userMessage,
