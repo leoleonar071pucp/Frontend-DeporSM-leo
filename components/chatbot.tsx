@@ -70,15 +70,16 @@ export function Chatbot() {
 
     try {
       // Enviar mensaje a n8n
+      console.log('Enviando mensaje a n8n:', userMessage)
+
       const response = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: 'sendMessage',
-          message: userMessage,
-          sessionId: `session_${Date.now()}`, // ID de sesión simple
+          chatInput: userMessage,
+          sessionId: `session_${Date.now()}`,
         }),
       })
 
@@ -87,11 +88,12 @@ export function Chatbot() {
       }
 
       const data = await response.json()
+      console.log('Respuesta de n8n:', data)
 
       // Reemplazar mensaje de carga con respuesta real
       const botResponse: Message = {
         id: messages.length + 2,
-        text: data.output || data.message || "Lo siento, no pude procesar tu mensaje.",
+        text: data.output || data.response || data.message || "Lo siento, no pude procesar tu mensaje.",
         sender: "bot",
         timestamp: new Date(),
       }
