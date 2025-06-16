@@ -17,6 +17,7 @@ import { MaintenanceAlert } from "./components/MaintenanceAlert"
 import { BarChart } from "./components/charts/BarChart"
 import { PieChart } from "./components/charts/PieChart"
 import { LineChart } from "./components/charts/LineChart"
+import { CircularChart } from "./components/charts/CircularChart"
 
 // Interfaces para el estado
 interface MonthlyChanges {
@@ -513,7 +514,7 @@ export default function AdminDashboard() {
 
           {/* PESTAÑA DE RESERVAS */}
           <TabsContent value="reservas" className="mt-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                <Card>
                  <CardHeader>
                    <CardTitle>Top 5 Instalaciones Más Reservadas</CardTitle>
@@ -532,14 +533,44 @@ export default function AdminDashboard() {
                    <CardDescription>Distribución por estado de reserva</CardDescription>
                  </CardHeader>
                  <CardContent>
-                    <BarChart
+                    <CircularChart
                       data={chartData.reservationsByStatus || [
-                        { name: "Pendientes", value: Math.round(stats.totalReservations * 0.2) },
-                        { name: "Confirmadas", value: Math.round(stats.totalReservations * 0.4) },
-                        { name: "Completadas", value: Math.round(stats.totalReservations * 0.3) },
-                        { name: "Canceladas", value: Math.round(stats.totalReservations * 0.1) }
-                      ]}
-                      title="Reservas por Estado"
+                        { name: "Pendientes", value: Math.round(stats.totalReservations * 0.2), color: "#f59e0b" },
+                        { name: "Confirmadas", value: Math.round(stats.totalReservations * 0.4), color: "#10b981" },
+                        { name: "Completadas", value: Math.round(stats.totalReservations * 0.3), color: "#3b82f6" },
+                        { name: "Canceladas", value: Math.round(stats.totalReservations * 0.1), color: "#ef4444" }
+                      ].filter(item => item.value > 0)}
+                      title="Distribución de Estados"
+                      height={320}
+                    />
+                 </CardContent>
+               </Card>
+               <Card>
+                 <CardHeader>
+                   <CardTitle>Distribución de Instalaciones</CardTitle>
+                   <CardDescription>Estado actual de las instalaciones</CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                    <CircularChart
+                      data={[
+                        {
+                          name: "Disponibles",
+                          value: facilityStatus.filter(f => f.status === "disponible").length,
+                          color: "#10b981"
+                        },
+                        {
+                          name: "En Mantenimiento",
+                          value: facilityStatus.filter(f => f.status === "mantenimiento").length,
+                          color: "#f59e0b"
+                        },
+                        {
+                          name: "Fuera de Servicio",
+                          value: facilityStatus.filter(f => f.status === "fuera-servicio").length,
+                          color: "#ef4444"
+                        }
+                      ].filter(item => item.value > 0)}
+                      title="Estado de Instalaciones"
+                      height={320}
                     />
                  </CardContent>
                </Card>
@@ -566,7 +597,7 @@ export default function AdminDashboard() {
 
           {/* PESTAÑA DE MANTENIMIENTO */}
           <TabsContent value="mantenimiento" className="mt-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                <Card>
                  <CardHeader>
                    <CardTitle>Observaciones por Instalación</CardTitle>
@@ -588,6 +619,23 @@ export default function AdminDashboard() {
                     <BarChart
                       data={chartData.estadoMantenimientos || []}
                       title="Estado de Mantenimientos"
+                    />
+                 </CardContent>
+               </Card>
+               <Card>
+                 <CardHeader>
+                   <CardTitle>Prioridad de Observaciones</CardTitle>
+                   <CardDescription>Distribución por nivel de prioridad</CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                    <CircularChart
+                      data={[
+                        { name: "Alta", value: Math.round(stats.maintenanceAlerts * 0.3), color: "#ef4444" },
+                        { name: "Media", value: Math.round(stats.maintenanceAlerts * 0.5), color: "#f59e0b" },
+                        { name: "Baja", value: Math.round(stats.maintenanceAlerts * 0.2), color: "#10b981" }
+                      ].filter(item => item.value > 0)}
+                      title="Prioridad de Observaciones"
+                      height={320}
                     />
                  </CardContent>
                </Card>

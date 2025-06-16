@@ -17,6 +17,7 @@ import { API_BASE_URL } from "@/lib/config" // Importar API_BASE_URL
 import { uploadInstallationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage"
 import AddressGeocoder from "@/components/forms/AddressGeocoder"
 import { Coordinates } from "@/lib/google-maps"
+import { handlePhoneInputChange, isValidPhoneNumber, phoneToBackendFormat } from "@/lib/phone-utils"
 
 
 
@@ -99,7 +100,15 @@ export default function NuevaInstalacion() {
   // Tipar evento
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target as { name: keyof FacilityFormData; value: string }; // Asegurar que name es una clave válida
-    setFormData((prev) => ({ ...prev, [name]: value }))
+
+    // Validación especial para el campo de teléfono - formato con espacios
+    if (name === 'contactNumber') {
+      // Usar la función de formateo con espacios
+      const formattedPhone = handlePhoneInputChange(value)
+      setFormData((prev) => ({ ...prev, [name]: formattedPhone }))
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }))
+    }
 
     // Limpiar error al editar
     if (errors[name]) {
@@ -177,7 +186,11 @@ export default function NuevaInstalacion() {
     } else if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
       newErrors.price = "El precio debe ser un número positivo"
     }
-    if (!formData.contactNumber.trim()) newErrors.contactNumber = "El número de contacto es obligatorio"
+    if (!formData.contactNumber.trim()) {
+      newErrors.contactNumber = "El número de contacto es obligatorio"
+    } else if (!isValidPhoneNumber(formData.contactNumber)) {
+      newErrors.contactNumber = "El número de contacto debe tener 9 dígitos"
+    }
     if (!imageFile) newErrors.image = "La imagen es obligatoria"
 
     // Validar que haya al menos un horario disponible
@@ -269,7 +282,7 @@ export default function NuevaInstalacion() {
           ubicacion: formData.location,
           tipo: tipoAlmacenamiento,
           capacidad: Number(formData.capacity),
-          contactoNumero: formData.contactNumber,
+          contactoNumero: phoneToBackendFormat(formData.contactNumber),
           imagenUrl: imagenUrl,
           precio: parseFloat(formData.price),
           activo: true,
@@ -464,12 +477,15 @@ export default function NuevaInstalacion() {
                 <Input
                   id="contactNumber"
                   name="contactNumber"
-                  placeholder="Ej: 987-654-321"
+                  type="tel"
+                  placeholder="Ej: 987 654 321"
                   value={formData.contactNumber}
                   onChange={handleInputChange}
                   className={errors.contactNumber ? "border-red-500" : ""}
+                  maxLength={11}
                 />
                 {errors.contactNumber && <p className="text-red-500 text-sm">{errors.contactNumber}</p>}
+                <p className="text-xs text-gray-500">9 dígitos, se formatea automáticamente</p>
               </div>
 
               <div className="space-y-2">

@@ -88,10 +88,7 @@ function LoginForm() {
       console.log("Inicio de sesión exitoso. Rol:", user.rol?.nombre)
       login(user) // Guardar usuario en contexto
 
-      toast({
-        title: "¡Bienvenido/a!",
-        description: `Has iniciado sesión como ${user.nombre}`,
-      })
+
 
       // Redirigir según el rol o a la ruta de redirección si existe
       if (redirectPath && redirectPath !== "/login") {

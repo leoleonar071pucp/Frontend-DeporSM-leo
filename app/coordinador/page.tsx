@@ -11,6 +11,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { createLocalDate } from "@/lib/date-utils"
 import { useAuth } from "@/context/AuthContext"
+import { CircularChart } from "@/app/admin/components/charts/CircularChart"
 
 // Definir tipos para los datos
 type Visit = {
@@ -481,23 +482,24 @@ export default function CoordinadorDashboard() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Estadísticas de Asistencia</CardTitle>
-          <CardDescription>Resumen de tus registros de asistencia</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded-full bg-green-500"></div>
-                  <span className="text-sm font-medium">A tiempo</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Estadísticas de Asistencia</CardTitle>
+            <CardDescription>Resumen de tus registros de asistencia</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-green-500"></div>
+                    <span className="text-sm font-medium">A tiempo</span>
+                  </div>
+                  <span className="text-sm font-medium">{data.attendanceStats.onTime} visitas</span>
                 </div>
-                <span className="text-sm font-medium">{data.attendanceStats.onTime} visitas</span>
-              </div>
-              <Progress
-                value={attendancePercentages.onTime}
+                <Progress
+                  value={attendancePercentages.onTime}
                 className="h-2 bg-gray-200"
                 indicatorClassName="bg-green-500"
               />
@@ -560,7 +562,38 @@ export default function CoordinadorDashboard() {
               Ver estadísticas detalladas
             </Link>
           </Button>        </CardFooter>
-      </Card>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribución de Asistencia</CardTitle>
+            <CardDescription>Vista visual de tus registros de asistencia</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CircularChart
+              data={[
+                {
+                  name: "A tiempo",
+                  value: data.attendanceStats.onTime,
+                  color: "#10b981"
+                },
+                {
+                  name: "Tarde",
+                  value: data.attendanceStats.late,
+                  color: "#f59e0b"
+                },
+                {
+                  name: "No asistió",
+                  value: data.attendanceStats.missed,
+                  color: "#ef4444"
+                }
+              ].filter(item => item.value > 0)}
+              title="Distribución de Asistencia"
+              height={300}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

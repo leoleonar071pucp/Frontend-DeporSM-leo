@@ -28,19 +28,8 @@ interface ProfileData {
   direccion: string; // Añadir campo de dirección
 }
 
-// Función para formatear teléfono
-const formatPhoneNumber = (phoneNumber: string): string => {
-  // Eliminar cualquier caracter que no sea un número
-  const cleaned = phoneNumber.replace(/\D/g, '');
-
-  // Verificar si el teléfono tiene 9 dígitos (formato peruano)
-  if (cleaned.length === 9) {
-    return cleaned.replace(/(\d{3})(\d{3})(\d{3})/, '$1-$2-$3');
-  }
-
-  // Si tiene otro número de dígitos, devolver con formato básico
-  return cleaned.replace(/(\d{3})(\d{3})(\d+)/, '$1-$2-$3');
-};
+// Importar las utilidades de teléfono
+import { handlePhoneInputChange, formatPhoneWithSpaces } from "@/lib/phone-utils";
 
 export default function PerfilSuperadminPage() {
   const { user, checkAuthStatus } = useAuth(); // Obtener el usuario y la función para actualizar del contexto de autenticación
@@ -54,7 +43,7 @@ export default function PerfilSuperadminPage() {
     name: "Administrador Principal",
     apellidos: "Sistema",
     email: "superadmin@munisanmiguel.gob.pe",
-    phone: "987-654-321",
+    phone: "987 654 321",
     lastLogin: "05/04/2025, 08:00",
     ipAddress: "192.168.1.3",
     direccion: "Av. Principal 123, San Miguel",
@@ -67,7 +56,7 @@ export default function PerfilSuperadminPage() {
         // Verificar si el teléfono del usuario es el predeterminado "900000000" o similar
         const isDefaultPhone = user.telefono &&
           (user.telefono === "900000000" ||
-           user.telefono === "900-000-000" ||
+           user.telefono === "900 000 000" ||
            user.telefono.replace(/\D/g, '') === "900000000");
 
         return {
@@ -76,10 +65,10 @@ export default function PerfilSuperadminPage() {
           apellidos: user.apellidos || prevData.apellidos,
           email: user.email || prevData.email,
           direccion: user.direccion || prevData.direccion,
-          // Usar el teléfono predeterminado "987-654-321" si es el número genérico "900000000"
+          // Usar el teléfono predeterminado "987 654 321" si es el número genérico "900000000"
           phone: (user.telefono && !isDefaultPhone) ?
-                 formatPhoneNumber(user.telefono) :
-                 "987-654-321",
+                 formatPhoneWithSpaces(user.telefono) :
+                 "987 654 321",
         };
       });
     }
@@ -90,11 +79,11 @@ export default function PerfilSuperadminPage() {
     const { name, value } = e.target;
 
     if (name === 'phone') {
-      // Para el campo de teléfono, solo permitir números y máximo 9 dígitos
-      const onlyNums = value.replace(/\D/g, '').substring(0, 9);
+      // Para el campo de teléfono, usar la función de formateo con espacios
+      const formattedPhone = handlePhoneInputChange(value);
       setProfileData((prev) => ({
         ...prev,
-        [name]: formatPhoneNumber(onlyNums)
+        [name]: formattedPhone
       }));
     } else {
       setProfileData((prev) => ({ ...prev, [name]: value }));
@@ -123,7 +112,7 @@ export default function PerfilSuperadminPage() {
         body: JSON.stringify({
           nombre: profileData.name,
           apellidos: profileData.apellidos,
-          telefono: profileData.phone.replace(/-/g, ''),
+          telefono: profileData.phone.replace(/\D/g, ''),
           direccion: profileData.direccion
         })
       });
@@ -152,7 +141,7 @@ export default function PerfilSuperadminPage() {
         name: updatedData.nombre || prev.name,
         apellidos: updatedData.apellidos || prev.apellidos,
         email: updatedData.email || prev.email,
-        phone: updatedData.telefono ? formatPhoneNumber(updatedData.telefono) : prev.phone,
+        phone: updatedData.telefono ? formatPhoneWithSpaces(updatedData.telefono) : prev.phone,
         direccion: updatedData.direccion || prev.direccion
       }));
 
@@ -316,14 +305,14 @@ export default function PerfilSuperadminPage() {
                   <Input
                     id="phone"
                     name="phone"
-                    placeholder="Ej: 999-888-777"
+                    placeholder="Ej: 999 888 777"
                     value={profileData.phone}
                     onChange={handleInputChange}
                     disabled={!isEditing}
                     className={isEditing ? "font-medium" : ""}
                   />
                   {isEditing && (
-                    <p className="text-xs text-muted-foreground">Formato: 999-888-777</p>
+                    <p className="text-xs text-muted-foreground">9 dígitos, se formatea automáticamente</p>
                   )}
                 </div>
                 

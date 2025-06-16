@@ -49,7 +49,6 @@ export default function Contacto() {
       }));
     }
   }, [isAuthenticated, user]);
-
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
@@ -59,8 +58,18 @@ export default function Contacto() {
 
     if (!formState.email.trim()) {
       newErrors.email = "El correo electrónico es requerido"
+    } else if (!formState.email.includes('@')) {
+      newErrors.email = "El correo debe incluir un @"
     } else if (!/\S+@\S+\.\S+/.test(formState.email)) {
       newErrors.email = "El correo electrónico no es válido"
+    }
+
+    // Validar teléfono si se ha proporcionado (es opcional, pero si se proporciona debe tener 9 dígitos)
+    if (formState.telefono.trim()) {
+      const digitsOnly = formState.telefono.replace(/\D/g, '');
+      if (digitsOnly.length !== 9) {
+        newErrors.telefono = "El teléfono debe tener exactamente 9 dígitos"
+      }
     }
 
     if (!formState.asunto) {
@@ -76,18 +85,44 @@ export default function Contacto() {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-
+  const formatPhoneNumber = (value: string): string => {
+    // Eliminar espacios y caracteres no numéricos
+    const digits = value.replace(/\D/g, '');
+    
+    // Limitar a 9 dígitos
+    const limitedDigits = digits.slice(0, 9);
+    
+    // Formatear con espacios cada 3 dígitos
+    let formattedPhone = '';
+    for (let i = 0; i < limitedDigits.length; i++) {
+      if (i > 0 && i % 3 === 0) {
+        formattedPhone += ' ';
+      }
+      formattedPhone += limitedDigits[i];
+    }
+    
+    return formattedPhone;
+  };
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormState((prev) => ({ ...prev, [name]: value }))
+    const { name, value } = e.target;
+    
+    // Aplicar formato especial para el número de teléfono
+    if (name === 'telefono') {
+      const formattedValue = formatPhoneNumber(value);
+      setFormState((prev) => ({ ...prev, [name]: formattedValue }));
+    } 
+    // Para los demás campos, comportamiento normal
+    else {
+      setFormState((prev) => ({ ...prev, [name]: value }));
+    }
 
     // Limpiar error al editar
     if (errors[name]) {
       setErrors((prev) => {
-        const newErrors = { ...prev }
-        delete newErrors[name]
-        return newErrors
-      })
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   }
 
@@ -228,15 +263,14 @@ export default function Contacto() {
                           disabled={isSubmitting || isSuccess || isAuthenticated}
                         />
                         {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
-                      </div>
-                      <div className="space-y-2">
+                      </div>                      <div className="space-y-2">
                         <Label htmlFor="email">
                           Correo electrónico <span className="text-red-500">*</span>
                         </Label>
                         <Input
                           id="email"
                           name="email"
-                          type="email"
+                          type="text"
                           placeholder="Ingresa tu correo electrónico"
                           value={formState.email}
                           onChange={handleChange}
@@ -244,19 +278,21 @@ export default function Contacto() {
                           disabled={isSubmitting || isSuccess || isAuthenticated}
                         />
                         {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
-                      </div>
-                      <div className="space-y-2">
+                      </div>                      <div className="space-y-2">
                         <Label htmlFor="telefono">
                           Teléfono <span className="text-gray-500 text-sm">(opcional)</span>
                         </Label>
                         <Input
                           id="telefono"
                           name="telefono"
-                          placeholder="Ingresa tu número de teléfono"
+                          placeholder="Formato: XXX XXX XXX"
                           value={formState.telefono}
                           onChange={handleChange}
+                          className={errors.telefono ? "border-red-500" : ""}
                           disabled={isSubmitting || isSuccess || isAuthenticated}
+                          maxLength={11} // 9 dígitos + 2 espacios
                         />
+                        {errors.telefono && <p className="text-red-500 text-sm">{errors.telefono}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="asunto">
@@ -345,7 +381,7 @@ export default function Contacto() {
                     </div>
                     <div>
                       <h3 className="font-medium">Teléfono</h3>
-                      <p className="text-gray-600">{configSistema.getTelefonoContacto("999-999-999")}</p>
+                      <p className="text-gray-600">{configSistema.getTelefonoContacto("999 999 999")}</p>
                       <p className="text-gray-600">Lunes a Viernes: 8:00 - 17:00</p>
                     </div>
                   </div>

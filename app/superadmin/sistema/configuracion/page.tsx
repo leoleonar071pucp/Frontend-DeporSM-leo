@@ -13,6 +13,7 @@ import { CheckCircle, Loader2, Save, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useConfiguracion } from "@/context/ConfiguracionContext"
 import { ValidationError } from "@/components/validation-error"
+import { handlePhoneInputChange, isValidPhoneNumber, phoneToBackendFormat, formatPhoneWithSpaces } from "@/lib/phone-utils"
 
 // Interfaces para los estados
 interface GeneralConfig {
@@ -23,8 +24,6 @@ interface GeneralConfig {
   maintenanceMode: boolean;
   enableRegistration: boolean;
   enableReservations: boolean;
-  maxReservationsPerUser: string;
-  reservationTimeLimit: string;
 }
 
 export default function ConfiguracionSistemaPage() {
@@ -39,12 +38,11 @@ export default function ConfiguracionSistemaPage() {
     siteName: "DeporSM - Sistema de Reservas Deportivas",
     siteDescription: "Sistema de reserva de canchas y servicios deportivos para la Municipalidad de San Miguel.",
     contactEmail: "deportes@munisanmiguel.gob.pe",
-    contactPhone: "987-654-321",
+    contactPhone: "987 654 321",
     maintenanceMode: false,
     enableRegistration: true,
     enableReservations: true,
-    maxReservationsPerUser: "3",
-    reservationTimeLimit: "48",  })
+  })
 
   // Usar el contexto de configuración
   const { config: sistemaConfig, recargarConfig, actualizarConfig } = useConfiguracion();
@@ -59,12 +57,10 @@ export default function ConfiguracionSistemaPage() {
         siteName: sistemaConfig.nombreSitio,
         siteDescription: sistemaConfig.descripcionSitio,
         contactEmail: sistemaConfig.emailContacto,
-        contactPhone: sistemaConfig.telefonoContacto,
+        contactPhone: sistemaConfig.telefonoContacto ? formatPhoneWithSpaces(sistemaConfig.telefonoContacto) : "987 654 321",
         maintenanceMode: sistemaConfig.modoMantenimiento,
         enableRegistration: sistemaConfig.registroHabilitado,
         enableReservations: sistemaConfig.reservasHabilitadas,
-        maxReservationsPerUser: sistemaConfig.maxReservasPorUsuario.toString(),
-        reservationTimeLimit: sistemaConfig.limiteTiempoCancelacion.toString(),
       });
       setIsLoading(false);
     }
@@ -82,7 +78,14 @@ export default function ConfiguracionSistemaPage() {
 
   const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setGeneralConfig((prev) => ({ ...prev, [name]: value }))
+
+    // Validación especial para el campo de teléfono - formato con espacios
+    if (name === 'contactPhone') {
+      const formattedPhone = handlePhoneInputChange(value)
+      setGeneralConfig((prev) => ({ ...prev, [name]: formattedPhone }))
+    } else {
+      setGeneralConfig((prev) => ({ ...prev, [name]: value }))
+    }
   }
 
   const handleGeneralSwitchChange = (name: string, checked: boolean) => {
@@ -116,30 +119,30 @@ export default function ConfiguracionSistemaPage() {
       });
       return;
     }
-    
-    const maxReservas = parseInt(generalConfig.maxReservationsPerUser);
-    if (isNaN(maxReservas) || maxReservas < 1) {
-      setError("El número máximo de reservas debe ser un número positivo");
+
+    if (!generalConfig.contactPhone.trim()) {
+      setError("El teléfono de contacto es obligatorio");
       setIsSavingGeneral(false);
       toast({
         title: "Error de validación",
-        description: "El número máximo de reservas debe ser un número positivo",
+        description: "El teléfono de contacto es obligatorio",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!isValidPhoneNumber(generalConfig.contactPhone)) {
+      setError("El teléfono de contacto debe tener 9 dígitos");
+      setIsSavingGeneral(false);
+      toast({
+        title: "Error de validación",
+        description: "El teléfono de contacto debe tener 9 dígitos",
         variant: "destructive"
       });
       return;
     }
     
-    const tiempoLimite = parseInt(generalConfig.reservationTimeLimit);
-    if (isNaN(tiempoLimite) || tiempoLimite < 1) {
-      setError("El tiempo límite de cancelación debe ser un número positivo");
-      setIsSavingGeneral(false);
-      toast({
-        title: "Error de validación",
-        description: "El tiempo límite de cancelación debe ser un número positivo",
-        variant: "destructive"
-      });
-      return;
-    }
+
 
     try {
       // Convertir de la interfaz del Frontend a la del Backend
@@ -147,12 +150,10 @@ export default function ConfiguracionSistemaPage() {
         nombreSitio: generalConfig.siteName.trim(),
         descripcionSitio: generalConfig.siteDescription.trim(),
         emailContacto: generalConfig.contactEmail.trim(),
-        telefonoContacto: generalConfig.contactPhone.trim(),
+        telefonoContacto: phoneToBackendFormat(generalConfig.contactPhone),
         modoMantenimiento: generalConfig.maintenanceMode,
         registroHabilitado: generalConfig.enableRegistration,
         reservasHabilitadas: generalConfig.enableReservations,
-        maxReservasPorUsuario: maxReservas,
-        limiteTiempoCancelacion: tiempoLimite,
       };      // Guardar en el backend a través del contexto
       await actualizarConfig(backendConfig);
       
@@ -242,36 +243,13 @@ export default function ConfiguracionSistemaPage() {
               <Input
                 id="contactPhone"
                 name="contactPhone"
+                type="tel"
+                placeholder="Ej: 987 654 321"
                 value={generalConfig.contactPhone}
                 onChange={handleGeneralChange}
+                maxLength={11}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="maxReservationsPerUser">Máximo de Reservas por Usuario</Label>
-              <Input
-                id="maxReservationsPerUser"
-                name="maxReservationsPerUser"
-                type="number"
-                min="1"
-                max="10"
-                value={generalConfig.maxReservationsPerUser}
-                onChange={handleGeneralChange}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="reservationTimeLimit">Límite de Tiempo para Cancelar Reservas (horas)</Label>
-              <Input
-                id="reservationTimeLimit"
-                name="reservationTimeLimit"
-                type="number"
-                min="1"
-                max="72"
-                value={generalConfig.reservationTimeLimit}
-                onChange={handleGeneralChange}
-              />
+              <p className="text-xs text-gray-500">9 dígitos, se formatea automáticamente</p>
             </div>
           </div>
 

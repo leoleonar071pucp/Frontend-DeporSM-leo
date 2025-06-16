@@ -1,6 +1,7 @@
 // Utilidad para acceder a la configuración con tipado mejorado
 import { useConfiguracion } from "@/context/ConfiguracionContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"
+import { formatPhoneWithSpaces } from "@/lib/phone-utils";
 
 // Interfaz extendida de la configuración para incluir métodos útiles
 export interface SistemaConfigExtendido {
@@ -77,8 +78,8 @@ export function useConfiguracionSistema(): SistemaConfigExtendido {
       getEmailContacto: (fallback = "contacto@deporsm.com") => 
         config.emailContacto || fallback,
       
-      getTelefonoContacto: (fallback = "(01) 123-4567") => 
-        config.telefonoContacto || fallback,
+      getTelefonoContacto: (fallback = "999 999 999") =>
+        config.telefonoContacto ? formatPhoneWithSpaces(config.telefonoContacto) : fallback,
       
       reservasEstanHabilitadas: () => config.reservasHabilitadas,
       
@@ -105,7 +106,7 @@ export function useConfiguracionSistema(): SistemaConfigExtendido {
       getNombreSitio: () => "DeporSM",
       getDescripcion: () => "Sistema de Reservas Deportivas",
       getEmailContacto: () => "contacto@deporsm.com",
-      getTelefonoContacto: () => "(01) 123-4567",
+      getTelefonoContacto: () => "999 999 999",
       reservasEstanHabilitadas: () => true,
       registroEstaHabilitado: () => true,
       getLimiteCancelacionHoras: () => 48,

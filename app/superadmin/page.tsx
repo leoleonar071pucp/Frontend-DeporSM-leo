@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { SiteTitle } from "@/components/site-title"
+import { CircularChart } from "@/app/admin/components/charts/CircularChart"
 
 // Definición de interfaces para tipos
 interface StatCardProps {
@@ -263,15 +264,39 @@ export default function Page() {
       </div>
 
       {/* Contenido principal - Reorganizado para la presentación */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {/* Distribución de usuarios */}
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Distribución de Usuarios</CardTitle>
             <CardDescription>Usuarios registrados por tipo de rol</CardDescription>
           </CardHeader>
-          <CardContent>
-            <BarChartComponent data={userStats} title="Usuarios por Rol" />
+          <CardContent>            <CircularChart
+              data={[
+                { name: "Administradores", value: stats.adminUsers, color: "#8b5cf6" },
+                { name: "Coordinadores", value: stats.coordUsers, color: "#10b981" },
+                { name: "Vecinos", value: stats.vecinoUsers, color: "#3b82f6" }
+              ].filter(item => item.value > 0)}
+              title="Distribución por Rol"
+              height={340}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Estado del Sistema */}
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle>Estado del Sistema</CardTitle>
+            <CardDescription>Actividad y rendimiento general</CardDescription>
+          </CardHeader>
+          <CardContent>            <CircularChart
+              data={[
+                { name: "Usuarios Activos", value: Math.round(stats.totalUsers * 0.8), color: "#10b981" },
+                { name: "Usuarios Inactivos", value: Math.round(stats.totalUsers * 0.2), color: "#f59e0b" }
+              ].filter(item => item.value > 0)}
+              title="Actividad de Usuarios"
+              height={340}
+            />
           </CardContent>
         </Card>
 

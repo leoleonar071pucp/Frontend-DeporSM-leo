@@ -43,6 +43,7 @@ const typeMapping: Record<string, string> = {
 const diasSemana = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
 
 import { uploadInstallationImage, validateFile, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE } from "@/lib/supabase-storage"
+import { handlePhoneInputChange, isValidPhoneNumber, phoneToBackendFormat, formatPhoneWithSpaces } from "@/lib/phone-utils"
 
 export default function EditFacilityPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -121,7 +122,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
           type: displayType, // Usar el tipo convertido para visualización
           price: data.precio ? data.precio.toString() : "0.00",
           capacity: data.capacidad.toString(),
-          contactNumber: data.contactoNumero || "",
+          contactNumber: data.contactoNumero ? formatPhoneWithSpaces(data.contactoNumero) : "",
           imagenUrl: data.imagenUrl,
           coordinates: (data.latitud && data.longitud) ? {
             lat: data.latitud,
@@ -170,7 +171,16 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev: any) => ({ ...prev, [name]: value }))
+
+    // Validación especial para el campo de teléfono - formato con espacios
+    if (name === 'contactNumber') {
+      // Usar la función de formateo con espacios
+      const formattedPhone = handlePhoneInputChange(value)
+      setFormData((prev: any) => ({ ...prev, [name]: formattedPhone }))
+    } else {
+      setFormData((prev: any) => ({ ...prev, [name]: value }))
+    }
+
     if (errors[name]) {
       const newErrors = { ...errors }
       delete newErrors[name]
@@ -272,7 +282,11 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
       newErrors.price = "El precio debe ser un número positivo"
     }
 
-    if (!formData.contactNumber.trim()) newErrors.contactNumber = "El número de contacto es obligatorio"
+    if (!formData.contactNumber.trim()) {
+      newErrors.contactNumber = "El número de contacto es obligatorio"
+    } else if (!isValidPhoneNumber(formData.contactNumber)) {
+      newErrors.contactNumber = "El número de contacto debe tener 9 dígitos"
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -323,7 +337,7 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
       ubicacion: formData.location,
       tipo: tipoAlmacenamiento, // Usar el tipo convertido
       capacidad: Number(formData.capacity),
-      contactoNumero: formData.contactNumber,
+      contactoNumero: phoneToBackendFormat(formData.contactNumber),
       imagenUrl: uploadedUrl,
       precio: parseFloat(formData.price),
       latitud: formData.coordinates?.lat,
@@ -496,12 +510,15 @@ export default function EditFacilityPage({ params }: { params: Promise<{ id: str
               <Input
                 id="contactNumber"
                 name="contactNumber"
+                type="tel"
                 value={formData.contactNumber}
                 onChange={handleInputChange}
-                placeholder="Ej: 987-654-321"
+                placeholder="Ej: 987 654 321"
                 className={errors.contactNumber ? "border-red-500" : ""}
+                maxLength={11}
               />
               {errors.contactNumber && <p className="text-red-500 text-sm">{errors.contactNumber}</p>}
+              <p className="text-xs text-gray-500">9 dígitos, se formatea automáticamente</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="capacity">
