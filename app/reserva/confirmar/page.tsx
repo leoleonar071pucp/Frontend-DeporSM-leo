@@ -429,6 +429,25 @@ function ConfirmarReservaForm() {
     }
   }, [user]); // Ejecutar cuando user cambie
 
+  // --- Prevenir navegación durante el procesamiento ---
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isSubmitting) {
+        e.preventDefault();
+        e.returnValue = 'Tu reserva se está procesando. ¿Estás seguro de que quieres salir?';
+        return 'Tu reserva se está procesando. ¿Estás seguro de que quieres salir?';
+      }
+    };
+
+    if (isSubmitting) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isSubmitting]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]
@@ -787,6 +806,36 @@ function ConfirmarReservaForm() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
             <p className="mt-4 text-gray-600">Cargando información de la reserva...</p>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // Pantalla de carga completa mientras se procesa la reserva
+  if (isSubmitting) {
+    return (
+      <main className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="bg-primary-background py-8 px-4 flex-grow flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto">
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-6"></div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                {paymentMethod === "online" ? "Procesando tu pago..." : "Enviando tu solicitud..."}
+              </h2>
+              <p className="text-gray-600 mb-4">
+                {paymentMethod === "online"
+                  ? "Estamos procesando tu pago de forma segura. Por favor, no cierres esta ventana ni presiones el botón atrás."
+                  : "Estamos enviando tu solicitud de reserva. Por favor, no cierres esta ventana ni presiones el botón atrás."
+                }
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-sm text-blue-700">
+                  <strong>Importante:</strong> Este proceso puede tomar unos segundos. Te redirigiremos automáticamente una vez completado.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </main>
