@@ -46,6 +46,23 @@ export function formatDateForDisplay(dateString: string, formatString: string = 
 }
 
 /**
+ * Formatea una fecha del backend de manera robusta para evitar problemas de zona horaria
+ * Específicamente diseñada para fechas que vienen del backend en formato YYYY-MM-DD
+ */
+export function formatBackendDateForDisplay(backendDateString: string, formatString: string = "EEEE d 'de' MMMM 'de' yyyy"): string {
+  // Extraer solo la parte de la fecha (YYYY-MM-DD)
+  const datePart = backendDateString.includes('T') ? backendDateString.split('T')[0] : backendDateString;
+
+  // Parsear manualmente para evitar problemas de zona horaria
+  const [year, month, day] = datePart.split('-').map(Number);
+
+  // Crear fecha local usando el constructor que no aplica zona horaria
+  const localDate = new Date(year, month - 1, day);
+
+  return format(localDate, formatString, { locale: es });
+}
+
+/**
  * Formatea una fecha para mostrar en formato corto (dd/MM/yyyy)
  */
 export function formatDateShort(dateString: string): string {

@@ -23,7 +23,7 @@ import { useNotification } from "@/context/NotificationContext" // Importar useN
 import { differenceInHours, parse } from 'date-fns' // Importar date-fns
 import { API_BASE_URL,FRONTEND_URL } from "@/lib/config";
 import { calculateTotalPrice, formatPrice } from "@/lib/price-utils";
-import { createDateFromBackend, formatDateForDisplay } from "@/lib/date-utils";
+import { createDateFromBackend, formatDateForDisplay, formatBackendDateForDisplay } from "@/lib/date-utils";
 
 
 // Función utilitaria para detectar el tipo de archivo
@@ -254,7 +254,7 @@ export default function ReservaDetalle() {
           facilityId: reservaData.instalacion?.id || reservaData.instalacionId,
           facilityName: reservaData.instalacionNombre,
           facilityImage: reservaData.instalacionImagenUrl || "/placeholder.svg?height=200&width=300",
-          date: formatDateForDisplay(reservaData.fecha),
+          date: formatBackendDateForDisplay(reservaData.fecha),
           time: `${horaInicio} - ${horaFin}`,
           dateTime: dateTime,
           location: reservaData.instalacionUbicacion || "Instalación Deportiva Municipal",

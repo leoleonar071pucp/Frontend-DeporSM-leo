@@ -21,7 +21,7 @@ import { AlertTriangle, Calendar, Clock, MapPin, Loader2, RefreshCw } from "luci
 import Link from "next/link"
 import { differenceInHours } from 'date-fns' // Importar date-fns
 import { API_BASE_URL, FRONTEND_URL } from "@/lib/config";
-import { formatDateForDisplay, createDateFromBackend } from "@/lib/date-utils";
+import { formatDateForDisplay, createDateFromBackend, formatBackendDateForDisplay } from "@/lib/date-utils";
 
 // Define la interfaz para una reserva adaptada al formato del backend
 interface Reservation {
@@ -47,10 +47,7 @@ export default function MisReservas() {
   const [isLoadingReservations, setIsLoadingReservations] = useState(false) // Estado para la carga de reservas
   const [reservations, setReservations] = useState<Reservation[]>([])
 
-  // Función para formatear la fecha de la base de datos a un formato más amigable
-  const formatDate = (dateStr: string): string => {
-    return formatDateForDisplay(dateStr, "EEEE d 'de' MMMM 'de' yyyy");
-  }
+
 
   // Función para cargar las reservas del usuario desde el backend
   const fetchReservations = async () => {
@@ -97,7 +94,7 @@ export default function MisReservas() {
           id: reserva.id,
           facilityName: reserva.instalacionNombre,
           facilityImage: reserva.instalacionImagenUrl || "/placeholder.svg?height=100&width=150", // Usar imagen real de la instalación
-          date: formatDate(reserva.fecha),
+          date: formatBackendDateForDisplay(reserva.fecha, "EEEE d 'de' MMMM 'de' yyyy"),
           time: hora,
           dateTime: dateTime,
           location: reserva.instalacionUbicacion, // Usar la ubicación real de la instalación
