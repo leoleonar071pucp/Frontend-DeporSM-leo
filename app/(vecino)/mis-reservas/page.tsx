@@ -21,7 +21,7 @@ import { AlertTriangle, Calendar, Clock, MapPin, Loader2, RefreshCw } from "luci
 import Link from "next/link"
 import { differenceInHours } from 'date-fns' // Importar date-fns
 import { API_BASE_URL, FRONTEND_URL } from "@/lib/config";
-import { formatDateForDisplay } from "@/lib/date-utils";
+import { formatDateForDisplay, createDateFromBackend } from "@/lib/date-utils";
 
 // Define la interfaz para una reserva adaptada al formato del backend
 interface Reservation {
@@ -81,8 +81,8 @@ export default function MisReservas() {
 
       // Transformar los datos para adaptarlos a nuestra interfaz
       const formattedReservations = reservasFromBackend.map((reserva: any) => {
-        // Crear un objeto Date para calcular si se puede cancelar
-        const fechaReserva = new Date(reserva.fecha);
+        // Crear un objeto Date usando la función de utilidad para evitar problemas de zona horaria
+        const fechaReserva = createDateFromBackend(reserva.fecha);
         // Formatear la hora como "HH:MM - HH:MM"
         const horaInicio = reserva.horaInicio.substring(0, 5); // Tomar solo HH:MM
         const horaFin = reserva.horaFin.substring(0, 5); // Tomar solo HH:MM

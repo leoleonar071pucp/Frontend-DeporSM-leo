@@ -431,9 +431,8 @@ export default function ReservasAdmin() {
         console.error('Error al obtener datos de la instalación:', error);
       }
 
-      // Formatear fechas correctamente
-      const datePart = reservaData.fecha.split('T')[0];
-      const fechaObj = new Date(`${datePart}T12:00:00`);
+      // Formatear fechas correctamente usando la función de utilidad
+      const fechaObj = createDateFromBackend(reservaData.fecha);
       const formattedDate = fechaObj.toLocaleDateString("es-ES");
 
       // Formatear la hora
@@ -464,21 +463,25 @@ export default function ReservasAdmin() {
         ...reservation,
         date: formattedDate,
         time: timeRange,
-        createdAt: new Date(reservaData.createdAt || Date.now()).toLocaleDateString("es-ES", {
-          day: 'numeric',
-          month: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        paymentDate: pagoData?.createdAt
-          ? new Date(pagoData.createdAt).toLocaleDateString("es-ES", {
+        createdAt: reservaData.createdAt
+          ? new Intl.DateTimeFormat('es-ES', {
               day: 'numeric',
               month: 'numeric',
               year: 'numeric',
               hour: '2-digit',
-              minute: '2-digit'
-            })
+              minute: '2-digit',
+              timeZone: 'America/Lima'
+            }).format(new Date(reservaData.createdAt))
+          : new Date().toLocaleDateString("es-ES"),
+        paymentDate: pagoData?.createdAt
+          ? new Intl.DateTimeFormat('es-ES', {
+              day: 'numeric',
+              month: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'America/Lima'
+            }).format(new Date(pagoData.createdAt))
           : formattedDate,
         // Priorizar el monto calculado, luego el del pago, y finalmente el de la reserva
         paymentAmount: calculatedAmount || (pagoData?.monto ? `S/. ${pagoData.monto}` : reservation.paymentAmount),
