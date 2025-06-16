@@ -699,21 +699,21 @@ export default function ReservasAdmin() {
         </CardHeader>
         <CardContent>
           {/* Filtros y búsqueda */}
-          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
+          <form onSubmit={handleSearch} className="flex flex-col gap-4 mb-6">
+            <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
                 type="search"
                 placeholder="Buscar por número, usuario, instalación o DNI..."
-                className="pl-8"
+                className="pl-8 min-h-[44px]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 type="submit"
-                className="bg-primary hover:bg-primary-light"
+                className="bg-primary hover:bg-primary-light min-h-[44px] w-full sm:w-auto"
               >
                 Buscar
               </Button>
@@ -721,11 +721,13 @@ export default function ReservasAdmin() {
               {/* Fecha Inicio */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
+                  <Button variant="outline" className="min-h-[44px] w-full sm:w-auto justify-center">
                     <Calendar className="h-4 w-4 mr-2" />
-                    {selectedDateStart
-                      ? format(selectedDateStart, "dd/MM/yyyy", { locale: es })
-                      : "Fecha Inicio"}
+                    <span className="truncate">
+                      {selectedDateStart
+                        ? format(selectedDateStart, "dd/MM/yyyy", { locale: es })
+                        : "Fecha Inicio"}
+                    </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="p-0">
@@ -748,13 +750,15 @@ export default function ReservasAdmin() {
               {/* Fecha Fin */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" disabled={!selectedDateStart}>
+                  <Button variant="outline" disabled={!selectedDateStart} className="min-h-[44px] w-full sm:w-auto justify-center">
                     <Calendar className="h-4 w-4 mr-2" />
-                    {selectedDateEnd
-                      ? format(selectedDateEnd, "dd/MM/yyyy", { locale: es })
-                      : selectedDateStart
-                        ? "Fecha Fin"
-                        : "Selecciona fecha inicio primero"}
+                    <span className="truncate">
+                      {selectedDateEnd
+                        ? format(selectedDateEnd, "dd/MM/yyyy", { locale: es })
+                        : selectedDateStart
+                          ? "Fecha Fin"
+                          : "Selecciona fecha inicio primero"}
+                    </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="p-0">
@@ -790,6 +794,7 @@ export default function ReservasAdmin() {
                 <Button
                   variant="outline"
                   onClick={clearDateFilters}
+                  className="min-h-[44px] w-full sm:w-auto"
                 >
                   Limpiar Fechas
                 </Button>
@@ -799,12 +804,12 @@ export default function ReservasAdmin() {
 
           {/* Pestañas */}
           <Tabs defaultValue="todas" value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-5 mb-4">
-              <TabsTrigger value="todas">Todas</TabsTrigger>
-              <TabsTrigger value="confirmadas">Confirmadas</TabsTrigger>
-              <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
-              <TabsTrigger value="completadas">Completadas</TabsTrigger>
-              <TabsTrigger value="canceladas">Canceladas</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-4 h-auto">
+              <TabsTrigger value="todas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Todas</TabsTrigger>
+              <TabsTrigger value="confirmadas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Confirmadas</TabsTrigger>
+              <TabsTrigger value="pendientes" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Pendientes</TabsTrigger>
+              <TabsTrigger value="completadas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Completadas</TabsTrigger>
+              <TabsTrigger value="canceladas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px] col-span-2 sm:col-span-1">Canceladas</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab}>

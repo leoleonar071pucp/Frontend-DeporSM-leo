@@ -487,7 +487,7 @@ export default function ReservaDetalle() {
                     {getStatusBadge(reservation.status)}
                   </CardTitle>
                   <CardDescription>Creada el {reservation.createdAt}</CardDescription>
-                </div>                <div className="flex gap-2">
+                </div>                <div className="flex flex-col sm:flex-row gap-2">
                   {/* Botones de acción en orden:
                       1. Descargar comprobante (izquierda) - Aparece solo cuando hay comprobante
                       2. Cancelar reserva (derecha) - Aparece solo cuando es elegible para cancelar */}
@@ -497,7 +497,7 @@ export default function ReservaDetalle() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 min-h-[44px] w-full sm:w-auto justify-center"
                       onClick={() => {                        // Determinar la URL correcta para la descarga
                         const url = (() => {
                           const receiptUrl = reservation.paymentReceiptUrl;
@@ -552,7 +552,7 @@ export default function ReservaDetalle() {
                   {checkCancellationEligibility(reservation) && (
                     <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
                       <DialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
+                        <Button variant="destructive" size="sm" className="min-h-[44px] w-full sm:w-auto justify-center">
                           {reservation.status === "pendiente" ? "Cancelar Solicitud" : "Cancelar Reserva"}
                         </Button>
                       </DialogTrigger>

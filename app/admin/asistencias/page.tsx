@@ -506,13 +506,17 @@ export default function AdminAsistenciasPage() {
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" onClick={clearFilters}>
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={clearFilters}
+              className="min-h-[44px] w-full sm:w-auto"
+            >
               Limpiar filtros
             </Button>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Select value={exportFormat} onValueChange={(value: "excel" | "pdf") => setExportFormat(value)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full sm:w-32 min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -530,7 +534,11 @@ export default function AdminAsistenciasPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={exportData}>
+              <Button
+                variant="outline"
+                onClick={exportData}
+                className="min-h-[44px] w-full sm:w-auto"
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Exportar {exportFormat === 'excel' ? 'Excel' : 'PDF'}
               </Button>

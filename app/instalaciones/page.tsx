@@ -206,17 +206,17 @@ export default function Instalaciones() {
                 </div>
               </div>
               
-              <Tabs 
-                value={activeTab} 
+              <Tabs
+                value={activeTab}
                 className="w-full"
                 onValueChange={handleTabChange}
               >
-                <TabsList className="w-full flex rounded-md bg-muted p-1">
-                  <TabsTrigger value="todos" className="flex-1 rounded-sm">Todos</TabsTrigger>
-                  <TabsTrigger value="canchas" className="flex-1 rounded-sm">Canchas</TabsTrigger>
-                  <TabsTrigger value="gimnasios" className="flex-1 rounded-sm">Gimnasios</TabsTrigger>
-                  <TabsTrigger value="piscinas" className="flex-1 rounded-sm">Piscinas</TabsTrigger>
-                  <TabsTrigger value="otros" className="flex-1 rounded-sm">Otros</TabsTrigger>
+                <TabsList className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 rounded-md bg-muted p-1 h-auto">
+                  <TabsTrigger value="todos" className="rounded-sm text-xs sm:text-sm px-2 py-2 min-h-[44px]">Todos</TabsTrigger>
+                  <TabsTrigger value="canchas" className="rounded-sm text-xs sm:text-sm px-2 py-2 min-h-[44px]">Canchas</TabsTrigger>
+                  <TabsTrigger value="gimnasios" className="rounded-sm text-xs sm:text-sm px-2 py-2 min-h-[44px]">Gimnasios</TabsTrigger>
+                  <TabsTrigger value="piscinas" className="rounded-sm text-xs sm:text-sm px-2 py-2 min-h-[44px]">Piscinas</TabsTrigger>
+                  <TabsTrigger value="otros" className="rounded-sm text-xs sm:text-sm px-2 py-2 min-h-[44px] col-span-2 sm:col-span-1">Otros</TabsTrigger>
                 </TabsList>
                 
                 {/* Use a single TabsContent and render based on activeTab */}

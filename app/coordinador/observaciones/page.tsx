@@ -386,12 +386,12 @@ export default function ObservacionesCoordinador() {
       </div>
 
       <Tabs defaultValue="todas" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="todas">Todas</TabsTrigger>
-          <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
-          <TabsTrigger value="aprobadas">Aprobadas</TabsTrigger>
-          <TabsTrigger value="completadas">Completadas</TabsTrigger>
-          <TabsTrigger value="rechazadas">Rechazadas</TabsTrigger>
+        <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 h-auto">
+          <TabsTrigger value="todas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Todas</TabsTrigger>
+          <TabsTrigger value="pendientes" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Pendientes</TabsTrigger>
+          <TabsTrigger value="aprobadas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Aprobadas</TabsTrigger>
+          <TabsTrigger value="completadas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Completadas</TabsTrigger>
+          <TabsTrigger value="rechazadas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px] col-span-2 sm:col-span-1">Rechazadas</TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab}>
           {isLoading ? (

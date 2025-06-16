@@ -412,7 +412,7 @@ export default function InstalacionesCoordinador() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-h-screen overflow-y-auto pb-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Instalaciones Asignadas</h1>
@@ -429,24 +429,24 @@ export default function InstalacionesCoordinador() {
       {/* Filtros y búsqueda */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <form onSubmit={handleSearch} className="flex-grow flex gap-2">
+          <div className="flex flex-col gap-4">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-grow">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Buscar por nombre o ubicación..."
-                  className="pl-10"
+                  className="pl-10 min-h-[44px]"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button type="submit" className="bg-primary hover:bg-primary-light">
+              <Button type="submit" className="bg-primary hover:bg-primary-light min-h-[44px] w-full sm:w-auto">
                 Buscar
               </Button>
             </form>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="min-h-[44px] w-full sm:w-auto">
                   <Filter className="h-4 w-4 mr-2" />
                   Filtrar
                 </Button>
@@ -488,10 +488,10 @@ export default function InstalacionesCoordinador() {
 
       {/* Pestañas */}
       <Tabs defaultValue="todas" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="todas">Todas</TabsTrigger>
-          <TabsTrigger value="programadas">Visitas Programadas</TabsTrigger>
-          <TabsTrigger value="pendientes">Observaciones Pendientes</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto">
+          <TabsTrigger value="todas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Todas</TabsTrigger>
+          <TabsTrigger value="programadas" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Visitas Programadas</TabsTrigger>
+          <TabsTrigger value="pendientes" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Observaciones Pendientes</TabsTrigger>
         </TabsList>        <TabsContent value={activeTab} className="mt-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-10">

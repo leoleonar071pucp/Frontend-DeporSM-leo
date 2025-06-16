@@ -186,7 +186,7 @@ export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registrar Salida</DialogTitle>
           <DialogDescription>
@@ -194,9 +194,9 @@ export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
           {attendance && (
-            <div className="grid gap-2">
+            <div className="grid gap-2 px-1">
               <h3 className="font-medium">{attendance.facilityName}</h3>
               <p className="text-sm text-gray-500">{attendance.location}</p>
               <p className="text-sm">
@@ -226,7 +226,7 @@ export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture
                   <Button
                     onClick={handleGetLocation}
                     disabled={isCheckingLocation}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 min-h-[44px] w-full justify-center"
                   >
                     <Navigation className="h-4 w-4" />
                     {isCheckingLocation ? 'Verificando ubicación...' : 'Verificar que he salido'}
@@ -312,11 +312,11 @@ export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture
           )}
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
           <Button
             variant="outline"
             onClick={onClose}
-            className="sm:flex-1"
+            className="sm:flex-1 min-h-[44px] w-full"
             disabled={isLoading || isCheckingLocation}
           >
             Cancelar
@@ -324,7 +324,7 @@ export function DepartureDialog({ open, onClose, attendance, onRegisterDeparture
           <Button
             onClick={handleRegisterDeparture}
             disabled={isLoading || isCheckingLocation || !isLocationValid}
-            className="bg-primary hover:bg-primary/90 sm:flex-1"
+            className="bg-primary hover:bg-primary/90 sm:flex-1 min-h-[44px] w-full"
           >
             {isLoading ? (
               <>

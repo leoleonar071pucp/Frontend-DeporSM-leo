@@ -456,10 +456,10 @@ export default function Perfil() {
           <h1 className="text-3xl font-bold mb-6">Mi Perfil</h1>
 
           <Tabs defaultValue="informacion">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="informacion">Información Personal</TabsTrigger>
-              <TabsTrigger value="seguridad">Seguridad</TabsTrigger>
-              <TabsTrigger value="notificaciones">Notificaciones</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 mb-6 h-auto">
+              <TabsTrigger value="informacion" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Información Personal</TabsTrigger>
+              <TabsTrigger value="seguridad" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Seguridad</TabsTrigger>
+              <TabsTrigger value="notificaciones" className="text-xs sm:text-sm px-2 py-3 min-h-[44px]">Notificaciones</TabsTrigger>
             </TabsList>
 
             <TabsContent value="informacion">

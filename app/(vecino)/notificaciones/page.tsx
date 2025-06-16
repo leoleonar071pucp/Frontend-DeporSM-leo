@@ -129,18 +129,24 @@ export default function Notificaciones() {
                   <CardTitle>Notificaciones</CardTitle>
                   <CardDescription>Gestiona todas tus notificaciones</CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={markAllAsRead}
                     disabled={!notifications.some((n) => !n.read)}
+                    className="min-h-[44px] w-full sm:w-auto justify-center"
                   >
                     Marcar todas como leídas
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" disabled={!notifications.some((n) => n.read)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={!notifications.some((n) => n.read)}
+                        className="min-h-[44px] w-full sm:w-auto justify-center"
+                      >
                         Eliminar leídas
                       </Button>
                     </AlertDialogTrigger>
