@@ -8,6 +8,7 @@ import { FileText, Download, FileSpreadsheet, FileIcon as FilePdf, Search, Arrow
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { createLocalDate } from "@/lib/date-utils"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { obtenerTodosLosReportes, buscarReportes, ReporteDTO } from "@/lib/api-reports"
@@ -138,6 +139,11 @@ export default function TodosLosReportes() {
   // Función para formatear la fecha
   const formatDate = (dateString) => {
     try {
+      // Si la fecha incluye timestamp, usar createLocalDate para fechas simples
+      if (dateString.includes('T') && dateString.length === 10) {
+        return format(createLocalDate(dateString), "dd/MM/yyyy", { locale: es })
+      }
+      // Para fechas con timestamp completo, usar Date directamente
       return format(new Date(dateString), "dd/MM/yyyy", { locale: es })
     } catch (error) {
       return dateString

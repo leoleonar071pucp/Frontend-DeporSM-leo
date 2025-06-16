@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Clock, Calendar } from "lucide-react"
 import { format } from "date-fns"
+import { createLocalDate } from "@/lib/date-utils"
 import { AttendanceRecord } from "../types"
 
 interface AttendanceDetailsDialogProps {
@@ -77,7 +78,7 @@ export function AttendanceDetailsDialog({ open, onClose, attendance }: Attendanc
                   </div>
                   <div>
                     <h4 className="text-sm font-medium">Fecha</h4>
-                    <p className="text-sm">{format(new Date(attendance.date + 'T12:00:00'), "dd/MM/yyyy")}</p>
+                    <p className="text-sm">{format(createLocalDate(attendance.date), "dd/MM/yyyy")}</p>
                   </div>
                 </div>
               </CardContent>

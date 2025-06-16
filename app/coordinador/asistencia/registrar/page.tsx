@@ -13,6 +13,7 @@ import { ArrowLeft, MapPin, Clock, Calendar, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { createLocalDate } from "@/lib/date-utils"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/AuthContext"
 import { ScheduledVisit } from "../types"
@@ -598,12 +599,7 @@ function RegistrarAsistenciaForm() {
                     <div>
                       <p className="font-medium">Horario programado</p>
                       <p className="text-sm text-gray-600">
-                        {(() => {
-                          // Crear fecha en zona horaria de Perú (GMT-5)
-                          const dateObj = new Date(visit.date + 'T12:00:00Z');
-                          dateObj.setHours(dateObj.getHours() - 5); // Ajustar a GMT-5 (Perú)
-                          return format(dateObj, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
-                        })()}
+                        {format(createLocalDate(visit.date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
                       </p>
                       <p className="text-sm text-gray-600">
                         {formatTime(visit.scheduledTime)} - {formatTime(visit.scheduledEndTime)}

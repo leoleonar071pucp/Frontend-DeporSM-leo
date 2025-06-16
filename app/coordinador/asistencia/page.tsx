@@ -9,6 +9,7 @@ import { Search, Calendar as CalendarIcon, Clock, MapPin, Filter } from "lucide-
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { createLocalDate } from "@/lib/date-utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -429,7 +430,7 @@ export default function AsistenciaPage() {
                           <p className="text-sm text-gray-500">{item.location}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{format(new Date(item.date + 'T12:00:00'), "dd/MM/yyyy")}</TableCell>
+                      <TableCell>{format(createLocalDate(item.date), "dd/MM/yyyy")}</TableCell>
                       <TableCell>
                         {formatTime(item.scheduledTime)} - {formatTime(item.scheduledEndTime)}
                       </TableCell>
