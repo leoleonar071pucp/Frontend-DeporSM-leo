@@ -17,9 +17,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { API_BASE_URL } from "@/lib/config";
-
+import { API_BASE_URL } from "@/lib/config"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 // Definición de tipos
 interface Admin {
@@ -59,7 +59,7 @@ export default function AdministradoresPage() {
         if (!response.ok) throw new Error('Error al cargar los administradores');
         
         const data = await response.json();
-        console.log('Admins data:', data)  // Para ver los datos que llegan del backend
+        console.log('Admins data:', data)
         
         setAdmins(data.map((admin: { id: number; nombre: string; email: string; telefono: string; activo: boolean }) => ({
           id: admin.id,
@@ -86,16 +86,25 @@ export default function AdministradoresPage() {
   }, [toast])
 
   const filteredAdmins = admins.filter((admin) => {
-    // Filtro de búsqueda
     const searchMatch =
       admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       admin.email.toLowerCase().includes(searchTerm.toLowerCase())
 
-    // Filtro de estado
     const statusMatch = statusFilter === "all" || admin.status === statusFilter
 
     return searchMatch && statusMatch
   })
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedAdmins,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(filteredAdmins, 10)
 
   const handleViewDetails = (admin: Admin) => {
     setSelectedAdmin(admin)
@@ -111,9 +120,12 @@ export default function AdministradoresPage() {
     setSelectedAdmin(admin)
     setIsRestoreDialogOpen(true)
   }
+
   const handleDeleteConfirm = async () => {
     if (!selectedAdmin) return
-      try {      const response = await fetch(`${API_BASE_URL}/usuarios/administradores/${selectedAdmin.id}/desactivar`, {
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/usuarios/administradores/${selectedAdmin.id}/desactivar`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -147,9 +159,12 @@ export default function AdministradoresPage() {
     
     setIsDeleteDialogOpen(false)
   }
+
   const handleRestoreConfirm = async () => {
     if (!selectedAdmin) return
-      try {      const response = await fetch(`${API_BASE_URL}/usuarios/administradores/${selectedAdmin.id}/activar`, {
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/usuarios/administradores/${selectedAdmin.id}/activar`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -260,7 +275,7 @@ export default function AdministradoresPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAdmins.length === 0 ? (
+                  {paginatedAdmins.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-6">
                         <Search className="h-8 w-8 text-gray-400 mx-auto mb-2" />
@@ -270,7 +285,7 @@ export default function AdministradoresPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredAdmins.map((admin) => (
+                    paginatedAdmins.map((admin) => (
                       <TableRow key={admin.id}>
                         <TableCell className="font-medium">{admin.name}</TableCell>
                         <TableCell>{admin.email}</TableCell>
@@ -325,6 +340,19 @@ export default function AdministradoresPage() {
                 </TableBody>
               </Table>
             </div>
+
+          )}
+
+          {/* Paginación */}
+          {filteredAdmins.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
           )}
         </CardContent>
       </Card>
@@ -385,8 +413,8 @@ export default function AdministradoresPage() {
                   </Link>
                 </Button>
                 {selectedAdmin.status === "activo" ? (
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     onClick={() => {
                       setIsDetailsDialogOpen(false)
                       setIsDeleteDialogOpen(true)
@@ -396,8 +424,8 @@ export default function AdministradoresPage() {
                     Desactivar
                   </Button>
                 ) : (
-                  <Button 
-                    variant="default" 
+                  <Button
+                    variant="default"
                     className="bg-green-600 hover:bg-green-700"
                     onClick={() => {
                       setIsDetailsDialogOpen(false)
@@ -414,7 +442,7 @@ export default function AdministradoresPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de desactivación (soft delete) */}
+      {/* Diálogo de desactivación */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -451,9 +479,9 @@ export default function AdministradoresPage() {
             <Button variant="outline" onClick={() => setIsRestoreDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button 
-              variant="default" 
-              className="bg-green-600 hover:bg-green-700" 
+            <Button
+              variant="default"
+              className="bg-green-600 hover:bg-green-700"
               onClick={handleRestoreConfirm}
             >
               Activar
@@ -464,4 +492,3 @@ export default function AdministradoresPage() {
     </div>
   )
 }
-

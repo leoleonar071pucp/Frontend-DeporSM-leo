@@ -24,6 +24,7 @@ import { AttendanceDetailsDialog } from "./components/attendance-details-dialog"
 import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/context/AuthContext"
 import { getAttendanceHistory, recordDeparture } from "./services"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 // Simulamos datos de asistencia que vendrían del backend
 // Estos datos representarían lo que obtendríamos de un endpoint de asistencia
@@ -153,6 +154,17 @@ export default function AsistenciaPage() {
   const [departureDialogOpen, setDepartureDialogOpen] = useState(false)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [selectedAttendance, setSelectedAttendance] = useState<AttendanceRecord | null>(null)
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedAttendance,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(filteredData, 10)
 
   // Función para formatear horarios (eliminar segundos si existen)
   const formatTime = (time: string | null): string => {
@@ -408,8 +420,8 @@ export default function AsistenciaPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredData.length > 0 ? (
-                  filteredData.map((item) => (
+                {paginatedAttendance.length > 0 ? (
+                  paginatedAttendance.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         <div>
@@ -469,6 +481,18 @@ export default function AsistenciaPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Paginación */}
+          {filteredData.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </CardContent>
       </Card>
 

@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 // Definición de tipos
 interface Coordinador {
@@ -90,6 +91,17 @@ export default function CoordinadoresPage() {
 
     return searchMatch && statusMatch;
   });
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedCoordinadores,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(filteredCoordinadores, 10)
 
   const handleViewDetails = (coordinador: Coordinador) => {
     setSelectedCoordinador(coordinador);
@@ -241,14 +253,14 @@ export default function CoordinadoresPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCoordinadores.length === 0 ? (
+                {paginatedCoordinadores.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center h-32">
                       No se encontraron coordinadores
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredCoordinadores.map((coordinador) => (
+                  paginatedCoordinadores.map((coordinador) => (
                     <TableRow key={coordinador.id}>
                       <TableCell>
                         <div>
@@ -317,6 +329,18 @@ export default function CoordinadoresPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Paginación */}
+          {filteredCoordinadores.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </CardContent>
       </Card>
 

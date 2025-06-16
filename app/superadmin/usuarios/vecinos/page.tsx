@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 // Definición de tipos
 interface Vecino {
@@ -97,15 +98,6 @@ export default function VecinosPage() {
     fetchVecinos();
   }, [toast]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0cb7f2]" />
-        <span className="ml-2">Cargando vecinos...</span>
-      </div>
-    )
-  }
-
   const filteredVecinos = vecinos.filter((vecino) => {    // Filtro de búsqueda
     const searchMatch =
       (vecino.nombre?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -114,11 +106,31 @@ export default function VecinosPage() {
       (vecino.dni?.toLowerCase() || '').includes(searchTerm.toLowerCase())
 
     // Filtro de estado
-    const statusMatch = statusFilter === "all" || 
+    const statusMatch = statusFilter === "all" ||
       (statusFilter === "activo" ? vecino.activo : !vecino.activo)
 
     return searchMatch && statusMatch
   })
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedVecinos,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(filteredVecinos, 10)
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[500px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0cb7f2]" />
+        <span className="ml-2">Cargando vecinos...</span>
+      </div>
+    )
+  }
 
   const handleViewDetails = (vecino: Vecino) => {
     setSelectedVecino(vecino)
@@ -260,7 +272,7 @@ export default function VecinosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredVecinos.length === 0 ? (
+                {paginatedVecinos.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center h-32">
                       <User className="h-8 w-8 text-gray-400 mx-auto mb-2" />
@@ -270,7 +282,7 @@ export default function VecinosPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredVecinos.map((vecino) => (
+                  paginatedVecinos.map((vecino) => (
                     <TableRow key={vecino.id}>
                       <TableCell>
                         <div>
@@ -332,6 +344,18 @@ export default function VecinosPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Paginación */}
+          {filteredVecinos.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </CardContent>
       </Card>
 

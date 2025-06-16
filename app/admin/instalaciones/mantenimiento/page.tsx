@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import MantenimientoDetails from "./components/MantenimientoDetails"
 import { API_BASE_URL } from "@/lib/config";
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -498,6 +499,17 @@ export default function MantenimientoPage() {
 
 // Tabla
 function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, handleDelete, handleCancelMaintenance, activeTab }) {
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedMaintenances,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(maintenances, 10)
+
   if (maintenances.length === 0) {
     return (
       <div className="text-center py-8 bg-white rounded-md shadow">
@@ -521,7 +533,7 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
           </tr>
         </thead>
         <tbody>
-          {maintenances.map((m) => (
+          {paginatedMaintenances.map((m) => (
             <tr key={m.id} className="border-b hover:bg-gray-50">
               <td className="py-3 px-4">{m.instalacionNombre}</td>
               <td className="py-3 px-4">{m.descripcion}</td>
@@ -555,6 +567,18 @@ function MaintenanceTable({ maintenances, getMaintenanceStatus, getStatusBadge, 
           ))}
         </tbody>
       </table>
+
+      {/* Paginación */}
+      {maintenances.length > 0 && (
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
+      )}
     </div>
   )
 }

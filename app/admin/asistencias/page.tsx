@@ -15,6 +15,7 @@ import { es } from "date-fns/locale"
 import { createLocalDate } from "@/lib/date-utils"
 import { generarReporteAsistencias, ReporteAsistenciasRequestDTO } from "@/lib/api-reports"
 import { useNotification } from "@/context/NotificationContext"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 // Tipos de datos
 interface AttendanceRecord {
@@ -59,6 +60,17 @@ export default function AdminAsistenciasPage() {
   })
   const [exportFormat, setExportFormat] = useState<"excel" | "pdf">("excel")
   const { addNotification } = useNotification()
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedAttendance,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(filteredData, 10)
 
   // Obtener listas únicas para los selectores
   const uniqueInstalaciones = Array.from(new Set(attendanceData.map(item => item.nombreInstalacion))).sort()
@@ -552,8 +564,8 @@ export default function AdminAsistenciasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredData.length > 0 ? (
-                  filteredData.map((item) => (
+                {paginatedAttendance.length > 0 ? (
+                  paginatedAttendance.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         <div>
@@ -623,6 +635,18 @@ export default function AdminAsistenciasPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Paginación */}
+          {filteredData.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </CardContent>
       </Card>
 

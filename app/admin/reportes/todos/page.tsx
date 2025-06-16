@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { obtenerTodosLosReportes, buscarReportes, ReporteDTO } from "@/lib/api-reports"
 import { useNotification } from "@/context/NotificationContext"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 // Mapeo de tipos de reportes para las pestañas
 const reportTypes = {
@@ -30,13 +31,28 @@ export default function TodosLosReportes() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("todos")
 
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedReports,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(reports, 12)
+
   useEffect(() => {
     // Cargar datos reales
     const loadData = async () => {
       try {
         const reportesData = await obtenerTodosLosReportes()
-        setReports(reportesData)
-        setAllReports(reportesData)
+        // Ordenar reportes del más actual al más antiguo
+        const reportesOrdenados = reportesData.sort((a, b) => {
+          return new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+        })
+        setReports(reportesOrdenados)
+        setAllReports(reportesOrdenados)
         setIsLoading(false)
       } catch (error) {
         console.error("Error al cargar reportes:", error)
@@ -64,7 +80,11 @@ export default function TodosLosReportes() {
     try {
       // Buscar reportes en el backend
       const resultados = await buscarReportes(searchQuery)
-      setReports(resultados)
+      // Ordenar resultados del más actual al más antiguo
+      const resultadosOrdenados = resultados.sort((a, b) => {
+        return new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+      })
+      setReports(resultadosOrdenados)
     } catch (error) {
       console.error("Error al buscar reportes:", error)
       addNotification({
@@ -81,7 +101,9 @@ export default function TodosLosReportes() {
     if (value === "todos") {
       setReports(allReports)
     } else {
-      setReports(allReports.filter((r) => r.tipo === value))
+      // Filtrar por tipo y mantener orden del más actual al más antiguo
+      const reportesFiltrados = allReports.filter((r) => r.tipo === value)
+      setReports(reportesFiltrados)
     }
   }
 
@@ -183,8 +205,9 @@ export default function TodosLosReportes() {
 
         <TabsContent value={activeTab} className="mt-4">
           {reports.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {reports.map((report) => (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paginatedReports.map((report) => (
                 <Card key={report.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
@@ -262,7 +285,22 @@ export default function TodosLosReportes() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+
+              {/* Paginación */}
+              {reports.length > 0 && (
+                <div className="mt-6">
+                  <TablePagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={handlePageChange}
+                    onItemsPerPageChange={handleItemsPerPageChange}
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">

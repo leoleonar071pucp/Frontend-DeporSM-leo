@@ -27,6 +27,7 @@ import {
 import { FormEvent } from "react"
 import { API_BASE_URL } from "@/lib/config";
 import { useAuth } from '@/context/AuthContext';
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 type User = {
   id: string;
@@ -133,6 +134,17 @@ export default function ObservacionesCoordinador() {
   const [activePriority, setActivePriority] = useState<string>("todas")
   const [showDetailsDialog, setShowDetailsDialog] = useState<boolean>(false)
   const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null)
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedObservations,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(observations, 9)
 
   // Función para aplicar los filtros actuales (estado y prioridad)
   const applyFilters = (data: Observation[], tab: string = activeTab, priority: string = activePriority, query: string = searchQuery) => {
@@ -246,18 +258,27 @@ export default function ObservacionesCoordinador() {
             fotosUrl: obs.fotosUrl // Mantener el valor original para debugging
           }
         });
-        console.log('Observaciones mapeadas:', mappedData);
-        console.log(`Se encontraron ${mappedData.length} observaciones para el coordinador`);
 
-        setAllObservations(mappedData);
-        const filtradas = applyFilters(mappedData);
+        // Ordenar observaciones del más actual al más antiguo
+        const observationsOrdenadas = mappedData.sort((a, b) => {
+          return new Date(b.date).getTime() - new Date(a.date).getTime()
+        });
+
+        console.log('Observaciones mapeadas y ordenadas:', observationsOrdenadas);
+        console.log(`Se encontraron ${observationsOrdenadas.length} observaciones para el coordinador`);
+
+        setAllObservations(observationsOrdenadas);
+        const filtradas = applyFilters(observationsOrdenadas);
         console.log(`Después de aplicar filtros quedan ${filtradas.length} observaciones`);
         setObservations(filtradas);
       } catch (error) {
         console.error("Error al cargar las observaciones:", error);
         // Si hay un error, cargamos los datos de ejemplo como fallback
-        setAllObservations(observationsData);
-        setObservations(applyFilters(observationsData));
+        const observationsOrdenadas = observationsData.sort((a, b) => {
+          return new Date(b.date).getTime() - new Date(a.date).getTime()
+        });
+        setAllObservations(observationsOrdenadas);
+        setObservations(applyFilters(observationsOrdenadas));
       } finally {
         setIsLoading(false);
       }    };
@@ -401,8 +422,9 @@ export default function ObservacionesCoordinador() {
             </div>
           ) : (
             // Lista de observaciones
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {observations.map((observation) => (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {paginatedObservations.map((observation) => (
                 <Card key={observation.id} className="overflow-hidden hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-3">
@@ -434,7 +456,22 @@ export default function ObservacionesCoordinador() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+
+              {/* Paginación */}
+              {observations.length > 0 && (
+                <div className="mt-6">
+                  <TablePagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={handlePageChange}
+                    onItemsPerPageChange={handleItemsPerPageChange}
+                  />
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>

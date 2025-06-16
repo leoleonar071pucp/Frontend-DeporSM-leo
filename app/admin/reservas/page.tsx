@@ -20,6 +20,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 // Importación de componentes
 import {
@@ -90,6 +91,17 @@ export default function ReservasAdmin() {
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [selectedDateStart, setSelectedDateStart] = useState<Date | undefined>(undefined)
   const [selectedDateEnd, setSelectedDateEnd] = useState<Date | undefined>(undefined)
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedReservations,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(reservations, 10)
 
   useEffect(() => {
     // Cargar datos reales del backend
@@ -811,8 +823,8 @@ export default function ReservasAdmin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reservations.length > 0 ? (
-                      reservations.map((reservation) => (
+                    {paginatedReservations.length > 0 ? (
+                      paginatedReservations.map((reservation) => (
                         <TableRow key={reservation.id} className="hover:bg-gray-50">
                           <TableCell className="font-medium">{reservation.reservationNumber}</TableCell>
                           <TableCell className="font-medium">{reservation.userDetails.name}</TableCell>
@@ -898,6 +910,18 @@ export default function ReservasAdmin() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Paginación */}
+              {reservations.length > 0 && (
+                <TablePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                />
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

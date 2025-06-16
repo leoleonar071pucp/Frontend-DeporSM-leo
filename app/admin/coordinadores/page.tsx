@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { API_BASE_URL } from "@/lib/config"
 import { desactivarCoordinador, activarCoordinador, eliminarAsignacionesCoordinador } from "@/lib/api-coordinadores"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 
 interface Coordinator {
@@ -72,6 +73,17 @@ export default function CoordinadoresPage() {
       coordinator.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       coordinator.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedCoordinators,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(filteredCoordinators, 10)
 
   const handleDeactivateClick = (coordinator: Coordinator) => {
     setSelectedCoordinator(coordinator)
@@ -212,8 +224,8 @@ export default function CoordinadoresPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCoordinators.length > 0 ? (
-                  filteredCoordinators.map((coordinator) => (
+                {paginatedCoordinators.length > 0 ? (
+                  paginatedCoordinators.map((coordinator) => (
                     <TableRow key={coordinator.id}>
                       <TableCell className="font-medium">{coordinator.nombre}</TableCell>
                       <TableCell>{coordinator.email}</TableCell>
@@ -280,6 +292,18 @@ export default function CoordinadoresPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Paginación */}
+          {filteredCoordinators.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </CardContent>
       </Card>
 

@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { useNotification } from "@/context/NotificationContext"
 import { API_BASE_URL } from "@/lib/config"
+import { TablePagination, useTablePagination } from "@/components/ui/table-pagination"
 
 interface Observation {
   id: number
@@ -159,6 +160,17 @@ export default function ObservacionesPage() {
 
     return searchMatch && statusMatch && priorityMatch
   })
+
+  // Paginación
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedData: paginatedObservations,
+    handlePageChange,
+    handleItemsPerPageChange,
+    totalItems
+  } = useTablePagination(filteredObservations, 10)
 
   const handleViewDetail = (observation: Observation) => {
     setSelectedObservation(observation)
@@ -398,8 +410,8 @@ export default function ObservacionesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredObservations.length > 0 ? (
-                  filteredObservations.map((observation) => (
+                {paginatedObservations.length > 0 ? (
+                  paginatedObservations.map((observation) => (
                     <TableRow key={observation.id}>
                       <TableCell className="font-medium">{`OBS-${observation.id}`}</TableCell>
                       <TableCell className="font-medium">{observation.facilityName}</TableCell>
@@ -451,6 +463,18 @@ export default function ObservacionesPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Paginación */}
+          {filteredObservations.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          )}
         </CardContent>
       </Card>
 

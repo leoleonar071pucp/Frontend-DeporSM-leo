@@ -22,6 +22,7 @@ import { useAuth } from "@/context/AuthContext" // Importar useAuth
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { API_BASE_URL } from "@/lib/config";
 import { calculateTotalPrice, formatPrice, formatPriceWithUnit } from "@/lib/price-utils";
+import { handleCardInputChange, handleCvvInputChange, cardToBackendFormat, cvvToBackendFormat } from "@/lib/card-utils";
 
 // Interfaz para la instalación de la API
 interface ApiFacility {
@@ -477,7 +478,16 @@ function ConfirmarReservaForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+
+    // Aplicar formato especial para campos de tarjeta de crédito
+    let formattedValue = value;
+    if (name === 'cardNumber') {
+      formattedValue = handleCardInputChange(value);
+    } else if (name === 'cardCvv') {
+      formattedValue = handleCvvInputChange(value);
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: formattedValue }))
 
     // Limpiar error al editar
     if (errors[name]) {
@@ -528,8 +538,8 @@ function ConfirmarReservaForm() {
 
       if (!formData.cardCvv.trim()) {
         newErrors.cardCvv = "El CVV es obligatorio"
-      } else if (!/^\d{3,4}$/.test(formData.cardCvv)) {
-        newErrors.cardCvv = "El CVV debe tener 3 o 4 dígitos"
+      } else if (!/^\d{3}$/.test(formData.cardCvv)) {
+        newErrors.cardCvv = "El CVV debe tener 3 dígitos"
       }
     } else if (paymentMethod === "deposito") {
       if (!voucherFile) {
@@ -667,7 +677,9 @@ function ConfirmarReservaForm() {
 
         // Simular procesamiento de pago online
         if (paymentMethod === 'online') {
-          if (formData.cardNumber.endsWith('1234')) { // Simular fallo para tarjetas específicas
+          // Convertir número de tarjeta a formato sin espacios para verificación
+          const cardNumberClean = cardToBackendFormat(formData.cardNumber);
+          if (cardNumberClean.endsWith('1234')) { // Simular fallo para tarjetas específicas
             paymentSuccess = false;
             console.error("Fallo en el pago online.");
             setErrors({ payment: "Hubo un problema al procesar tu pago. Verifica los datos de tu tarjeta o intenta con otro método." });
@@ -1088,7 +1100,7 @@ function ConfirmarReservaForm() {
                             className={errors.cardCvv ? "border-red-500" : ""}
                             value={formData.cardCvv}
                             onChange={handleInputChange}
-                            maxLength={4}
+                            maxLength={3}
                           />
                           {errors.cardCvv && <p className="text-red-500 text-sm">{errors.cardCvv}</p>}
                         </div>
