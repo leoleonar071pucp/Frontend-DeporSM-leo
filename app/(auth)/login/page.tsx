@@ -19,6 +19,8 @@ function LoginForm() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [deactivationMessage, setDeactivationMessage] = useState<string | null>(null)
+  const [inactiveAccountError, setInactiveAccountError] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectPath = searchParams.get("redirect") || "/"
@@ -26,6 +28,14 @@ function LoginForm() {
   const { toast } = useToast()
 
   // Redirigir si ya está autenticado
+  // Check for deactivation message
+  useEffect(() => {
+    const message = searchParams.get('message')
+    if (message === 'account_deactivated') {
+      setDeactivationMessage('Su cuenta ha sido desactivada. Contacte al administrador para más información.')
+    }
+  }, [searchParams])
+
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
       // Si ya está autenticado, redirigir según su rol
@@ -53,6 +63,7 @@ function LoginForm() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setInactiveAccountError(null)
     setIsLoading(true)
     try {
       console.log("Intentando iniciar sesión con:", email);
@@ -76,9 +87,18 @@ function LoginForm() {
         console.error("Error en inicio de sesión:", response.status, errorText)
 
         if (response.status === 401) {
-          setError("Correo electrónico o contraseña incorrectos")
+          // Check if it's an inactive/deactivated user error
+          if (errorText.includes("CUENTA_INACTIVA:")) {
+            // Extract the message after the prefix
+            const message = errorText.replace("CUENTA_INACTIVA: ", "");
+            setInactiveAccountError(message);
+          } else if (errorText.includes("desactivada") || errorText.includes("inactiva")) {
+            setInactiveAccountError(errorText);
+          } else {
+            setError("Correo electrónico o contraseña incorrectos");
+          }
         } else {
-          setError(errorText || "Error al iniciar sesión. Intente nuevamente.")
+          setError(errorText || "Error al iniciar sesión. Intente nuevamente.");
         }
         setIsLoading(false)
         return
@@ -170,7 +190,25 @@ function LoginForm() {
                   />
                 </div>
 
-                {error && (
+                {deactivationMessage && (
+                  <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md border border-red-300">
+                    <strong>Cuenta Desactivada:</strong> {deactivationMessage}
+                  </p>
+                )}
+
+                {inactiveAccountError && (
+                  <div className="text-sm text-red-700 bg-red-50 p-4 rounded-md border border-red-200">
+                    <div className="flex items-center mb-2">
+                      <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <strong>Cuenta Inactiva</strong>
+                    </div>
+                    <p>{inactiveAccountError}</p>
+                  </div>
+                )}
+
+                {error && !inactiveAccountError && (
                   <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md">{error}</p>
                 )}
                 <Button type="submit" className="w-full bg-primary hover:bg-primary-light" disabled={isLoading}>

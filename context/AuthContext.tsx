@@ -29,6 +29,7 @@ interface AuthContextType {
   logout: () => void;
   checkAuthStatus: () => Promise<void>;
   hasRole: (role: 'vecino' | 'admin' | 'coordinador' | 'superadmin') => boolean;
+  forceLogout: () => void;
 }
 
 // Crea el contexto con un valor inicial undefined para evitar errores SSR
@@ -43,6 +44,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false); // Estado para control de logout
+  const [sessionCheckInterval, setSessionCheckInterval] = useState<NodeJS.Timeout | null>(null);
+
+  // Usar el hook de monitoreo de sesión
+  // useSessionMonitor(); // Comentado temporalmente para evitar problemas de dependencias circulares
   // Verificar sesión al cargar
   const checkAuthStatus = async () => {
     setIsLoading(true);
@@ -96,9 +101,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         sessionStorage.setItem('userId', userData.id.toString());
 
         setUser(userData);
+
+        // Iniciar monitoreo de sesión si el usuario está autenticado
+        setTimeout(() => {
+          startSessionMonitoring();
+        }, 5000); // Esperar 5 segundos antes de iniciar el monitoreo
+
         return userData;
       } else {
         console.log("No hay sesión activa:", response.status);
+
+        // If it's a 401 and we had a user before, it might be due to deactivation
+        if (response.status === 401 && user) {
+          console.log("Usuario posiblemente desactivado, forzando logout");
+          forceLogout();
+          return null;
+        }
+
         setUser(null);
         // Limpiar todos los datos almacenados
         sessionStorage.removeItem('userRole');
@@ -122,10 +141,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuthStatus();
   }, []);
 
+  // Limpiar intervalo al desmontar el componente
+  useEffect(() => {
+    return () => {
+      stopSessionMonitoring();
+    };
+  }, []);
+
   // Función para actualizar el estado al iniciar sesión
   const login = (userData: User) => {
     console.log("AuthContext: Usuario iniciando sesión", userData);
     setUser(userData);
+
+    // Iniciar monitoreo de sesión después del login
+    setTimeout(() => {
+      startSessionMonitoring();
+    }, 5000); // Esperar 5 segundos antes de iniciar el monitoreo
   };
 
   // Función para cerrar sesión
@@ -133,6 +164,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log("Cerrando sesión...");
       setIsLoggingOut(true); // Iniciar estado de carga
+
+      // Detener monitoreo de sesión
+      stopSessionMonitoring();
 
       // Intentar hacer la petición al backend para cerrar sesión
       try {
@@ -202,6 +236,98 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return user.rol.nombre === role;
   };
 
+  // Función para verificar el estado de la sesión silenciosamente
+  const checkSessionStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/session-status`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "Accept": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate"
+        },
+        signal: AbortSignal.timeout(5000) // 5 segundos timeout
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        // Si el usuario fue desactivado o está inactivo, forzar logout inmediatamente
+        if (errorText.includes("CUENTA_INACTIVA") || errorText.includes("deactivated") || errorText.includes("desactivado") || errorText.includes("inactiva")) {
+          console.log("🔒 Usuario inactivo/desactivado detectado, forzando logout");
+          forceLogout();
+          return false;
+        }
+
+        // Para otros errores 401, también forzar logout
+        if (response.status === 401) {
+          console.log("🔒 Sesión invalidada detectada, forzando logout");
+          forceLogout();
+          return false;
+        }
+
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      // Si hay error de red, no forzar logout (podría ser problema temporal)
+      console.warn("Error al verificar estado de sesión:", error);
+      return true; // Asumir que está bien para evitar logouts innecesarios
+    }
+  };
+
+  // Función para iniciar la verificación periódica de sesión
+  const startSessionMonitoring = () => {
+    // Limpiar intervalo existente si hay uno
+    if (sessionCheckInterval) {
+      clearInterval(sessionCheckInterval);
+    }
+
+    // Verificar cada 10 segundos para detección más rápida
+    const interval = setInterval(async () => {
+      if (user && !isLoggingOut) {
+        await checkSessionStatus();
+      }
+    }, 10000); // 10 segundos
+
+    setSessionCheckInterval(interval);
+  };
+
+  // Función para detener la verificación de sesión
+  const stopSessionMonitoring = () => {
+    if (sessionCheckInterval) {
+      clearInterval(sessionCheckInterval);
+      setSessionCheckInterval(null);
+    }
+  };
+
+  // Función para forzar el logout (usado cuando el usuario es desactivado)
+  const forceLogout = () => {
+    console.log("Forzando cierre de sesión - usuario desactivado");
+
+    // Detener monitoreo de sesión
+    stopSessionMonitoring();
+
+    setUser(null);
+
+    // Limpiar todos los datos de sesión almacenados
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('userId');
+    localStorage.removeItem('redirectPath');
+    localStorage.setItem('logoutTimestamp', Date.now().toString());
+
+    // Limpiar cookies
+    document.cookie.split(";").forEach(function(c) {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+
+    // Redirigir a login con mensaje
+    window.location.href = '/login?message=account_deactivated';
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -210,7 +336,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     checkAuthStatus,
-    hasRole // Exponer la función de verificación de rol
+    hasRole, // Exponer la función de verificación de rol
+    forceLogout // Exponer la función de logout forzado
   };
   return (
     <AuthContext.Provider value={value}>

@@ -29,11 +29,6 @@ export function Footer() {
                   Contacto
                 </Link>
               </li>
-              <li>
-                <Link href="/info" className="text-primary-pale hover:text-white">
-                  Info del Sistema
-                </Link>
-              </li>
               {/* Podrías añadir enlaces a login/registro aquí si no está autenticado */}
             </ul>
           </div>          <div>

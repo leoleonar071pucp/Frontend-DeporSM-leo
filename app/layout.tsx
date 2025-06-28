@@ -14,6 +14,7 @@ import { ConfiguracionProvider } from "@/context/ConfiguracionContext" // Import
 import { LayoutClientWrapper } from "@/components/layout-client-wrapper" // Importar el wrapper
 import { MetadataGenerator } from "@/components/metadata-generator" // Importar el generador de metadatos
 import { Toaster } from "@/components/ui/toaster" // Importar Toaster
+import { SessionMonitor } from "@/components/session-monitor" // Importar monitor de sesión
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -43,6 +44,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AuthProvider> {/* AuthProvider envuelve todo */}
+          <SessionMonitor /> {/* Monitor de sesión para detectar desactivaciones */}
           <ConfiguracionProvider> {/* ConfiguracionProvider dentro de Auth */}
             <NotificationProvider> {/* NotificationProvider dentro de ConfiguracionProvider */}
               <ThemeProvider attribute="class" defaultTheme="light">
