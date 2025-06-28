@@ -32,7 +32,7 @@ function LoginForm() {
   useEffect(() => {
     const message = searchParams.get('message')
     if (message === 'account_deactivated') {
-      setDeactivationMessage('Su cuenta ha sido desactivada. Contacte al administrador para más información.')
+      setDeactivationMessage('Su cuenta ha sido desactivada. Por favor, contacte con la administración para obtener más información.')
     }
   }, [searchParams])
 
@@ -85,16 +85,69 @@ function LoginForm() {
       if (!response.ok) {
         const errorText = await response.text()
         console.error("Error en inicio de sesión:", response.status, errorText)
+        
+        // Depurar mensaje para detectar cualquier problema con usuarios inactivos
+        console.log("Respuesta del servidor (texto completo):", errorText)
+        console.log("¿Contiene 'inactiva'?", errorText.toLowerCase().includes("inactiva"))
+        console.log("¿Contiene 'CUENTA_INACTIVA'?", errorText.includes("CUENTA_INACTIVA"))
+        console.log("¿Contiene 'activo'?", errorText.toLowerCase().includes("activo"))
+        console.log("¿El estado HTTP es 401?", response.status === 401)
 
         if (response.status === 401) {
-          // Check if it's an inactive/deactivated user error
-          if (errorText.includes("CUENTA_INACTIVA:")) {
-            // Extract the message after the prefix
-            const message = errorText.replace("CUENTA_INACTIVA: ", "");
-            setInactiveAccountError(message);
-          } else if (errorText.includes("desactivada") || errorText.includes("inactiva")) {
-            setInactiveAccountError(errorText);
-          } else {
+          // Realizar una segunda verificación para determinar si el usuario existe pero está inactivo
+          // Hacemos esto mediante una consulta adicional al servidor
+          try {
+            // Primera verificación: mensajes explícitos de cuenta inactiva
+            const isInactiveAccount = 
+              errorText.includes("CUENTA_INACTIVA:") || 
+              errorText.toLowerCase().includes("desactivada") || 
+              errorText.toLowerCase().includes("inactiva") || 
+              errorText.toLowerCase().includes("inactivo") || 
+              errorText.toLowerCase().includes("inactive") ||
+              (errorText.toLowerCase().includes("activo") && !errorText.toLowerCase().includes("incorrecto"));
+            
+            console.log("¿Es cuenta inactiva según nuestros criterios iniciales?", isInactiveAccount);
+            
+            if (errorText.includes("CUENTA_INACTIVA:")) {
+              // Extract the message after the prefix
+              const message = errorText.replace("CUENTA_INACTIVA: ", "");
+              setInactiveAccountError(message);
+              console.log("Cuenta inactiva detectada (formato CUENTA_INACTIVA): ", message);
+            } else if (isInactiveAccount) {
+              const mensajeInactivo = "Su cuenta se encuentra inactiva. Por favor, contacte con la administración para obtener más información.";
+              setInactiveAccountError(mensajeInactivo);
+              console.log("Cuenta inactiva detectada por palabras clave: ", errorText);
+            } else if (errorText.toLowerCase().includes("bad credentials") || 
+                      errorText.toLowerCase().includes("credenciales incorrectas") || 
+                      errorText.toLowerCase().includes("user is disabled")) {
+              // Segunda verificación: verificamos si el usuario existe pero está inactivo
+              // Esto ocurre cuando Spring Security transforma el error en "Bad credentials"
+              console.log("Verificando si es un usuario inactivo con credenciales válidas...");
+              
+              // Verificamos si el email existe pero está inactivo
+              const checkInactiveResponse = await fetch(`${API_BASE_URL}/auth/check-inactive?email=${encodeURIComponent(email)}`, {
+                method: "GET",
+                credentials: "include",
+                headers: {
+                  "Accept": "application/json",
+                  "Origin": FRONTEND_URL
+                }
+              });
+              
+              const checkResult = await checkInactiveResponse.json();
+              console.log("Respuesta de verificación de cuenta inactiva:", checkResult);
+              
+              if (checkResult.exists && !checkResult.active) {
+                const mensajeInactivo = `Su cuenta de ${checkResult.userType || 'usuario'} se encuentra inactiva. Por favor, contacte con la administración para obtener más información.`;
+                setInactiveAccountError(mensajeInactivo);
+              } else {
+                setError("Correo electrónico o contraseña incorrectos");
+              }
+            } else {
+              setError("Correo electrónico o contraseña incorrectos");
+            }
+          } catch (verifyError) {
+            console.error("Error al verificar estado de cuenta:", verifyError);
             setError("Correo electrónico o contraseña incorrectos");
           }
         } else {
@@ -197,19 +250,14 @@ function LoginForm() {
                 )}
 
                 {inactiveAccountError && (
-                  <div className="text-sm text-red-700 bg-red-50 p-4 rounded-md border border-red-200">
-                    <div className="flex items-center mb-2">
-                      <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      <strong>Cuenta Inactiva</strong>
-                    </div>
-                    <p>{inactiveAccountError}</p>
+                  <div className="text-sm text-red-700 bg-red-50 p-4 rounded-md border-2 border-red-400">
+                    <strong className="text-base block mb-2">CUENTA INACTIVA</strong>
+                    <p className="font-medium">{inactiveAccountError}</p>
                   </div>
                 )}
 
                 {error && !inactiveAccountError && (
-                  <p className="text-sm text-red-600 bg-red-100 p-2 rounded-md">{error}</p>
+                  <p className="text-sm text-red-600 bg-red-100 p-3 rounded-md border border-red-300">{error}</p>
                 )}
                 <Button type="submit" className="w-full bg-primary hover:bg-primary-light" disabled={isLoading}>
                   {isLoading ? (
