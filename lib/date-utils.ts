@@ -48,18 +48,20 @@ export function formatDateForDisplay(dateString: string, formatString: string = 
 /**
  * Formatea una fecha del backend de manera robusta para evitar problemas de zona horaria
  * Específicamente diseñada para fechas que vienen del backend en formato YYYY-MM-DD
+ * Compensa el día adicional que se añadió al crear la reserva
  */
 export function formatBackendDateForDisplay(backendDateString: string, formatString: string = "EEEE d 'de' MMMM 'de' yyyy"): string {
-  // Extraer solo la parte de la fecha (YYYY-MM-DD)
-  const datePart = backendDateString.includes('T') ? backendDateString.split('T')[0] : backendDateString;
+  // Crear una fecha corregida usando createDateFromBackend que ya resta un día
+  const correctedDate = createDateFromBackend(backendDateString);
+  
+  // Log para depuración
+  console.log('=== FORMATEO DE FECHA DEL BACKEND CON CORRECCIÓN ===');
+  console.log('Fecha original:', backendDateString);
+  console.log('Fecha corregida:', correctedDate);
+  console.log('Fecha formateada:', format(correctedDate, formatString, { locale: es }));
+  console.log('========================');
 
-  // Parsear manualmente para evitar problemas de zona horaria
-  const [year, month, day] = datePart.split('-').map(Number);
-
-  // Crear fecha local usando el constructor que no aplica zona horaria
-  const localDate = new Date(year, month - 1, day);
-
-  return format(localDate, formatString, { locale: es });
+  return format(correctedDate, formatString, { locale: es });
 }
 
 /**
@@ -73,11 +75,25 @@ export function formatDateShort(dateString: string): string {
 /**
  * Crea una fecha a partir de datos del backend que pueden venir con timestamp
  * Extrae solo la parte de fecha y crea una fecha local
+ * Compensa el día adicional que se añadió al crear la reserva
  */
 export function createDateFromBackend(backendDateString: string): Date {
   // Extraer solo la parte de la fecha (YYYY-MM-DD)
   const datePart = backendDateString.split('T')[0];
-  return createLocalDate(datePart);
+  const date = createLocalDate(datePart);
+  
+  // Restar un día para compensar el +1 que se añadió al crear la reserva
+  const correctedDate = new Date(date);
+  correctedDate.setDate(correctedDate.getDate() - 1);
+  
+  // Log para depuración
+  console.log('=== FECHA DESDE BACKEND CON CORRECCIÓN ===');
+  console.log('Fecha original del backend:', backendDateString);
+  console.log('Fecha después de createLocalDate:', date);
+  console.log('Fecha corregida (restando 1 día):', correctedDate);
+  console.log('========================');
+  
+  return correctedDate;
 }
 
 /**
@@ -91,11 +107,6 @@ export function getCurrentDateInPeru(): Date {
   return new Date(now.getTime() + offsetDiff * 60000);
 }
 
-/**
- * Convierte una fecha local a ISO string para enviar al backend
- * Corrige el problema de desfase de un día asegurando que la fecha enviada
- * sea exactamente la misma que seleccionó el usuario, independientemente de la zona horaria
- */
 /**
  * Convierte una fecha local a formato ISO para el backend SIN corrección de día
  * Usar para verificaciones de disponibilidad y bloqueos temporales

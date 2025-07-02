@@ -79,7 +79,12 @@ export default function MisReservas() {
       // Transformar los datos para adaptarlos a nuestra interfaz
       const formattedReservations = reservasFromBackend.map((reserva: any) => {
         // Crear un objeto Date usando la función de utilidad para evitar problemas de zona horaria
+        console.log("=== PROCESANDO RESERVA DESDE BACKEND ===");
+        console.log("Fecha de la reserva (backend):", reserva.fecha);
+        
+        // Compensar el día adicional que se añadió al crear la reserva
         const fechaReserva = createDateFromBackend(reserva.fecha);
+        
         // Formatear la hora como "HH:MM - HH:MM"
         const horaInicio = reserva.horaInicio.substring(0, 5); // Tomar solo HH:MM
         const horaFin = reserva.horaFin.substring(0, 5); // Tomar solo HH:MM
@@ -89,6 +94,11 @@ export default function MisReservas() {
         const [horaI, minI] = horaInicio.split(':').map(Number);
         const dateTime = new Date(fechaReserva);
         dateTime.setHours(horaI, minI, 0);
+        
+        // Imprimir información de depuración
+        console.log("Fecha procesada para mostrar:", fechaReserva);
+        console.log("Fecha formateada:", formatBackendDateForDisplay(reserva.fecha));
+        console.log("===================================");
 
         return {
           id: reserva.id,
