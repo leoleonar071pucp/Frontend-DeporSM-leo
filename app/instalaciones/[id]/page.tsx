@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, isBefore, parse, isToday } from "date-fns"
 import { es } from "date-fns/locale"
-import { createLocalDate, convertLocalDateToBackendFormat, normalizeDateForComparison } from "@/lib/date-utils"
+import { createLocalDate, convertLocalDateToBackendFormat, convertLocalDateToReservationFormat, normalizeDateForComparison } from "@/lib/date-utils"
 import { CalendarIcon, Clock, Info, MapPin, Users, Droplets, Dumbbell, Timer, CheckCircle, Phone } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -712,10 +712,10 @@ export default function InstalacionDetalle({ params }: { params: Promise<{ id: s
                         const encodedTime = encodeURIComponent(selectedTime)
 
                         // Convertir fecha a formato ISO para enviar al backend
-                        const dateISO = convertLocalDateToBackendFormat(date);
+                        const dateISO = convertLocalDateToBackendFormat(date); // No usamos corrección aquí, solo pasamos a confirmar
 
                         // Imprimir información detallada para depuración
-                        console.log("=== INFORMACIÓN DE FECHA PARA RESERVA ===");
+                        console.log("=== INFORMACIÓN DE FECHA PARA REDIRIGIR A CONFIRMACIÓN ===");
                         console.log("Fecha seleccionada:", date);
                         console.log("Fecha ISO para backend:", dateISO);
                         console.log("===================================");

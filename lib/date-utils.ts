@@ -96,13 +96,30 @@ export function getCurrentDateInPeru(): Date {
  * Corrige el problema de desfase de un día asegurando que la fecha enviada
  * sea exactamente la misma que seleccionó el usuario, independientemente de la zona horaria
  */
+/**
+ * Convierte una fecha local a formato ISO para el backend SIN corrección de día
+ * Usar para verificaciones de disponibilidad y bloqueos temporales
+ */
 export function convertLocalDateToBackendFormat(date: Date): string {
+  // Log para depuración
+  console.log('=== FECHA SIN CORRECCIÓN ===');
+  console.log('Fecha original:', date);
+  console.log('========================');
+  
+  return formatDateToISO(date);
+}
+
+/**
+ * Convierte una fecha local a formato ISO para el backend CON corrección de día
+ * Usar SOLO para la creación de reservas definitivas
+ */
+export function convertLocalDateToReservationFormat(date: Date): string {
   // Añadir un día para corregir el desfase en la zona horaria
   const correctedDate = new Date(date);
   correctedDate.setDate(correctedDate.getDate() + 1);
   
   // Log para depuración
-  console.log('=== CORRECCIÓN DE FECHA ===');
+  console.log('=== CORRECCIÓN DE FECHA PARA RESERVA ===');
   console.log('Fecha original:', date);
   console.log('Fecha corregida:', correctedDate);
   console.log('========================');

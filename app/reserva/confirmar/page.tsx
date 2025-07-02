@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { createLocalDate, formatDateToISO, convertLocalDateToBackendFormat, formatDateForDisplay } from "@/lib/date-utils"
+import { createLocalDate, formatDateToISO, convertLocalDateToBackendFormat, convertLocalDateToReservationFormat, formatDateForDisplay } from "@/lib/date-utils"
 import { uploadPaymentVoucher, validateFile, ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE } from "@/lib/supabase-storage"
 import { Calendar, Clock, CreditCard, Upload, User, AlertCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
@@ -275,9 +275,9 @@ function ConfirmarReservaForm() {
           // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
           const [horaInicio, horaFin] = timeParam.split(' - ');
 
-          // Crear fecha local y convertir a formato backend
+          // Crear fecha local y convertir a formato backend SIN CORRECCIÓN para bloqueo temporal
           const fecha = createLocalDate(dateParam || new Date().toISOString());
-          const fechaISO = convertLocalDateToBackendFormat(fecha);
+          const fechaISO = convertLocalDateToBackendFormat(fecha); // Sin corrección para bloqueo temporal
 
           // Imprimir información detallada para depuración
           console.log("=== INFORMACIÓN DE FECHA PARA BLOQUEO TEMPORAL ===");
@@ -557,9 +557,9 @@ function ConfirmarReservaForm() {
     try {
       if (!facilityId || !dateParam || !timeParam) return false;
 
-      // Crear fecha local y convertir a formato backend
+      // Crear fecha local y convertir a formato backend SIN CORRECCIÓN para verificar disponibilidad
       const fecha = createLocalDate(dateParam || new Date().toISOString());
-      const fechaISO = convertLocalDateToBackendFormat(fecha);
+      const fechaISO = convertLocalDateToBackendFormat(fecha); // Sin corrección para verificar disponibilidad
 
       // Imprimir información detallada para depuración
       console.log("=== INFORMACIÓN DE FECHA PARA VERIFICAR DISPONIBILIDAD ===");
@@ -624,9 +624,9 @@ function ConfirmarReservaForm() {
         // Obtener los horarios de la cadena de tiempo (formato: "HH:MM - HH:MM")
         const [horaInicio, horaFin] = timeParam ? timeParam.split(' - ') : ['00:00', '00:00'];
 
-        // Crear fecha local y convertir a formato backend
+        // Crear fecha local y convertir a formato backend CON CORRECCIÓN para reserva definitiva
         const fecha = createLocalDate(dateParam || new Date().toISOString());
-        const fechaISO = convertLocalDateToBackendFormat(fecha);
+        const fechaISO = convertLocalDateToReservationFormat(fecha); // Usar la función específica para reservas
 
         // Imprimir información detallada para depuración
         console.log("=== INFORMACIÓN DE FECHA PARA CREAR RESERVA ===");
