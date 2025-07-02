@@ -93,10 +93,21 @@ export function getCurrentDateInPeru(): Date {
 
 /**
  * Convierte una fecha local a ISO string para enviar al backend
- * Mantiene la fecha exacta sin conversiones de zona horaria
+ * Corrige el problema de desfase de un día asegurando que la fecha enviada
+ * sea exactamente la misma que seleccionó el usuario, independientemente de la zona horaria
  */
 export function convertLocalDateToBackendFormat(date: Date): string {
-  return formatDateToISO(date);
+  // Añadir un día para corregir el desfase en la zona horaria
+  const correctedDate = new Date(date);
+  correctedDate.setDate(correctedDate.getDate() + 1);
+  
+  // Log para depuración
+  console.log('=== CORRECCIÓN DE FECHA ===');
+  console.log('Fecha original:', date);
+  console.log('Fecha corregida:', correctedDate);
+  console.log('========================');
+  
+  return formatDateToISO(correctedDate);
 }
 
 /**

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { createLocalDate, formatDateToISO, convertLocalDateToBackendFormat } from "@/lib/date-utils"
+import { createLocalDate, formatDateToISO, convertLocalDateToBackendFormat, formatDateForDisplay } from "@/lib/date-utils"
 import { uploadPaymentVoucher, validateFile, ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE } from "@/lib/supabase-storage"
 import { Calendar, Clock, CreditCard, Upload, User, AlertCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
@@ -281,9 +281,10 @@ function ConfirmarReservaForm() {
 
           // Imprimir información detallada para depuración
           console.log("=== INFORMACIÓN DE FECHA PARA BLOQUEO TEMPORAL ===");
-          console.log("Fecha original:", dateParam);
-          console.log("Fecha objeto Date:", fecha);
-          console.log("Fecha ISO para backend:", fechaISO);
+          console.log("Fecha original (dateParam):", dateParam);
+          console.log("Fecha objeto Date (fecha):", fecha);
+          console.log("Fecha objeto Date toString:", fecha.toString());
+          console.log("Fecha ISO para backend (fechaISO):", fechaISO);
           console.log("===================================");
 
           // Crear el objeto de bloqueo temporal
@@ -562,9 +563,11 @@ function ConfirmarReservaForm() {
 
       // Imprimir información detallada para depuración
       console.log("=== INFORMACIÓN DE FECHA PARA VERIFICAR DISPONIBILIDAD ===");
-      console.log("Fecha original:", dateParam);
-      console.log("Fecha objeto Date:", fecha);
-      console.log("Fecha ISO para backend:", fechaISO);
+      console.log("Fecha original (dateParam):", dateParam);
+      console.log("Fecha objeto Date (fecha):", fecha);
+      console.log("Fecha objeto Date toString:", fecha.toString());
+      console.log("Fecha objeto Date toISOString:", fecha.toISOString());
+      console.log("Fecha ISO para backend (fechaISO):", fechaISO);
       console.log("===================================");
 
       const response = await fetch(`${API_BASE_URL}/instalaciones/${facilityId}/disponibilidad?fecha=${fechaISO}`);
@@ -627,9 +630,13 @@ function ConfirmarReservaForm() {
 
         // Imprimir información detallada para depuración
         console.log("=== INFORMACIÓN DE FECHA PARA CREAR RESERVA ===");
-        console.log("Fecha original:", dateParam);
-        console.log("Fecha objeto Date:", fecha);
-        console.log("Fecha ISO para backend:", fechaISO);
+        console.log("Fecha original (dateParam):", dateParam);
+        console.log("Fecha objeto Date (fecha):", fecha);
+        console.log("Fecha objeto Date toString:", fecha.toString());
+        console.log("Fecha objeto Date toDateString:", fecha.toDateString());
+        console.log("Fecha objeto Date toISOString:", fecha.toISOString());
+        console.log("Fecha ISO para backend (fechaISO):", fechaISO);
+        console.log("Fecha visualizada por usuario:", formatDateForDisplay(dateParam || new Date().toISOString()));
         console.log("===================================");
 
         // Crear el objeto de reserva para enviar al backend
