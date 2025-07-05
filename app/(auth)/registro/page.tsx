@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, CheckCircle, Loader2, AlertCircle } from "lucide-react"
+import { ArrowLeft, CheckCircle, Loader2, AlertCircle, Check, X, Eye, EyeOff } from "lucide-react"
 import { useAuth } from "@/context/AuthContext" // Importar useAuth
 import { API_BASE_URL } from "@/lib/config"
 import { getSecurityConfig } from "@/lib/api-security"
@@ -28,12 +28,30 @@ export default function Registro() {
   const [telefono, setTelefono] = useState("")
   const [direccion, setDireccion] = useState("")
   const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [securityConfig, setSecurityConfig] = useState<any>(null)
+  const [passwordValidations, setPasswordValidations] = useState({
+    length: false,
+    specialChar: false,
+    number: false,
+    uppercase: false
+  })
 
   useEffect(() => {
     getSecurityConfig().then(setSecurityConfig).catch(() => setSecurityConfig(null))
   }, [])
+
+  useEffect(() => {
+    // Revalidar contraseña cuando cambia la configuración de seguridad
+    if (securityConfig) {
+      validatePassword(password)
+    }
+  }, [securityConfig])
+
+  useEffect(() => {
+    // Validar contraseña inicial para mostrar los requisitos
+    validatePassword(password)
+  }, [password, securityConfig])
 
   const handleVerifyDNI = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,7 +101,7 @@ export default function Registro() {
     e.preventDefault()
     setError(null)
     // --- Validaciones ---
-    if (!email || !telefono || !direccion || !password || !confirmPassword) {
+    if (!email || !telefono || !direccion || !password) {
       setError("Por favor, completa todos los campos requeridos.")
       return
     }
@@ -95,33 +113,14 @@ export default function Registro() {
       setError("Por favor, ingresa un número de teléfono válido de 9 dígitos.")
       return
     }
-    if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.")
+
+    // Validar todas las reglas de contraseña
+    const validations = validatePassword(password)
+    const isPasswordValid = Object.values(validations).every(valid => valid)
+    
+    if (!isPasswordValid) {
+      setError("Por favor, corrija los requisitos de contraseña señalados abajo.")
       return
-    }
-    // Validación dinámica de política de contraseña
-    if (securityConfig) {
-      if (password.length < securityConfig.minPasswordLength) {
-        setError(`La contraseña debe tener al menos ${securityConfig.minPasswordLength} caracteres.`)
-        return
-      }
-      if (securityConfig.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-        setError("La contraseña debe contener al menos un carácter especial.")
-        return
-      }
-      if (securityConfig.requireNumbers && !/\d/.test(password)) {
-        setError("La contraseña debe contener al menos un número.")
-        return
-      }
-      if (securityConfig.requireUppercase && !/[A-Z]/.test(password)) {
-        setError("La contraseña debe contener al menos una letra mayúscula.")
-        return
-      }
-    } else {
-      if (password.length < 6) {
-        setError("La contraseña debe tener al menos 6 caracteres.")
-        return
-      }
     }
     // --- Fin Validaciones ---
     setIsLoading(true)
@@ -218,6 +217,19 @@ export default function Registro() {
       setIsLoading(false)
     }
   }
+
+  // Función para validar contraseña en tiempo real
+  const validatePassword = (pwd: string) => {
+    const validations = {
+      length: securityConfig ? pwd.length >= securityConfig.minPasswordLength : pwd.length >= 6,
+      specialChar: securityConfig?.requireSpecialChars ? /[!@#$%^&*(),.?":{}|<>]/.test(pwd) : true,
+      number: securityConfig?.requireNumbers ? /\d/.test(pwd) : true,
+      uppercase: securityConfig?.requireUppercase ? /[A-Z]/.test(pwd) : true
+    }
+    setPasswordValidations(validations)
+    return validations
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat relative"
          style={{ backgroundImage: 'url("/images/Fondo_SanMiguel.jpg")' }}>
@@ -339,28 +351,88 @@ export default function Registro() {
 
                   <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Crea una contraseña (mín. 6 caracteres)"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isLoading}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Crea una contraseña (mín. 6 caracteres)"
+                        required
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value)
+                          validatePassword(e.target.value)
+                        }}
+                        disabled={isLoading}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirmar contraseña</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      placeholder="Confirma tu contraseña"
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      disabled={isLoading}
-                    />
+                  {/* Indicadores de validación de contraseña - Mostrar siempre */}
+                  <div className="bg-gray-50 p-4 rounded-md border">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Requisitos de contraseña:</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        {passwordValidations.length ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <X className="h-4 w-4 text-red-500" />
+                        )}
+                        <span className={`text-sm ${passwordValidations.length ? 'text-green-600 font-medium' : 'text-red-500'}`}>
+                          Al menos {securityConfig?.minPasswordLength || 6} caracteres
+                        </span>
+                      </div>
+                      
+                      {securityConfig?.requireSpecialChars && (
+                        <div className="flex items-center gap-2">
+                          {passwordValidations.specialChar ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-sm ${passwordValidations.specialChar ? 'text-green-600 font-medium' : 'text-red-500'}`}>
+                            Al menos un carácter especial
+                          </span>
+                        </div>
+                      )}
+                      
+                      {securityConfig?.requireNumbers && (
+                        <div className="flex items-center gap-2">
+                          {passwordValidations.number ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-sm ${passwordValidations.number ? 'text-green-600 font-medium' : 'text-red-500'}`}>
+                            Al menos un número
+                          </span>
+                        </div>
+                      )}
+                      
+                      {securityConfig?.requireUppercase && (
+                        <div className="flex items-center gap-2">
+                          {passwordValidations.uppercase ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className={`text-sm ${passwordValidations.uppercase ? 'text-green-600 font-medium' : 'text-red-500'}`}>
+                            Al menos una letra mayúscula
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {error && step === "registration" && (
@@ -425,4 +497,3 @@ export default function Registro() {
     </div>
   );
 }
-
