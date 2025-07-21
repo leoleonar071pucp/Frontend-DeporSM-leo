@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/start-dev.js",
+    "dev:simple": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

@@ -43,12 +43,8 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoggingOut, setIsLoggingOut] = useState(false); // Estado para control de logout
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [sessionCheckInterval, setSessionCheckInterval] = useState<NodeJS.Timeout | null>(null);
-
-  // Usar el hook de monitoreo de sesión
-  // useSessionMonitor(); // Comentado temporalmente para evitar problemas de dependencias circulares
-  // Verificar sesión al cargar
   const checkAuthStatus = async () => {
     setIsLoading(true);
     try {

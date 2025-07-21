@@ -256,6 +256,7 @@ export default function ConfiguracionSistemaPage() {
           <Separator />
 
           <div className="space-y-4">
+            {/* Modo Mantenimiento comentado para la presentación
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="maintenanceMode" className="font-medium">
@@ -271,6 +272,7 @@ export default function ConfiguracionSistemaPage() {
                 onCheckedChange={(checked) => handleGeneralSwitchChange("maintenanceMode", checked)}
               />
             </div>
+            */}
             {/* Opción comentada: Habilitar Registro de Usuarios
             <div className="flex items-center justify-between">
               <div>

@@ -5,20 +5,13 @@ import { API_BASE_URL } from "@/lib/config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Users,
-  Server,
-  CheckCircle,
-  Database,
   ArrowUpRight,
   ArrowDownRight,
-  Activity,
   User,
-  Lock,
   Shield,
-  Eye,
-  Settings,
+
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { SiteTitle } from "@/components/site-title"
 import { CircularChart } from "@/app/admin/components/charts/CircularChart"
@@ -38,23 +31,9 @@ interface ChartItem {
   value: number;
 }
 
-interface BarChartProps {
-  data: ChartItem[];
-  title: string;
-}
 
-interface UserActivityItem {
-  id: number;
-  user: string;
-  action: string;
-  userType: string;
-  date: string;
-  type: "login" | "action";
-}
 
-interface UserActivityProps {
-  activity: UserActivityItem;
-}
+
 
 interface MonthlyChanges {
   totalUsers: number;
@@ -96,61 +75,9 @@ const StatCard = ({ title, value, icon, change, isIncrease, description }: StatC
   </Card>
 )
 
-// Componente para simular un gráfico de barras
-const BarChartComponent = ({ data, title }: BarChartProps) => (
-  <div className="space-y-4">
-    <h3 className="font-medium text-lg">{title}</h3>
-    <div className="space-y-2">
-      {data.map((item: ChartItem, index: number) => (
-        <div key={index} className="space-y-1">
-          <div className="flex justify-between text-sm">
-            <span>{item.name}</span>
-            <span className="font-medium">{item.value}</span>
-          </div>
-          <div className="w-full bg-gray-100 rounded-full h-2.5">
-            <div
-              className="bg-gray-900 h-2.5 rounded-full"
-              style={{ width: `${(item.value / Math.max(...data.map((d: ChartItem) => d.value))) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)
 
-// Componente para la actividad reciente de usuarios
-const UserActivity = ({ activity }: UserActivityProps) => {
-  return (
-    <div className="flex items-center p-3 border-b last:border-0">
-      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 flex-shrink-0">
-        {activity.type === "login" ? (
-          <Eye className="h-5 w-5 text-blue-500" />
-        ) : (
-          <CheckCircle className="h-5 w-5 text-green-500" />
-        )}
-      </div>
-      <div className="flex-grow">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="font-medium">{activity.user}</p>
-            <p className="text-sm text-gray-500">{activity.action}</p>
-          </div>
-          <div className="flex flex-col items-end">
-            <Badge
-              className={activity.userType === "Administrador" ? "bg-[#def7ff] text-[#0cb7f2]" :
-                activity.userType === "Coordinador" ? "bg-green-100 text-green-800" :
-                "bg-gray-100 text-gray-800"}
-            >
-              {activity.userType}
-            </Badge>
-            <span className="text-xs text-gray-500 mt-1">{activity.date}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+
+
 
 export default function Page() {
   const [isLoading, setIsLoading] = useState(true)
@@ -161,8 +88,8 @@ export default function Page() {
     vecinoUsers: 0,
     securityIssues: 0,
   })
-  const [userStats, setUserStats] = useState<ChartItem[]>([])
-  const [recentActivity, setRecentActivity] = useState<UserActivityItem[]>([])
+
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -189,19 +116,9 @@ export default function Page() {
           monthlyChanges: data.monthlyChanges,
         });
 
-        // Update user stats for the chart
-        if (data.userDistribution) {
-          const userStatsData = Object.entries(data.userDistribution).map(([name, value]) => ({
-            name,
-            value: value as number,
-          }));
-          setUserStats(userStatsData);
-        }
 
-        // Update recent activity
-        if (data.recentActivity) {
-          setRecentActivity(data.recentActivity);
-        }
+
+
 
         setIsLoading(false);
       } catch (error) {
@@ -350,20 +267,7 @@ export default function Page() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Monitoreo del Sistema</CardTitle>
-            <CardDescription>Supervisa la actividad del sistema</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/superadmin/monitoreo/actividad-usuarios">
-                <Activity className="h-4 w-4 mr-2" />
-                Actividad de Usuarios
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+
 
         <Card>
           <CardHeader>
